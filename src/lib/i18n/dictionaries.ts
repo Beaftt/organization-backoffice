@@ -1,6 +1,107 @@
 export type Language = "pt" | "en";
 
-export const dictionaries = {
+export type Dictionary = {
+  auth: {
+    title: string;
+    subtitle: string;
+    email: string;
+    password: string;
+    confirmPassword: string;
+    login: string;
+    register: string;
+    google: string;
+    goToRegister: string;
+    goToLogin: string;
+    emailRequired: string;
+    passwordMin: string;
+    passwordMismatch: string;
+  };
+  layout: {
+    dashboard: string;
+    settings: string;
+    profile: string;
+    modules: string;
+    workspaces: string;
+    theme: string;
+    language: string;
+  };
+  modules: {
+    reminders: string;
+    secrets: string;
+    documents: string;
+    finance: string;
+    hr: string;
+    purchasing: string;
+    calendar: string;
+  };
+  settings: {
+    title: string;
+    plan: string;
+    billing: string;
+    limits: string;
+  };
+  profile: {
+    title: string;
+    name: string;
+    photo: string;
+    save: string;
+  };
+  secrets: {
+    title: string;
+    subtitle: string;
+    newButton: string;
+    searchLabel: string;
+    searchPlaceholder: string;
+    typeLabel: string;
+    all: string;
+    sortLabel: string;
+    directionLabel: string;
+    updatedAt: string;
+    titleLabel: string;
+    desc: string;
+    asc: string;
+    tableTitle: string;
+    tableUser: string;
+    tableType: string;
+    tableUpdated: string;
+    tableActions: string;
+    view: string;
+    loading: string;
+    empty: string;
+    page: string;
+    prev: string;
+    next: string;
+    modalTitle: string;
+    fieldTitle: string;
+    fieldType: string;
+    fieldUser: string;
+    fieldSecret: string;
+    fieldUrl: string;
+    fieldNotes: string;
+    cancel: string;
+    save: string;
+    saving: string;
+    requiredError: string;
+    saveError: string;
+    loadError: string;
+    viewTitle: string;
+    close: string;
+    edit: string;
+    update: string;
+    updating: string;
+    delete: string;
+    deleting: string;
+    deleteConfirm: string;
+    deleteError: string;
+    updateError: string;
+    typeAccount: string;
+    typeServer: string;
+    typeApi: string;
+    typeOther: string;
+  };
+};
+
+export const dictionaries: Record<Language, Dictionary> = {
   pt: {
     auth: {
       title: "Entrar",
@@ -201,4 +302,4 @@ export const dictionaries = {
       typeOther: "Other",
     },
   },
-} as const;
+};

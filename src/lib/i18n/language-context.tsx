@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { Language } from "@/lib/i18n/dictionaries";
+import type { Dictionary, Language } from "@/lib/i18n/dictionaries";
 import { dictionaries } from "@/lib/i18n/dictionaries";
 
 const LANGUAGE_STORAGE_KEY = "org.language";
@@ -9,7 +9,7 @@ const LANGUAGE_STORAGE_KEY = "org.language";
 type LanguageContextValue = {
   language: Language;
   setLanguage: (language: Language) => void;
-  t: typeof dictionaries.pt;
+  t: Dictionary;
 };
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
