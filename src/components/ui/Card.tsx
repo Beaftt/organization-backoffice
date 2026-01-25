@@ -3,11 +3,13 @@ import type { ReactNode } from "react";
 interface CardProps {
   children: ReactNode;
   className?: string;
+  id?: string;
 }
 
-export function Card({ children, className = "" }: CardProps) {
+export function Card({ children, className = "", id }: CardProps) {
   return (
     <div
+      id={id}
       className={`rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm ${className}`}
     >
       {children}
