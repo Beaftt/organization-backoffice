@@ -41,9 +41,9 @@ export const platformModules: PlatformModule[] = [
     tier: "core",
   },
   {
-    name: "Passwords",
+    name: "Secrets",
     description:
-      "Shared password manager with granular access control and auditing.",
+      "Shared secrets manager with granular access control and auditing.",
     tier: "core",
   },
   {
@@ -104,7 +104,7 @@ export const accountTypes: AccountType[] = [
     highlights: [
       "One personal workspace",
       "Share with at least one collaborator",
-      "Access to reminders, documents, and passwords",
+      "Access to reminders, documents, and secrets",
     ],
   },
   {
@@ -125,7 +125,7 @@ export const plans: Plan[] = [
     audience: "Individuals",
     priceLabel: "$0 / month",
     limits: ["1 workspace", "1 collaborator", "Basic automation limits"],
-    modules: ["Reminders", "Documents", "Passwords"],
+    modules: ["Reminders", "Documents", "Secrets"],
     integrations: ["Calendar (basic)", "Email notifications"],
     badge: "Starter",
   },
@@ -134,7 +134,7 @@ export const plans: Plan[] = [
     audience: "Small teams",
     priceLabel: "$0 / month",
     limits: ["1 workspace", "Up to 5 people", "Limited automation"],
-    modules: ["Reminders", "Documents", "Passwords", "HR"],
+    modules: ["Reminders", "Documents", "Secrets", "HR"],
     integrations: ["Calendar", "Email notifications"],
     badge: "Team",
   },

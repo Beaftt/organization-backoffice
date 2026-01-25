@@ -13,7 +13,7 @@ import { useTheme } from "@/components/providers/ThemeProvider";
 
 const moduleLinks = [
   { key: "reminders", href: "/reminders", entitlement: "module.organization" },
-  { key: "passwords", href: "/passwords", entitlement: "module.organization" },
+  { key: "secrets", href: "/secrets", entitlement: "module.organization" },
   { key: "documents", href: "/documents", entitlement: "module.organization" },
   { key: "finance", href: "/finance", entitlement: "module.finance" },
   { key: "hr", href: "/hr", entitlement: "module.hr" },
@@ -26,7 +26,7 @@ const routeTitles: Record<string, string> = {
   "/settings": "settings",
   "/profile": "profile",
   "/reminders": "reminders",
-  "/passwords": "passwords",
+  "/secrets": "secrets",
   "/documents": "documents",
   "/finance": "finance",
   "/hr": "hr",

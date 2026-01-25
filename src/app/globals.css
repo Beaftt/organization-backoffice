@@ -22,6 +22,12 @@ html[data-theme="dark"] {
   --sidebar-active: #0f172a;
 }
 
+html,
+body,
+#__next {
+  height: 100%;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -33,6 +39,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  min-height: 100%;
 }
 
 * {
