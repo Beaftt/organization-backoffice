@@ -16,10 +16,18 @@ export const login = (input: { email: string; password: string }) =>
     skipAuth: true,
   });
 
-export const register = (input: { email: string; password: string }) =>
+export const register = (input: {
+  email: string;
+  password: string;
+  inviteToken?: string;
+}) =>
   apiFetch<AuthResponse>("/auth/register", {
     method: "POST",
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      email: input.email,
+      password: input.password,
+      inviteToken: input.inviteToken ?? null,
+    }),
     skipAuth: true,
   });
 

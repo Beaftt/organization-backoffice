@@ -15,11 +15,20 @@ export type Dictionary = {
     emailRequired: string;
     passwordMin: string;
     passwordMismatch: string;
+    remember: string;
+    defaultModuleLabel: string;
   };
   layout: {
     dashboard: string;
     settings: string;
     profile: string;
+    limits: string;
+    back: string;
+    newWorkspace: string;
+    shareWorkspace: string;
+    workspaceSettings: string;
+    profileSettings: string;
+    logout: string;
     modules: string;
     workspaces: string;
     theme: string;
@@ -33,6 +42,36 @@ export type Dictionary = {
     hr: string;
     purchasing: string;
     calendar: string;
+  };
+  limits: {
+    title: string;
+    subtitle: string;
+    view: string;
+    currentPlan: string;
+    changePlan: string;
+    seatPacks: string;
+    usageTitle: string;
+    usedOf: string;
+    unlimited: string;
+    members: string;
+    workspaces: string;
+    storage: string;
+    integrations: string;
+    integrationsEnabled: string;
+    integrationsBlocked: string;
+    businessRules: string;
+    membersDescription: string;
+    workspacesDescription: string;
+    storageDescription: string;
+    ruleWorkspacesTitle: string;
+    ruleWorkspacesDescription: string;
+    ruleRolesTitle: string;
+    ruleRolesDescription: string;
+    ruleSharingTitle: string;
+    ruleSharingDescription: string;
+    upgradeTitle: string;
+    upgradeSubtitle: string;
+    upgradeCta: string;
   };
   settings: {
     title: string;
@@ -117,11 +156,20 @@ export const dictionaries: Record<Language, Dictionary> = {
       emailRequired: "Informe um e-mail válido.",
       passwordMin: "A senha deve ter pelo menos 8 caracteres.",
       passwordMismatch: "As senhas não conferem.",
+      remember: "Manter conectado",
+      defaultModuleLabel: "Módulo inicial",
     },
     layout: {
       dashboard: "Painel",
       settings: "Configurações",
       profile: "Perfil",
+      limits: "Limites",
+      back: "Voltar",
+      newWorkspace: "Criar workspace",
+      shareWorkspace: "Compartilhar workspace",
+      workspaceSettings: "Configurações do workspace",
+      profileSettings: "Configurações do perfil",
+      logout: "Sair",
       modules: "Módulos",
       workspaces: "Workspaces",
       theme: "Tema",
@@ -135,6 +183,39 @@ export const dictionaries: Record<Language, Dictionary> = {
       hr: "RH",
       purchasing: "Compras",
       calendar: "Calendário",
+    },
+    limits: {
+      title: "Limites do workspace",
+      subtitle: "Acompanhe os limites do seu plano e as regras de uso do workspace.",
+      view: "Ver limites",
+      currentPlan: "Plano atual",
+      changePlan: "Alterar plano",
+      seatPacks: "Seat packs ativos",
+      usageTitle: "Uso do plano",
+      usedOf: "usado de",
+      unlimited: "Ilimitado",
+      members: "Membros",
+      workspaces: "Workspaces",
+      storage: "Armazenamento",
+      integrations: "Integrações",
+      integrationsEnabled: "Ativo",
+      integrationsBlocked: "Bloqueado",
+      businessRules: "Regras de negócio",
+      membersDescription: "Quantidade máxima de membros ativos no workspace.",
+      workspacesDescription: "Total de workspaces permitidos para o plano.",
+      storageDescription: "Espaço total disponível para arquivos e documentos.",
+      ruleWorkspacesTitle: "Workspaces",
+      ruleWorkspacesDescription:
+        "Cada usuário pode ter um workspace pessoal e, opcionalmente, um workspace da empresa.",
+      ruleRolesTitle: "Papéis & permissões",
+      ruleRolesDescription:
+        "Admins controlam o acesso aos módulos e as permissões de edição por membro.",
+      ruleSharingTitle: "Compartilhamento",
+      ruleSharingDescription:
+        "Workspaces pessoais podem ser compartilhados com pelo menos uma pessoa para colaboração.",
+      upgradeTitle: "Precisa aumentar os limites?",
+      upgradeSubtitle: "Atualize o plano para liberar mais módulos e capacidade.",
+      upgradeCta: "Ver planos",
     },
     settings: {
       title: "Configurações",
@@ -217,11 +298,20 @@ export const dictionaries: Record<Language, Dictionary> = {
       emailRequired: "Please enter a valid email.",
       passwordMin: "Password must be at least 8 characters.",
       passwordMismatch: "Passwords do not match.",
+      remember: "Keep me signed in",
+      defaultModuleLabel: "Default module",
     },
     layout: {
       dashboard: "Dashboard",
       settings: "Settings",
       profile: "Profile",
+      limits: "Limits",
+      back: "Back",
+      newWorkspace: "Create workspace",
+      shareWorkspace: "Share workspace",
+      workspaceSettings: "Workspace settings",
+      profileSettings: "Profile settings",
+      logout: "Sign out",
       modules: "Modules",
       workspaces: "Workspaces",
       theme: "Theme",
@@ -235,6 +325,39 @@ export const dictionaries: Record<Language, Dictionary> = {
       hr: "HR",
       purchasing: "Purchasing",
       calendar: "Calendar",
+    },
+    limits: {
+      title: "Workspace limits",
+      subtitle: "Track plan limits and workspace usage rules.",
+      view: "View limits",
+      currentPlan: "Current plan",
+      changePlan: "Change plan",
+      seatPacks: "Active seat packs",
+      usageTitle: "Plan usage",
+      usedOf: "used of",
+      unlimited: "Unlimited",
+      members: "Members",
+      workspaces: "Workspaces",
+      storage: "Storage",
+      integrations: "Integrations",
+      integrationsEnabled: "Enabled",
+      integrationsBlocked: "Blocked",
+      businessRules: "Business rules",
+      membersDescription: "Maximum active members allowed in the workspace.",
+      workspacesDescription: "Total workspaces allowed for the plan.",
+      storageDescription: "Total space available for files and documents.",
+      ruleWorkspacesTitle: "Workspaces",
+      ruleWorkspacesDescription:
+        "Each user can have a personal workspace and optionally a company workspace.",
+      ruleRolesTitle: "Roles & permissions",
+      ruleRolesDescription:
+        "Admins control module access and edit permissions per member.",
+      ruleSharingTitle: "Sharing",
+      ruleSharingDescription:
+        "Personal workspaces can be shared with at least one person for collaboration.",
+      upgradeTitle: "Need higher limits?",
+      upgradeSubtitle: "Upgrade the plan to unlock more modules and capacity.",
+      upgradeCta: "View plans",
     },
     settings: {
       title: "Settings",

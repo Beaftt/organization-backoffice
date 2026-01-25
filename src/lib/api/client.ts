@@ -1,4 +1,4 @@
-import { clearAuthTokens, getAuthTokens, setAuthTokens } from "@/lib/storage/auth";
+import { clearAuthTokens, getAuthStorageMode, getAuthTokens, setAuthTokens } from "@/lib/storage/auth";
 import { getWorkspaceId } from "@/lib/storage/workspace";
 
 export type SuccessEnvelope<T> = {
@@ -61,10 +61,11 @@ const refreshAuthSession = async (refreshToken: string) => {
     refreshToken: string;
   }>;
 
+  const storageMode = getAuthStorageMode();
   setAuthTokens({
     accessToken: body.data.accessToken,
     refreshToken: body.data.refreshToken,
-  });
+  }, { persist: storageMode !== "session" });
 
   return body.data;
 };
@@ -78,7 +79,7 @@ export const apiFetch = async <T>(
   const workspaceId = options.workspaceId ?? getWorkspaceId();
   const headers = new Headers(options.headers);
 
-  if (!headers.has("Content-Type") && options.body) {
+  if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
 

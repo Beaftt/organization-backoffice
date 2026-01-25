@@ -1,16 +1,18 @@
 "use client";
 
 import Script from "next/script";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { login, googleLogin } from "@/lib/api/auth";
-import { setAuthTokens } from "@/lib/storage/auth";
+import { getAuthTokens, setAuthTokens } from "@/lib/storage/auth";
+import { getDefaultModule } from "@/lib/storage/preferences";
 import { setWorkspaceId } from "@/lib/storage/workspace";
 import { ApiError } from "@/lib/api/client";
+import { resolveDefaultRoute } from "@/lib/navigation/default-route";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,6 +21,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+
+  useEffect(() => {
+    const tokens = getAuthTokens();
+    if (!tokens?.accessToken) {
+      return;
+    }
+
+    const storedDefault = getDefaultModule();
+    router.replace(resolveDefaultRoute(storedDefault));
+  }, [router]);
 
   const handleLogin = async () => {
     setLoading(true);
@@ -28,11 +41,12 @@ export default function LoginPage() {
       setAuthTokens({
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
-      });
+      }, { persist: rememberMe });
       if (response.defaultWorkspaceId) {
         setWorkspaceId(response.defaultWorkspaceId);
       }
-      router.push("/dashboard");
+      const storedDefault = getDefaultModule();
+      router.push(resolveDefaultRoute(storedDefault));
     } catch (err) {
       const apiError = err as ApiError;
       const message =
@@ -51,11 +65,12 @@ export default function LoginPage() {
       setAuthTokens({
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
-      });
+      }, { persist: rememberMe });
       if (response.defaultWorkspaceId) {
         setWorkspaceId(response.defaultWorkspaceId);
       }
-      router.push("/dashboard");
+      const storedDefault = getDefaultModule();
+      router.push(resolveDefaultRoute(storedDefault));
     } catch (err) {
       const apiError = err as ApiError;
       const message =
@@ -107,6 +122,15 @@ export default function LoginPage() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
+        <label className="flex items-center gap-2 text-sm text-zinc-600">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(event) => setRememberMe(event.target.checked)}
+            className="h-4 w-4 rounded border border-[var(--border)]"
+          />
+          {t.auth.remember}
+        </label>
       </div>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}

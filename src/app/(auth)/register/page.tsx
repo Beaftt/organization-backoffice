@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useLanguage } from "@/lib/i18n/language-context";
@@ -13,12 +13,21 @@ import { ApiError } from "@/lib/api/client";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t, language } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const inviteToken = searchParams.get("invite");
+
+  useEffect(() => {
+    const prefillEmail = searchParams.get("email");
+    if (prefillEmail) {
+      setEmail(prefillEmail);
+    }
+  }, [searchParams]);
 
   const handleRegister = async () => {
     setError(null);
@@ -37,7 +46,11 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const response = await register({ email, password });
+      const response = await register({
+        email,
+        password,
+        inviteToken: inviteToken ?? undefined,
+      });
       setAuthTokens({
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,

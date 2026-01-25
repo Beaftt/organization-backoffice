@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { ApiError } from "@/lib/api/client";
 import { useLanguage } from "@/lib/i18n/language-context";
 import {
@@ -332,11 +333,25 @@ export default function SecretsPage() {
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
               {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="py-6 text-center text-sm text-zinc-500">
-                    {t.secrets.loading}
-                  </td>
-                </tr>
+                Array.from({ length: 6 }).map((_, index) => (
+                  <tr key={`skeleton-${index}`}>
+                    <td className="py-3">
+                      <Skeleton className="h-4 w-40" />
+                    </td>
+                    <td className="py-3">
+                      <Skeleton className="h-4 w-32" />
+                    </td>
+                    <td className="py-3">
+                      <Skeleton className="h-6 w-20 rounded-full" />
+                    </td>
+                    <td className="py-3">
+                      <Skeleton className="h-4 w-24" />
+                    </td>
+                    <td className="py-3 text-right">
+                      <Skeleton className="ml-auto h-8 w-16 rounded-full" />
+                    </td>
+                  </tr>
+                ))
               ) : error ? (
                 <tr>
                   <td colSpan={5} className="py-6 text-center text-sm text-red-500">
@@ -529,7 +544,12 @@ export default function SecretsPage() {
 
             <div className="mt-6 space-y-4 text-sm">
               {isViewing ? (
-                <p className="text-zinc-500">{t.secrets.loading}</p>
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-4 w-56" />
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
               ) : viewError ? (
                 <p className="text-red-500">{viewError}</p>
               ) : viewSecret && isEditing ? (

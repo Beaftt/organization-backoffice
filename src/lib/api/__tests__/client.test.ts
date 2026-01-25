@@ -3,6 +3,7 @@ import { apiFetch, ApiError } from "@/lib/api/client";
 
 vi.mock("@/lib/storage/auth", () => ({
   getAuthTokens: () => ({ accessToken: "token", refreshToken: "refresh" }),
+  getAuthStorageMode: () => "local",
   setAuthTokens: vi.fn(),
   clearAuthTokens: vi.fn(),
 }));

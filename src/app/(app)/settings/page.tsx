@@ -1,22 +1,27 @@
 "use client";
 
+import type { ChangeEvent } from "react";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { getWorkspaceId } from "@/lib/storage/workspace";
 import {
-  getLimits,
   getSeatPacks,
   getSubscriptions,
-  type Limit,
   type SeatPack,
   type Subscription,
 } from "@/lib/api/billing";
+import { getWorkspaces, removeWorkspaceLogo, uploadWorkspaceLogo } from "@/lib/api/workspaces";
+import { useLanguage } from "@/lib/i18n/language-context";
 
 export default function SettingsPage() {
+  const { t } = useLanguage();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [seatPacks, setSeatPacks] = useState<SeatPack[]>([]);
-  const [limits, setLimits] = useState<Limit[]>([]);
+  const [workspaceId, setWorkspaceIdState] = useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
 
   useEffect(() => {
     const workspaceId = getWorkspaceId();
@@ -24,40 +29,75 @@ export default function SettingsPage() {
       return;
     }
 
+    setWorkspaceIdState(workspaceId);
+    const loadWorkspace = async () => {
+      try {
+        const response = await getWorkspaces({ page: 1, pageSize: 50 });
+        const active = response.items.find((item) => item.id === workspaceId) ?? null;
+        setLogoPreview(active?.logoUrl ?? null);
+      } catch {
+        setLogoPreview(null);
+      }
+    };
+
     const loadBilling = async () => {
       try {
-        const [subs, packs, workspaceLimits] = await Promise.all([
+        const [subs, packs] = await Promise.all([
           getSubscriptions(workspaceId),
           getSeatPacks(workspaceId),
-          getLimits(workspaceId),
         ]);
 
         setSubscriptions(subs.items);
         setSeatPacks(packs.items);
-        setLimits(workspaceLimits.items);
       } catch {
         setSubscriptions([]);
         setSeatPacks([]);
-        setLimits([]);
       }
     };
 
     loadBilling();
+    loadWorkspace();
   }, []);
+
+  const handleLogoChange = (event: ChangeEvent<HTMLInputElement>) => {
+    if (!workspaceId) return;
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setLogoError("Selecione uma imagem válida.");
+      return;
+    }
+
+    const upload = async () => {
+      try {
+        const updated = await uploadWorkspaceLogo({ workspaceId, file });
+        setLogoPreview(updated.logoUrl ?? null);
+        setLogoError(null);
+        window.dispatchEvent(new Event("workspace-updated"));
+      } catch {
+        setLogoError("Não foi possível atualizar o logo.");
+      }
+    };
+
+    upload();
+  };
 
   const activeSubscription = subscriptions[0];
 
   return (
     <div className="flex flex-col gap-6">
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card id="plan">
           <h2 className="text-lg font-semibold">Plano atual</h2>
           <p className="mt-2 text-sm text-zinc-600">
             {activeSubscription
               ? `${activeSubscription.planKey} · ${activeSubscription.status}`
               : "Nenhum plano encontrado."}
           </p>
-          <Button className="mt-4">Alterar plano</Button>
+          <Link href="/plans">
+            <Button className="mt-4">Alterar plano</Button>
+          </Link>
         </Card>
         <Card>
           <h2 className="text-lg font-semibold">Pagamento</h2>
@@ -68,22 +108,59 @@ export default function SettingsPage() {
             Gerenciar pagamento
           </Button>
         </Card>
+        <Card>
+          <h2 className="text-lg font-semibold">{t.limits.title}</h2>
+          <p className="mt-2 text-sm text-zinc-600">{t.limits.subtitle}</p>
+          <Link href="/limits">
+            <Button className="mt-4" variant="secondary">
+              {t.limits.view}
+            </Button>
+          </Link>
+        </Card>
+        <Card>
+          <h2 className="text-lg font-semibold">Logo do workspace</h2>
+          <p className="mt-2 text-sm text-zinc-600">
+            Use uma imagem para personalizar o workspace.
+          </p>
+          <div className="mt-4 flex flex-col gap-3">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleLogoChange}
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+            />
+            {logoPreview ? (
+              <div className="flex items-center gap-4">
+                <img
+                  src={logoPreview}
+                  alt="Logo do workspace"
+                  className="h-14 w-14 rounded-xl object-cover"
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    if (!workspaceId) return;
+                    const remove = async () => {
+                      try {
+                        await removeWorkspaceLogo({ workspaceId });
+                        setLogoPreview(null);
+                        window.dispatchEvent(new Event("workspace-updated"));
+                      } catch {
+                        setLogoError("Não foi possível remover o logo.");
+                      }
+                    };
+
+                    remove();
+                  }}
+                >
+                  Remover logo
+                </Button>
+              </div>
+            ) : null}
+            {logoError ? <p className="text-sm text-red-600">{logoError}</p> : null}
+          </div>
+        </Card>
       </div>
-      <Card>
-        <h2 className="text-lg font-semibold">Limites do workspace</h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {limits.map((limit) => (
-            <div key={limit.id} className="rounded-xl border border-zinc-200 p-3">
-              <p className="text-xs uppercase tracking-wide text-zinc-500">
-                {limit.key}
-              </p>
-              <p className="text-lg font-semibold text-zinc-900">
-                {limit.value}
-              </p>
-            </div>
-          ))}
-        </div>
-      </Card>
     </div>
   );
 }
