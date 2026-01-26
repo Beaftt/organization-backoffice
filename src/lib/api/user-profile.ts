@@ -10,6 +10,13 @@ export type UserProfile = {
   updatedAt: string;
 };
 
+export type PaginatedResponse<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
 export const getMyProfile = () => apiFetch<UserProfile>("/user/profiles/me");
 
 export const updateMyProfile = (input: {
@@ -31,3 +38,8 @@ export const uploadMyProfilePhoto = (file: File) => {
     body: formData,
   });
 };
+
+export const listUserProfiles = (input?: { page?: number; pageSize?: number }) =>
+  apiFetch<PaginatedResponse<UserProfile>>(
+    `/user/profiles?page=${input?.page ?? 1}&pageSize=${input?.pageSize ?? 200}`,
+  );

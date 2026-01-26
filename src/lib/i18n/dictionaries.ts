@@ -265,6 +265,40 @@ export type Dictionary = {
     calendarLinkLabel: string;
     statusDone: string;
     statusPending: string;
+    listTitleLabel: string;
+    listDescriptionLabel: string;
+    listResetDayLabel: string;
+    createList: string;
+    cancel: string;
+    editList: string;
+    listSettings: string;
+    deleteList: string;
+    deleteItem: string;
+    confirmDeleteList: string;
+    confirmDeleteItem: string;
+    loading: string;
+    loadError: string;
+    saveError: string;
+    updateError: string;
+    filtersTitle: string;
+    searchLabel: string;
+    searchPlaceholder: string;
+    statusLabel: string;
+    statusAll: string;
+    financeTypeLabel: string;
+    financeCategoryLabel: string;
+    financeTagsLabel: string;
+    financeTagsPlaceholder: string;
+    itemDetailsTitle: string;
+    saveItem: string;
+    notesLabel: string;
+    dueDateLabel: string;
+    privateListLabel: string;
+    allowedUsersLabel: string;
+    assigneesLabel: string;
+    addUsers: string;
+    addUsersTitle: string;
+    noMembers: string;
     list: {
       monthlyBills: string;
       groceries: string;
@@ -557,8 +591,42 @@ export const dictionaries: Record<Language, Dictionary> = {
       monthlyResetLabel: "Resetar todo mês",
       financeLinkLabel: "Linkar ao módulo de finanças",
       calendarLinkLabel: "Linkar ao calendário",
-      statusDone: "Pago",
+      statusDone: "Concluído",
       statusPending: "Pendente",
+      listTitleLabel: "Nome da lista",
+      listDescriptionLabel: "Descrição",
+      listResetDayLabel: "Dia do mês",
+      createList: "Criar lista",
+      cancel: "Cancelar",
+      editList: "Editar lista",
+      listSettings: "Configurações",
+      deleteList: "Excluir lista",
+      deleteItem: "Excluir item",
+      confirmDeleteList: "Tem certeza que deseja excluir esta lista?",
+      confirmDeleteItem: "Tem certeza que deseja excluir este item?",
+      loading: "Carregando listas...",
+      loadError: "Não foi possível carregar os lembretes.",
+      saveError: "Não foi possível salvar o lembrete.",
+      updateError: "Não foi possível atualizar o lembrete.",
+      filtersTitle: "Filtros",
+      searchLabel: "Buscar",
+      searchPlaceholder: "Buscar itens",
+      statusLabel: "Status",
+      statusAll: "Todos",
+      financeTypeLabel: "Tipo financeiro",
+      financeCategoryLabel: "Categoria",
+      financeTagsLabel: "Tags",
+      financeTagsPlaceholder: "pago, pendente",
+      itemDetailsTitle: "Detalhes do item",
+      saveItem: "Salvar item",
+      notesLabel: "Notas",
+      dueDateLabel: "Data de vencimento",
+      privateListLabel: "Lista privada",
+      allowedUsersLabel: "Usuários com acesso",
+      assigneesLabel: "Responsáveis",
+      addUsers: "Adicionar usuários",
+      addUsersTitle: "Adicionar acesso",
+      noMembers: "Nenhum usuário encontrado.",
       list: {
         monthlyBills: "Contas mensais",
         groceries: "Lista de supermercado",
@@ -849,8 +917,42 @@ export const dictionaries: Record<Language, Dictionary> = {
       monthlyResetLabel: "Reset every month",
       financeLinkLabel: "Link to finance module",
       calendarLinkLabel: "Link to calendar",
-      statusDone: "Paid",
+      statusDone: "Done",
       statusPending: "Pending",
+      listTitleLabel: "List name",
+      listDescriptionLabel: "Description",
+      listResetDayLabel: "Day of month",
+      createList: "Create list",
+      cancel: "Cancel",
+      editList: "Edit list",
+      listSettings: "Settings",
+      deleteList: "Delete list",
+      deleteItem: "Delete item",
+      confirmDeleteList: "Are you sure you want to delete this list?",
+      confirmDeleteItem: "Are you sure you want to delete this item?",
+      loading: "Loading lists...",
+      loadError: "Unable to load reminders.",
+      saveError: "Unable to save reminder.",
+      updateError: "Unable to update reminder.",
+      filtersTitle: "Filters",
+      searchLabel: "Search",
+      searchPlaceholder: "Search items",
+      statusLabel: "Status",
+      statusAll: "All",
+      financeTypeLabel: "Finance type",
+      financeCategoryLabel: "Category",
+      financeTagsLabel: "Tags",
+      financeTagsPlaceholder: "paid, pending",
+      itemDetailsTitle: "Item details",
+      saveItem: "Save item",
+      notesLabel: "Notes",
+      dueDateLabel: "Due date",
+      privateListLabel: "Private list",
+      allowedUsersLabel: "Allowed users",
+      assigneesLabel: "Assignees",
+      addUsers: "Add users",
+      addUsersTitle: "Add access",
+      noMembers: "No users found.",
       list: {
         monthlyBills: "Monthly bills",
         groceries: "Grocery list",
