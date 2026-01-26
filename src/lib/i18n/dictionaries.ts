@@ -138,6 +138,156 @@ export type Dictionary = {
     typeApi: string;
     typeOther: string;
   };
+  documents: {
+    subtitle: string;
+    newFolder: string;
+    uploadFile: string;
+    allFolders: string;
+    searchLabel: string;
+    searchPlaceholder: string;
+    typeLabel: string;
+    typeAll: string;
+    typePdf: string;
+    typeImage: string;
+    typeSpreadsheet: string;
+    typeOther: string;
+    sortLabel: string;
+    sortUpdated: string;
+    sortName: string;
+    tableFile: string;
+    tableFolder: string;
+    tableType: string;
+    tableUpdated: string;
+    tableActions: string;
+    open: string;
+    page: string;
+    pageOf: string;
+    prev: string;
+    next: string;
+    folders: {
+      contracts: string;
+      tax: string;
+      hr: string;
+      personal: string;
+    };
+    files: {
+      vendorContract: string;
+      januaryInvoice: string;
+      resumeJohn: string;
+      documentPhoto: string;
+      costSpreadsheet: string;
+    };
+  };
+  finance: {
+    subtitle: string;
+    newType: string;
+    newTransaction: string;
+    recurringTitle: string;
+    typesTitle: string;
+    searchLabel: string;
+    searchPlaceholder: string;
+    groupLabel: string;
+    groupAll: string;
+    groupIncome: string;
+    groupExpense: string;
+    typeLabel: string;
+    statusLabel: string;
+    statusAll: string;
+    statusPaid: string;
+    statusPending: string;
+    sortLabel: string;
+    sortDate: string;
+    sortAmount: string;
+    tableTitle: string;
+    tableType: string;
+    tableDate: string;
+    tableAmount: string;
+    tableStatus: string;
+    tableActions: string;
+    details: string;
+    page: string;
+    pageOf: string;
+    prev: string;
+    next: string;
+    nextDueLabel: string;
+    cadenceMonthly: string;
+    cadenceQuarterly: string;
+    types: {
+      salary: string;
+      subscriptions: string;
+      taxes: string;
+      services: string;
+    };
+    transactions: {
+      salaryJanuary: string;
+      spotify: string;
+      iss: string;
+      consulting: string;
+      netflix: string;
+    };
+    recurring: {
+      monthlyTaxes: string;
+      streamingSubscriptions: string;
+      accountingServices: string;
+    };
+  };
+  calendar: {
+    subtitle: string;
+    newEvent: string;
+    filterModuleLabel: string;
+    filterStatusLabel: string;
+    filterAll: string;
+    statusPending: string;
+    statusDone: string;
+    monthTitle: string;
+    monthSummary: string;
+    monthEventsTitle: string;
+    days: string[];
+    events: {
+      monthlyTaxes: string;
+      hrRecruitmentMeeting: string;
+      renewDocument: string;
+      updateCredentials: string;
+    };
+  };
+  reminders: {
+    title: string;
+    subtitle: string;
+    newList: string;
+    listsTitle: string;
+    itemsTitle: string;
+    addItem: string;
+    itemPlaceholder: string;
+    emptyItems: string;
+    quickAddHint: string;
+    monthlyResetLabel: string;
+    financeLinkLabel: string;
+    calendarLinkLabel: string;
+    statusDone: string;
+    statusPending: string;
+    list: {
+      monthlyBills: string;
+      groceries: string;
+    };
+    items: {
+      rent: string;
+      electricity: string;
+      internet: string;
+      milk: string;
+      vegetables: string;
+      coffee: string;
+    };
+    badges: {
+      monthly: string;
+      financeLinked: string;
+      calendarLinked: string;
+    };
+    finance: {
+      income: string;
+      expense: string;
+      service: string;
+    };
+  };
 };
 
 export const dictionaries: Record<Language, Dictionary> = {
@@ -282,6 +432,156 @@ export const dictionaries: Record<Language, Dictionary> = {
       typeApi: "API",
       typeOther: "Outro",
     },
+    documents: {
+      subtitle: "Organize arquivos por pastas e mantenha tudo centralizado.",
+      newFolder: "+ Nova pasta",
+      uploadFile: "+ Enviar arquivo",
+      allFolders: "Todas as pastas",
+      searchLabel: "Buscar",
+      searchPlaceholder: "Pesquisar por nome do arquivo",
+      typeLabel: "Tipo",
+      typeAll: "Todos",
+      typePdf: "PDF",
+      typeImage: "Imagem",
+      typeSpreadsheet: "Planilha",
+      typeOther: "Outro",
+      sortLabel: "Ordenar",
+      sortUpdated: "Atualização",
+      sortName: "Nome",
+      tableFile: "Arquivo",
+      tableFolder: "Pasta",
+      tableType: "Tipo",
+      tableUpdated: "Atualizado",
+      tableActions: "Ações",
+      open: "Abrir",
+      page: "Página",
+      pageOf: "de",
+      prev: "Anterior",
+      next: "Próximo",
+      folders: {
+        contracts: "Contratos",
+        tax: "Fiscal",
+        hr: "RH",
+        personal: "Pessoal",
+      },
+      files: {
+        vendorContract: "Contrato fornecedor.pdf",
+        januaryInvoice: "Nota fiscal janeiro.pdf",
+        resumeJohn: "Currículo João.pdf",
+        documentPhoto: "Foto documento.png",
+        costSpreadsheet: "Planilha custos.xlsx",
+      },
+    },
+    finance: {
+      subtitle: "Registre despesas, receitas e recorrências mensais.",
+      newType: "+ Novo tipo",
+      newTransaction: "+ Nova transação",
+      recurringTitle: "Checklist de contas recorrentes",
+      typesTitle: "Tipos financeiros",
+      searchLabel: "Buscar",
+      searchPlaceholder: "Pesquisar transações",
+      groupLabel: "Grupo",
+      groupAll: "Todos",
+      groupIncome: "Receita",
+      groupExpense: "Despesa",
+      typeLabel: "Tipo",
+      statusLabel: "Status",
+      statusAll: "Todos",
+      statusPaid: "Pago",
+      statusPending: "Pendente",
+      sortLabel: "Ordenar",
+      sortDate: "Data",
+      sortAmount: "Valor",
+      tableTitle: "Título",
+      tableType: "Tipo",
+      tableDate: "Data",
+      tableAmount: "Valor",
+      tableStatus: "Status",
+      tableActions: "Ações",
+      details: "Detalhes",
+      page: "Página",
+      pageOf: "de",
+      prev: "Anterior",
+      next: "Próximo",
+      nextDueLabel: "Próx:",
+      cadenceMonthly: "Mensal",
+      cadenceQuarterly: "Trimestral",
+      types: {
+        salary: "Salário",
+        subscriptions: "Assinaturas",
+        taxes: "Impostos",
+        services: "Serviços",
+      },
+      transactions: {
+        salaryJanuary: "Salário janeiro",
+        spotify: "Spotify",
+        iss: "ISS",
+        consulting: "Consultoria",
+        netflix: "Netflix",
+      },
+      recurring: {
+        monthlyTaxes: "Impostos mensais",
+        streamingSubscriptions: "Assinaturas streaming",
+        accountingServices: "Serviços contabilidade",
+      },
+    },
+    calendar: {
+      subtitle: "Eventos integrados de finanças, RH, documentos e lembretes.",
+      newEvent: "+ Novo evento",
+      filterModuleLabel: "Módulo",
+      filterStatusLabel: "Status",
+      filterAll: "Todos",
+      statusPending: "Pendente",
+      statusDone: "Concluído",
+      monthTitle: "Janeiro 2026",
+      monthSummary: "Resumo mensal",
+      monthEventsTitle: "Eventos do mês",
+      days: ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"],
+      events: {
+        monthlyTaxes: "Impostos mensais",
+        hrRecruitmentMeeting: "Reunião RH - recrutamento",
+        renewDocument: "Renovar documento",
+        updateCredentials: "Atualizar credenciais",
+      },
+    },
+    reminders: {
+      title: "Lembretes",
+      subtitle: "Crie checklists rápidos e organize tarefas recorrentes.",
+      newList: "+ Nova lista",
+      listsTitle: "Listas rápidas",
+      itemsTitle: "Checklist",
+      addItem: "Adicionar item",
+      itemPlaceholder: "Adicionar item na lista",
+      emptyItems: "Nenhum item ainda. Adicione o primeiro lembrete.",
+      quickAddHint: "Marque como pago ou pendente com um clique.",
+      monthlyResetLabel: "Resetar todo mês",
+      financeLinkLabel: "Linkar ao módulo de finanças",
+      calendarLinkLabel: "Linkar ao calendário",
+      statusDone: "Pago",
+      statusPending: "Pendente",
+      list: {
+        monthlyBills: "Contas mensais",
+        groceries: "Lista de supermercado",
+      },
+      items: {
+        rent: "Aluguel",
+        electricity: "Conta de luz",
+        internet: "Internet",
+        milk: "Leite",
+        vegetables: "Verduras",
+        coffee: "Café",
+      },
+      badges: {
+        monthly: "Mensal",
+        financeLinked: "Financeiro",
+        calendarLinked: "Calendário",
+      },
+      finance: {
+        income: "Receita",
+        expense: "Despesa",
+        service: "Serviço",
+      },
+    },
   },
   en: {
     auth: {
@@ -423,6 +723,156 @@ export const dictionaries: Record<Language, Dictionary> = {
       typeServer: "Server",
       typeApi: "API",
       typeOther: "Other",
+    },
+    documents: {
+      subtitle: "Organize files by folders and keep everything centralized.",
+      newFolder: "+ New folder",
+      uploadFile: "+ Upload file",
+      allFolders: "All folders",
+      searchLabel: "Search",
+      searchPlaceholder: "Search by file name",
+      typeLabel: "Type",
+      typeAll: "All",
+      typePdf: "PDF",
+      typeImage: "Image",
+      typeSpreadsheet: "Spreadsheet",
+      typeOther: "Other",
+      sortLabel: "Sort",
+      sortUpdated: "Updated",
+      sortName: "Name",
+      tableFile: "File",
+      tableFolder: "Folder",
+      tableType: "Type",
+      tableUpdated: "Updated",
+      tableActions: "Actions",
+      open: "Open",
+      page: "Page",
+      pageOf: "of",
+      prev: "Previous",
+      next: "Next",
+      folders: {
+        contracts: "Contracts",
+        tax: "Tax",
+        hr: "HR",
+        personal: "Personal",
+      },
+      files: {
+        vendorContract: "Vendor contract.pdf",
+        januaryInvoice: "January invoice.pdf",
+        resumeJohn: "John resume.pdf",
+        documentPhoto: "Document photo.png",
+        costSpreadsheet: "Cost spreadsheet.xlsx",
+      },
+    },
+    finance: {
+      subtitle: "Track expenses, income, and monthly recurring items.",
+      newType: "+ New type",
+      newTransaction: "+ New transaction",
+      recurringTitle: "Recurring bills checklist",
+      typesTitle: "Finance types",
+      searchLabel: "Search",
+      searchPlaceholder: "Search transactions",
+      groupLabel: "Group",
+      groupAll: "All",
+      groupIncome: "Income",
+      groupExpense: "Expense",
+      typeLabel: "Type",
+      statusLabel: "Status",
+      statusAll: "All",
+      statusPaid: "Paid",
+      statusPending: "Pending",
+      sortLabel: "Sort",
+      sortDate: "Date",
+      sortAmount: "Amount",
+      tableTitle: "Title",
+      tableType: "Type",
+      tableDate: "Date",
+      tableAmount: "Amount",
+      tableStatus: "Status",
+      tableActions: "Actions",
+      details: "Details",
+      page: "Page",
+      pageOf: "of",
+      prev: "Previous",
+      next: "Next",
+      nextDueLabel: "Next:",
+      cadenceMonthly: "Monthly",
+      cadenceQuarterly: "Quarterly",
+      types: {
+        salary: "Salary",
+        subscriptions: "Subscriptions",
+        taxes: "Taxes",
+        services: "Services",
+      },
+      transactions: {
+        salaryJanuary: "January salary",
+        spotify: "Spotify",
+        iss: "ISS",
+        consulting: "Consulting",
+        netflix: "Netflix",
+      },
+      recurring: {
+        monthlyTaxes: "Monthly taxes",
+        streamingSubscriptions: "Streaming subscriptions",
+        accountingServices: "Accounting services",
+      },
+    },
+    calendar: {
+      subtitle: "Integrated events across finance, HR, documents, and reminders.",
+      newEvent: "+ New event",
+      filterModuleLabel: "Module",
+      filterStatusLabel: "Status",
+      filterAll: "All",
+      statusPending: "Pending",
+      statusDone: "Done",
+      monthTitle: "January 2026",
+      monthSummary: "Monthly summary",
+      monthEventsTitle: "Events this month",
+      days: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+      events: {
+        monthlyTaxes: "Monthly taxes",
+        hrRecruitmentMeeting: "HR meeting - recruitment",
+        renewDocument: "Renew document",
+        updateCredentials: "Update credentials",
+      },
+    },
+    reminders: {
+      title: "Reminders",
+      subtitle: "Create quick checklists and manage recurring tasks.",
+      newList: "+ New list",
+      listsTitle: "Quick lists",
+      itemsTitle: "Checklist",
+      addItem: "Add item",
+      itemPlaceholder: "Add item to list",
+      emptyItems: "No items yet. Add the first reminder.",
+      quickAddHint: "Mark as paid or pending with one click.",
+      monthlyResetLabel: "Reset every month",
+      financeLinkLabel: "Link to finance module",
+      calendarLinkLabel: "Link to calendar",
+      statusDone: "Paid",
+      statusPending: "Pending",
+      list: {
+        monthlyBills: "Monthly bills",
+        groceries: "Grocery list",
+      },
+      items: {
+        rent: "Rent",
+        electricity: "Electricity bill",
+        internet: "Internet",
+        milk: "Milk",
+        vegetables: "Vegetables",
+        coffee: "Coffee",
+      },
+      badges: {
+        monthly: "Monthly",
+        financeLinked: "Finance",
+        calendarLinked: "Calendar",
+      },
+      finance: {
+        income: "Income",
+        expense: "Expense",
+        service: "Service",
+      },
     },
   },
 };

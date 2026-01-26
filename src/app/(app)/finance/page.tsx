@@ -4,11 +4,12 @@ import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { useLanguage } from "@/lib/i18n/language-context";
 
 type FinanceType = {
   id: string;
   name: string;
-  group: "Receita" | "Despesa";
+  group: "income" | "expense";
 };
 
 type Transaction = {
@@ -17,7 +18,7 @@ type Transaction = {
   amount: number;
   typeId: string;
   date: string;
-  status: "Pago" | "Pendente";
+  status: "paid" | "pending";
 };
 
 type RecurringItem = {
@@ -25,100 +26,125 @@ type RecurringItem = {
   title: string;
   amount: number;
   typeId: string;
-  cadence: "Mensal" | "Trimestral";
+  cadence: "monthly" | "quarterly";
   nextDue: string;
   paid: boolean;
 };
 
-const financeTypes: FinanceType[] = [
-  { id: "t1", name: "Salário", group: "Receita" },
-  { id: "t2", name: "Assinaturas", group: "Despesa" },
-  { id: "t3", name: "Impostos", group: "Despesa" },
-  { id: "t4", name: "Serviços", group: "Despesa" },
-];
-
-const transactions: Transaction[] = [
-  {
-    id: "tr1",
-    title: "Salário janeiro",
-    amount: 8500,
-    typeId: "t1",
-    date: "2026-01-10",
-    status: "Pago",
-  },
-  {
-    id: "tr2",
-    title: "Spotify",
-    amount: 39.9,
-    typeId: "t2",
-    date: "2026-01-12",
-    status: "Pago",
-  },
-  {
-    id: "tr3",
-    title: "ISS",
-    amount: 420,
-    typeId: "t3",
-    date: "2026-01-20",
-    status: "Pendente",
-  },
-  {
-    id: "tr4",
-    title: "Consultoria",
-    amount: 1500,
-    typeId: "t4",
-    date: "2026-01-18",
-    status: "Pago",
-  },
-  {
-    id: "tr5",
-    title: "Netflix",
-    amount: 55,
-    typeId: "t2",
-    date: "2026-01-05",
-    status: "Pago",
-  },
-];
-
-const recurringItems: RecurringItem[] = [
-  {
-    id: "r1",
-    title: "Impostos mensais",
-    amount: 420,
-    typeId: "t3",
-    cadence: "Mensal",
-    nextDue: "2026-02-10",
-    paid: false,
-  },
-  {
-    id: "r2",
-    title: "Assinaturas streaming",
-    amount: 95,
-    typeId: "t2",
-    cadence: "Mensal",
-    nextDue: "2026-02-02",
-    paid: true,
-  },
-  {
-    id: "r3",
-    title: "Serviços contabilidade",
-    amount: 600,
-    typeId: "t4",
-    cadence: "Mensal",
-    nextDue: "2026-02-05",
-    paid: false,
-  },
-];
-
 const pageSize = 4;
 
 export default function FinancePage() {
+  const { t } = useLanguage();
   const [query, setQuery] = useState("");
   const [groupFilter, setGroupFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("date");
   const [page, setPage] = useState(1);
+
+  const financeTypes = useMemo<FinanceType[]>(
+    () => [
+      { id: "t1", name: t.finance.types.salary, group: "income" },
+      { id: "t2", name: t.finance.types.subscriptions, group: "expense" },
+      { id: "t3", name: t.finance.types.taxes, group: "expense" },
+      { id: "t4", name: t.finance.types.services, group: "expense" },
+    ],
+    [t],
+  );
+
+  const transactions = useMemo<Transaction[]>(
+    () => [
+      {
+        id: "tr1",
+        title: t.finance.transactions.salaryJanuary,
+        amount: 8500,
+        typeId: "t1",
+        date: "2026-01-10",
+        status: "paid",
+      },
+      {
+        id: "tr2",
+        title: t.finance.transactions.spotify,
+        amount: 39.9,
+        typeId: "t2",
+        date: "2026-01-12",
+        status: "paid",
+      },
+      {
+        id: "tr3",
+        title: t.finance.transactions.iss,
+        amount: 420,
+        typeId: "t3",
+        date: "2026-01-20",
+        status: "pending",
+      },
+      {
+        id: "tr4",
+        title: t.finance.transactions.consulting,
+        amount: 1500,
+        typeId: "t4",
+        date: "2026-01-18",
+        status: "paid",
+      },
+      {
+        id: "tr5",
+        title: t.finance.transactions.netflix,
+        amount: 55,
+        typeId: "t2",
+        date: "2026-01-05",
+        status: "paid",
+      },
+    ],
+    [t],
+  );
+
+  const recurringItems = useMemo<RecurringItem[]>(
+    () => [
+      {
+        id: "r1",
+        title: t.finance.recurring.monthlyTaxes,
+        amount: 420,
+        typeId: "t3",
+        cadence: "monthly",
+        nextDue: "2026-02-10",
+        paid: false,
+      },
+      {
+        id: "r2",
+        title: t.finance.recurring.streamingSubscriptions,
+        amount: 95,
+        typeId: "t2",
+        cadence: "monthly",
+        nextDue: "2026-02-02",
+        paid: true,
+      },
+      {
+        id: "r3",
+        title: t.finance.recurring.accountingServices,
+        amount: 600,
+        typeId: "t4",
+        cadence: "monthly",
+        nextDue: "2026-02-05",
+        paid: false,
+      },
+    ],
+    [t],
+  );
+
+  const groupLabels = {
+    income: t.finance.groupIncome,
+    expense: t.finance.groupExpense,
+  } satisfies Record<FinanceType["group"], string>;
+
+  const statusLabels = {
+    paid: t.finance.statusPaid,
+    pending: t.finance.statusPending,
+  } satisfies Record<Transaction["status"], string>;
+
+  const cadenceLabels = {
+    monthly: t.finance.cadenceMonthly,
+    quarterly: t.finance.cadenceQuarterly,
+  } satisfies Record<RecurringItem["cadence"], string>;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -151,21 +177,21 @@ export default function FinancePage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold">Finanças</h2>
+          <h2 className="text-lg font-semibold">{t.modules.finance}</h2>
           <p className="text-sm text-zinc-600">
-            Registre despesas, receitas e recorrências mensais.
+            {t.finance.subtitle}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary">+ Novo tipo</Button>
-          <Button>+ Nova transação</Button>
+          <Button variant="secondary">{t.finance.newType}</Button>
+          <Button>{t.finance.newTransaction}</Button>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
         <Card>
           <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-            Checklist de contas recorrentes
+            {t.finance.recurringTitle}
           </h3>
           <div className="mt-4 space-y-3">
             {recurringItems.map((item) => {
@@ -180,14 +206,16 @@ export default function FinancePage() {
                       {item.title}
                     </p>
                     <p className="text-xs text-zinc-500">
-                      {type?.name} · {item.cadence}
+                      {type?.name} · {cadenceLabels[item.cadence]}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold">
                       R$ {item.amount.toFixed(2)}
                     </p>
-                    <p className="text-xs text-zinc-500">Próx: {item.nextDue}</p>
+                    <p className="text-xs text-zinc-500">
+                      {t.finance.nextDueLabel} {item.nextDue}
+                    </p>
                   </div>
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-semibold ${
@@ -196,7 +224,7 @@ export default function FinancePage() {
                         : "bg-amber-100 text-amber-700"
                     }`}
                   >
-                    {item.paid ? "Pago" : "Pendente"}
+                    {item.paid ? t.finance.statusPaid : t.finance.statusPending}
                   </span>
                 </div>
               );
@@ -206,7 +234,7 @@ export default function FinancePage() {
 
         <Card>
           <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-            Tipos financeiros
+            {t.finance.typesTitle}
           </h3>
           <div className="mt-4 grid gap-3">
             {financeTypes.map((type) => (
@@ -216,7 +244,7 @@ export default function FinancePage() {
               >
                 <span>{type.name}</span>
                 <span className="rounded-full bg-[var(--surface-muted)] px-3 py-1 text-xs font-semibold text-zinc-600">
-                  {type.group}
+                  {groupLabels[type.group]}
                 </span>
               </div>
             ))}
@@ -228,8 +256,8 @@ export default function FinancePage() {
         <div className="flex flex-wrap items-center gap-4">
           <div className="min-w-[220px] flex-1">
             <Input
-              label="Buscar"
-              placeholder="Pesquisar transações"
+              label={t.finance.searchLabel}
+              placeholder={t.finance.searchPlaceholder}
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
@@ -238,7 +266,7 @@ export default function FinancePage() {
             />
           </div>
           <label className="flex flex-col gap-2 text-sm text-zinc-600">
-            Grupo
+            {t.finance.groupLabel}
             <select
               value={groupFilter}
               onChange={(event) => {
@@ -247,13 +275,13 @@ export default function FinancePage() {
               }}
               className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
             >
-              <option value="all">Todos</option>
-              <option value="Receita">Receita</option>
-              <option value="Despesa">Despesa</option>
+              <option value="all">{t.finance.groupAll}</option>
+              <option value="income">{t.finance.groupIncome}</option>
+              <option value="expense">{t.finance.groupExpense}</option>
             </select>
           </label>
           <label className="flex flex-col gap-2 text-sm text-zinc-600">
-            Tipo
+            {t.finance.typeLabel}
             <select
               value={typeFilter}
               onChange={(event) => {
@@ -262,7 +290,7 @@ export default function FinancePage() {
               }}
               className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
             >
-              <option value="all">Todos</option>
+              <option value="all">{t.finance.groupAll}</option>
               {financeTypes.map((type) => (
                 <option key={type.id} value={type.id}>
                   {type.name}
@@ -271,7 +299,7 @@ export default function FinancePage() {
             </select>
           </label>
           <label className="flex flex-col gap-2 text-sm text-zinc-600">
-            Status
+            {t.finance.statusLabel}
             <select
               value={statusFilter}
               onChange={(event) => {
@@ -280,20 +308,20 @@ export default function FinancePage() {
               }}
               className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
             >
-              <option value="all">Todos</option>
-              <option value="Pago">Pago</option>
-              <option value="Pendente">Pendente</option>
+              <option value="all">{t.finance.statusAll}</option>
+              <option value="paid">{t.finance.statusPaid}</option>
+              <option value="pending">{t.finance.statusPending}</option>
             </select>
           </label>
           <label className="flex flex-col gap-2 text-sm text-zinc-600">
-            Ordenar
+            {t.finance.sortLabel}
             <select
               value={sortBy}
               onChange={(event) => setSortBy(event.target.value)}
               className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
             >
-              <option value="date">Data</option>
-              <option value="amount">Valor</option>
+              <option value="date">{t.finance.sortDate}</option>
+              <option value="amount">{t.finance.sortAmount}</option>
             </select>
           </label>
         </div>
@@ -304,12 +332,12 @@ export default function FinancePage() {
           <table className="w-full min-w-[620px] text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-zinc-500">
-                <th className="pb-3">Título</th>
-                <th className="pb-3">Tipo</th>
-                <th className="pb-3">Data</th>
-                <th className="pb-3">Valor</th>
-                <th className="pb-3">Status</th>
-                <th className="pb-3 text-right">Ações</th>
+                <th className="pb-3">{t.finance.tableTitle}</th>
+                <th className="pb-3">{t.finance.tableType}</th>
+                <th className="pb-3">{t.finance.tableDate}</th>
+                <th className="pb-3">{t.finance.tableAmount}</th>
+                <th className="pb-3">{t.finance.tableStatus}</th>
+                <th className="pb-3 text-right">{t.finance.tableActions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
@@ -326,16 +354,16 @@ export default function FinancePage() {
                     <td className="py-3">
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          item.status === "Pago"
+                          item.status === "paid"
                             ? "bg-emerald-100 text-emerald-700"
                             : "bg-amber-100 text-amber-700"
                         }`}
                       >
-                        {item.status}
+                        {statusLabels[item.status]}
                       </span>
                     </td>
                     <td className="py-3 text-right">
-                      <Button variant="ghost">Detalhes</Button>
+                      <Button variant="ghost">{t.finance.details}</Button>
                     </td>
                   </tr>
                 );
@@ -346,7 +374,7 @@ export default function FinancePage() {
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-600">
           <span>
-            Página {page} de {pageCount}
+            {t.finance.page} {page} {t.finance.pageOf} {pageCount}
           </span>
           <div className="flex items-center gap-2">
             <Button
@@ -354,14 +382,14 @@ export default function FinancePage() {
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               disabled={page === 1}
             >
-              Anterior
+              {t.finance.prev}
             </Button>
             <Button
               variant="secondary"
               onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
               disabled={page === pageCount}
             >
-              Próximo
+              {t.finance.next}
             </Button>
           </div>
         </div>

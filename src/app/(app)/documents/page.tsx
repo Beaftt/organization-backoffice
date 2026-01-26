@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { useLanguage } from "@/lib/i18n/language-context";
 
 type Folder = {
   id: string;
@@ -15,33 +16,77 @@ type DocumentItem = {
   id: string;
   name: string;
   folderId: string;
-  type: "PDF" | "Imagem" | "Planilha" | "Outro";
+  type: "pdf" | "image" | "spreadsheet" | "other";
   updatedAt: string;
 };
-
-const folders: Folder[] = [
-  { id: "1", name: "Contratos", totalFiles: 12 },
-  { id: "2", name: "Fiscal", totalFiles: 8 },
-  { id: "3", name: "RH", totalFiles: 5 },
-  { id: "4", name: "Pessoal", totalFiles: 3 },
-];
-
-const documents: DocumentItem[] = [
-  { id: "d1", name: "Contrato fornecedor.pdf", folderId: "1", type: "PDF", updatedAt: "2026-01-18" },
-  { id: "d2", name: "Nota fiscal janeiro.pdf", folderId: "2", type: "PDF", updatedAt: "2026-01-10" },
-  { id: "d3", name: "Currículo João.pdf", folderId: "3", type: "PDF", updatedAt: "2026-01-08" },
-  { id: "d4", name: "Foto documento.png", folderId: "4", type: "Imagem", updatedAt: "2025-12-29" },
-  { id: "d5", name: "Planilha custos.xlsx", folderId: "2", type: "Planilha", updatedAt: "2025-12-12" },
-];
 
 const pageSize = 4;
 
 export default function DocumentsPage() {
+  const { t } = useLanguage();
   const [query, setQuery] = useState("");
   const [folderFilter, setFolderFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sortBy, setSortBy] = useState("updatedAt");
   const [page, setPage] = useState(1);
+
+  const folders = useMemo<Folder[]>(
+    () => [
+      { id: "contracts", name: t.documents.folders.contracts, totalFiles: 12 },
+      { id: "tax", name: t.documents.folders.tax, totalFiles: 8 },
+      { id: "hr", name: t.documents.folders.hr, totalFiles: 5 },
+      { id: "personal", name: t.documents.folders.personal, totalFiles: 3 },
+    ],
+    [t],
+  );
+
+  const documents = useMemo<DocumentItem[]>(
+    () => [
+      {
+        id: "d1",
+        name: t.documents.files.vendorContract,
+        folderId: "contracts",
+        type: "pdf",
+        updatedAt: "2026-01-18",
+      },
+      {
+        id: "d2",
+        name: t.documents.files.januaryInvoice,
+        folderId: "tax",
+        type: "pdf",
+        updatedAt: "2026-01-10",
+      },
+      {
+        id: "d3",
+        name: t.documents.files.resumeJohn,
+        folderId: "hr",
+        type: "pdf",
+        updatedAt: "2026-01-08",
+      },
+      {
+        id: "d4",
+        name: t.documents.files.documentPhoto,
+        folderId: "personal",
+        type: "image",
+        updatedAt: "2025-12-29",
+      },
+      {
+        id: "d5",
+        name: t.documents.files.costSpreadsheet,
+        folderId: "tax",
+        type: "spreadsheet",
+        updatedAt: "2025-12-12",
+      },
+    ],
+    [t],
+  );
+
+  const typeLabels = {
+    pdf: t.documents.typePdf,
+    image: t.documents.typeImage,
+    spreadsheet: t.documents.typeSpreadsheet,
+    other: t.documents.typeOther,
+  } satisfies Record<DocumentItem["type"], string>;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -70,14 +115,14 @@ export default function DocumentsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold">Documentos</h2>
+          <h2 className="text-lg font-semibold">{t.modules.documents}</h2>
           <p className="text-sm text-zinc-600">
-            Organize arquivos por pastas e mantenha tudo centralizado.
+            {t.documents.subtitle}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary">+ Nova pasta</Button>
-          <Button>+ Enviar arquivo</Button>
+          <Button variant="secondary">{t.documents.newFolder}</Button>
+          <Button>{t.documents.uploadFile}</Button>
         </div>
       </div>
 
@@ -115,7 +160,7 @@ export default function DocumentsPage() {
                 : "text-zinc-600 hover:bg-[var(--surface-muted)]"
             }`}
           >
-            <span>Todas as pastas</span>
+            <span>{t.documents.allFolders}</span>
             <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-zinc-600">
               {documents.length}
             </span>
@@ -127,8 +172,8 @@ export default function DocumentsPage() {
         <div className="flex flex-wrap items-center gap-4">
           <div className="min-w-[220px] flex-1">
             <Input
-              label="Buscar"
-              placeholder="Pesquisar por nome do arquivo"
+              label={t.documents.searchLabel}
+              placeholder={t.documents.searchPlaceholder}
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
@@ -137,7 +182,7 @@ export default function DocumentsPage() {
             />
           </div>
           <label className="flex flex-col gap-2 text-sm text-zinc-600">
-            Tipo
+            {t.documents.typeLabel}
             <select
               value={typeFilter}
               onChange={(event) => {
@@ -146,22 +191,22 @@ export default function DocumentsPage() {
               }}
               className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
             >
-              <option value="all">Todos</option>
-              <option value="PDF">PDF</option>
-              <option value="Imagem">Imagem</option>
-              <option value="Planilha">Planilha</option>
-              <option value="Outro">Outro</option>
+              <option value="all">{t.documents.typeAll}</option>
+              <option value="pdf">{t.documents.typePdf}</option>
+              <option value="image">{t.documents.typeImage}</option>
+              <option value="spreadsheet">{t.documents.typeSpreadsheet}</option>
+              <option value="other">{t.documents.typeOther}</option>
             </select>
           </label>
           <label className="flex flex-col gap-2 text-sm text-zinc-600">
-            Ordenar
+            {t.documents.sortLabel}
             <select
               value={sortBy}
               onChange={(event) => setSortBy(event.target.value)}
               className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
             >
-              <option value="updatedAt">Atualização</option>
-              <option value="name">Nome</option>
+              <option value="updatedAt">{t.documents.sortUpdated}</option>
+              <option value="name">{t.documents.sortName}</option>
             </select>
           </label>
         </div>
@@ -172,11 +217,11 @@ export default function DocumentsPage() {
           <table className="w-full min-w-[520px] text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-zinc-500">
-                <th className="pb-3">Arquivo</th>
-                <th className="pb-3">Pasta</th>
-                <th className="pb-3">Tipo</th>
-                <th className="pb-3">Atualizado</th>
-                <th className="pb-3 text-right">Ações</th>
+                <th className="pb-3">{t.documents.tableFile}</th>
+                <th className="pb-3">{t.documents.tableFolder}</th>
+                <th className="pb-3">{t.documents.tableType}</th>
+                <th className="pb-3">{t.documents.tableUpdated}</th>
+                <th className="pb-3 text-right">{t.documents.tableActions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
@@ -190,12 +235,12 @@ export default function DocumentsPage() {
                   </td>
                   <td className="py-3">
                     <span className="rounded-full bg-[var(--surface-muted)] px-3 py-1 text-xs font-semibold text-zinc-600">
-                      {item.type}
+                      {typeLabels[item.type]}
                     </span>
                   </td>
                   <td className="py-3">{item.updatedAt}</td>
                   <td className="py-3 text-right">
-                    <Button variant="ghost">Abrir</Button>
+                    <Button variant="ghost">{t.documents.open}</Button>
                   </td>
                 </tr>
               ))}
@@ -205,7 +250,7 @@ export default function DocumentsPage() {
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm text-zinc-600">
           <span>
-            Página {page} de {pageCount}
+            {t.documents.page} {page} {t.documents.pageOf} {pageCount}
           </span>
           <div className="flex items-center gap-2">
             <Button
@@ -213,14 +258,14 @@ export default function DocumentsPage() {
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               disabled={page === 1}
             >
-              Anterior
+              {t.documents.prev}
             </Button>
             <Button
               variant="secondary"
               onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
               disabled={page === pageCount}
             >
-              Próximo
+              {t.documents.next}
             </Button>
           </div>
         </div>
