@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { login, register, googleLogin, logout } from "@/lib/api/auth";
 
 const apiFetchMock = vi.fn();
@@ -8,6 +8,10 @@ vi.mock("@/lib/api/client", () => ({
 }));
 
 describe("auth api", () => {
+  beforeEach(() => {
+    apiFetchMock.mockReset();
+  });
+
   it("calls login endpoint", async () => {
     apiFetchMock.mockResolvedValueOnce({ accessToken: "a", refreshToken: "r" });
 
@@ -27,7 +31,11 @@ describe("auth api", () => {
 
     expect(apiFetchMock).toHaveBeenCalledWith("/auth/register", {
       method: "POST",
-      body: JSON.stringify({ email: "user@example.com", password: "pass" }),
+      body: JSON.stringify({
+        email: "user@example.com",
+        password: "pass",
+        inviteToken: null,
+      }),
       skipAuth: true,
     });
   });
@@ -47,11 +55,10 @@ describe("auth api", () => {
   it("calls logout endpoint", async () => {
     apiFetchMock.mockResolvedValueOnce(undefined);
 
-    await logout({ refreshToken: "refresh" });
+    await logout();
 
     expect(apiFetchMock).toHaveBeenCalledWith("/auth/logout", {
       method: "POST",
-      body: JSON.stringify({ refreshToken: "refresh" }),
     });
   });
 });

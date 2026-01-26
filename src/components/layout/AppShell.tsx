@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/language-context";
-import { clearAuthTokens, getAuthTokens } from "@/lib/storage/auth";
 import { clearWorkspaceId, getWorkspaceId, setWorkspaceId } from "@/lib/storage/workspace";
 import { getWorkspaces, type Workspace } from "@/lib/api/workspaces";
 import { getEntitlements, type Entitlement } from "@/lib/api/entitlements";
@@ -65,13 +65,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       return acc;
     }, {});
   }, [entitlements]);
-
-  useEffect(() => {
-    const tokens = getAuthTokens();
-    if (!tokens?.accessToken) {
-      router.replace("/login");
-    }
-  }, [router]);
 
   useEffect(() => {
     if (!pathname) {
@@ -218,16 +211,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 : t.modules[pageKey as keyof typeof t.modules];
 
   const handleLogout = async () => {
-    const tokens = getAuthTokens();
     try {
-      if (tokens?.refreshToken) {
-        await logout({ refreshToken: tokens.refreshToken });
-      }
+      await logout();
     } catch {
       // ignore logout errors
     }
 
-    clearAuthTokens();
     clearWorkspaceId();
     clearLastVisitedRoute();
     router.replace("/login");
@@ -253,10 +242,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-white/20 text-white">
-                <img
+                <Image
                   src={workspaceLogo ?? "/logo_organization.png"}
                   alt="Workspace logo"
+                  width={40}
+                  height={40}
                   className="h-full w-full object-cover"
+                  unoptimized={Boolean(workspaceLogo)}
                 />
               </div>
               <div>
@@ -308,10 +300,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <aside className="hidden h-full w-64 flex-col bg-[var(--sidebar)] p-6 text-[var(--sidebar-text)] lg:flex">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-white/20 text-white">
-              <img
+              <Image
                 src={workspaceLogo ?? "/logo_organization.png"}
                 alt="Workspace logo"
+                width={40}
+                height={40}
                 className="h-full w-full object-cover"
+                unoptimized={Boolean(workspaceLogo)}
               />
             </div>
             <div>
@@ -418,10 +413,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <span className="inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-zinc-200 text-xs font-semibold">
                     {profilePhoto ? (
-                      <img
+                      <Image
                         src={profilePhoto}
                         alt="Profile"
+                        width={32}
+                        height={32}
                         className="h-full w-full object-cover"
+                        unoptimized
                       />
                     ) : (
                       (profileName || "L").slice(0, 2).toUpperCase()

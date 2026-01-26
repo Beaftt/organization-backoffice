@@ -1,4 +1,3 @@
-import { clearAuthTokens, getAuthStorageMode, getAuthTokens, setAuthTokens } from "@/lib/storage/auth";
 import { getWorkspaceId } from "@/lib/storage/workspace";
 
 export type SuccessEnvelope<T> = {
@@ -39,17 +38,16 @@ const getBaseUrl = () =>
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
   "http://localhost:3000";
 
-const refreshAuthSession = async (refreshToken: string) => {
+const refreshAuthSession = async () => {
   const response = await fetch(`${getBaseUrl()}/auth/refresh`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ refreshToken }),
+    credentials: "include",
   });
 
   if (!response.ok) {
-    clearAuthTokens();
     throw new ApiError({
       message: "Unauthorized",
       statusCode: response.status,
@@ -61,12 +59,6 @@ const refreshAuthSession = async (refreshToken: string) => {
     refreshToken: string;
   }>;
 
-  const storageMode = getAuthStorageMode();
-  setAuthTokens({
-    accessToken: body.data.accessToken,
-    refreshToken: body.data.refreshToken,
-  }, { persist: storageMode !== "session" });
-
   return body.data;
 };
 
@@ -75,16 +67,11 @@ export const apiFetch = async <T>(
   options: RequestInit & { workspaceId?: string; skipAuth?: boolean } = {},
   hasRetried = false,
 ): Promise<T> => {
-  const tokens = getAuthTokens();
   const workspaceId = options.workspaceId ?? getWorkspaceId();
   const headers = new Headers(options.headers);
 
   if (!headers.has("Content-Type") && options.body && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
-  }
-
-  if (!options.skipAuth && tokens?.accessToken) {
-    headers.set("Authorization", `Bearer ${tokens.accessToken}`);
   }
 
   if (workspaceId) {
@@ -97,6 +84,7 @@ export const apiFetch = async <T>(
     response = await fetch(`${getBaseUrl()}${path}`, {
       ...options,
       headers,
+      credentials: "include",
     });
   } catch {
     throw new ApiError({
@@ -106,8 +94,8 @@ export const apiFetch = async <T>(
     });
   }
 
-  if (response.status === 401 && tokens?.refreshToken && !hasRetried) {
-    await refreshAuthSession(tokens.refreshToken);
+  if (response.status === 401 && !hasRetried) {
+    await refreshAuthSession();
     return apiFetch<T>(path, options, true);
   }
 

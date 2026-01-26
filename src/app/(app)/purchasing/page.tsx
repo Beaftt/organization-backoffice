@@ -1,9 +1,5 @@
-"use client";
-
-import { ModulePlaceholder } from "@/components/layout/ModulePlaceholder";
-import { useLanguage } from "@/lib/i18n/language-context";
+import PurchasingClient from "./PurchasingClient";
 
 export default function PurchasingPage() {
-  const { t } = useLanguage();
-  return <ModulePlaceholder title={t.modules.purchasing} />;
+  return <PurchasingClient />;
 }

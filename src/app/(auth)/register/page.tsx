@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { register } from "@/lib/api/auth";
-import { setAuthTokens } from "@/lib/storage/auth";
 import { setWorkspaceId } from "@/lib/storage/workspace";
 import { ApiError } from "@/lib/api/client";
 
@@ -50,10 +49,6 @@ function RegisterForm() {
         email,
         password,
         inviteToken: inviteToken ?? undefined,
-      });
-      setAuthTokens({
-        accessToken: response.accessToken,
-        refreshToken: response.refreshToken,
       });
       if (response.defaultWorkspaceId) {
         setWorkspaceId(response.defaultWorkspaceId);

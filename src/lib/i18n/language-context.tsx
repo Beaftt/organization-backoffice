@@ -1,10 +1,17 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
 import type { Dictionary, Language } from "@/lib/i18n/dictionaries";
 import { dictionaries } from "@/lib/i18n/dictionaries";
 
 const LANGUAGE_STORAGE_KEY = "org.language";
+const LANGUAGE_EVENT = "org-language-change";
 
 type LanguageContextValue = {
   language: Language;
@@ -15,25 +22,38 @@ type LanguageContextValue = {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("pt");
+  const language = useSyncExternalStore(
+    (callback) => {
+      if (typeof window === "undefined") {
+        return () => {};
+      }
+      const handler = () => callback();
+      window.addEventListener("storage", handler);
+      window.addEventListener(LANGUAGE_EVENT, handler);
+      return () => {
+        window.removeEventListener("storage", handler);
+        window.removeEventListener(LANGUAGE_EVENT, handler);
+      };
+    },
+    () => {
+      if (typeof window === "undefined") {
+        return "pt";
+      }
+      const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY) as Language | null;
+      return stored ?? "pt";
+    },
+    () => "pt",
+  );
 
-  useEffect(() => {
-    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY) as
-      | Language
-      | null;
-    if (stored) {
-      setLanguageState(stored);
-    }
-  }, []);
-
-  const setLanguage = (next: Language) => {
-    setLanguageState(next);
+  const setLanguage = useCallback((next: Language) => {
+    if (typeof window === "undefined") return;
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
-  };
+    window.dispatchEvent(new Event(LANGUAGE_EVENT));
+  }, []);
 
   const value = useMemo(
     () => ({ language, setLanguage, t: dictionaries[language] }),
-    [language],
+    [language, setLanguage],
   );
 
   return (

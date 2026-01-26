@@ -38,8 +38,7 @@ export const googleLogin = (input: { idToken: string }) =>
     skipAuth: true,
   });
 
-export const logout = (input: { refreshToken: string }) =>
+export const logout = () =>
   apiFetch<void>("/auth/logout", {
     method: "POST",
-    body: JSON.stringify(input),
   });

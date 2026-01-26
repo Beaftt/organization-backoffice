@@ -1,18 +1,35 @@
 "use client";
 
 import Script from "next/script";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { login, googleLogin } from "@/lib/api/auth";
-import { getAuthTokens, setAuthTokens } from "@/lib/storage/auth";
 import { getDefaultModule } from "@/lib/storage/preferences";
 import { setWorkspaceId } from "@/lib/storage/workspace";
 import { ApiError } from "@/lib/api/client";
 import { resolveDefaultRoute } from "@/lib/navigation/default-route";
+
+type GoogleIdPrompt = {
+  prompt: () => void;
+  initialize: (options: {
+    client_id: string;
+    callback: (response: { credential?: string }) => void;
+  }) => void;
+};
+
+type GoogleAccounts = {
+  id?: GoogleIdPrompt;
+};
+
+type GoogleWindow = {
+  google?: {
+    accounts?: GoogleAccounts;
+  };
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,25 +40,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
-  useEffect(() => {
-    const tokens = getAuthTokens();
-    if (!tokens?.accessToken) {
-      return;
-    }
-
-    const storedDefault = getDefaultModule();
-    router.replace(resolveDefaultRoute(storedDefault));
-  }, [router]);
-
   const handleLogin = async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await login({ email, password });
-      setAuthTokens({
-        accessToken: response.accessToken,
-        refreshToken: response.refreshToken,
-      }, { persist: rememberMe });
       if (response.defaultWorkspaceId) {
         setWorkspaceId(response.defaultWorkspaceId);
       }
@@ -62,10 +65,6 @@ export default function LoginPage() {
     setError(null);
     try {
       const response = await googleLogin({ idToken });
-      setAuthTokens({
-        accessToken: response.accessToken,
-        refreshToken: response.refreshToken,
-      }, { persist: rememberMe });
       if (response.defaultWorkspaceId) {
         setWorkspaceId(response.defaultWorkspaceId);
       }
@@ -83,12 +82,12 @@ export default function LoginPage() {
 
   const handleGoogleScript = () => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId || !(window as unknown as { google?: any }).google?.accounts) {
+    const googleWindow = window as unknown as GoogleWindow;
+    if (!clientId || !googleWindow.google?.accounts?.id) {
       return;
     }
 
-    const google = (window as unknown as { google: any }).google;
-    google.accounts.id.initialize({
+    googleWindow.google.accounts.id.initialize({
       client_id: clientId,
       callback: (response: { credential?: string }) => {
         if (response.credential) {
@@ -142,9 +141,9 @@ export default function LoginPage() {
       <Button
         variant="secondary"
         onClick={() => {
-          const google = (window as unknown as { google?: any }).google;
-          if (google?.accounts?.id) {
-            google.accounts.id.prompt();
+          const googleWindow = window as unknown as GoogleWindow;
+          if (googleWindow.google?.accounts?.id) {
+            googleWindow.google.accounts.id.prompt();
           }
         }}
         disabled={loading}
