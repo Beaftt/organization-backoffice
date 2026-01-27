@@ -22,7 +22,7 @@ type LanguageContextValue = {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const language = useSyncExternalStore(
+  const language = useSyncExternalStore<Language>(
     (callback) => {
       if (typeof window === "undefined") {
         return () => {};
@@ -39,8 +39,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       if (typeof window === "undefined") {
         return "pt";
       }
-      const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY) as Language | null;
-      return stored ?? "pt";
+      const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY) as
+        | Language
+        | null;
+      return stored === "pt" || stored === "en" ? stored : "pt";
     },
     () => "pt",
   );

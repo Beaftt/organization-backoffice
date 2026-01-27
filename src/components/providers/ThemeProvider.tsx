@@ -23,7 +23,7 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const theme = useSyncExternalStore(
+  const theme = useSyncExternalStore<Theme>(
     (callback) => {
       if (typeof window === "undefined") {
         return () => {};

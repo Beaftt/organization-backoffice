@@ -143,6 +143,13 @@ export type Dictionary = {
     newFolder: string;
     uploadFile: string;
     allFolders: string;
+    foldersTitle: string;
+    subfoldersTitle: string;
+    filesTitle: string;
+    currentFolderLabel: string;
+    folderRoot: string;
+    folderParentLabel: string;
+    dragHint: string;
     searchLabel: string;
     searchPlaceholder: string;
     typeLabel: string;
@@ -160,10 +167,80 @@ export type Dictionary = {
     tableUpdated: string;
     tableActions: string;
     open: string;
+    empty: string;
+    loadError: string;
+    historyAction: string;
+    historyTitle: string;
+    fileLabel: string;
+    noTags: string;
+    close: string;
+    cancel: string;
+    save: string;
+    saving: string;
+    folderTitle: string;
+    folderNameLabel: string;
+    folderNamePlaceholder: string;
+    folderDescriptionLabel: string;
+    folderLabel: string;
+    folderRequired: string;
+    folderSaveError: string;
+    folderRenameError: string;
+    moveAction: string;
+    moveTitle: string;
+    moveLabel: string;
+    moveConfirm: string;
+    moveError: string;
+    renameAction: string;
+    renameTitle: string;
+    renameConfirm: string;
+    renameError: string;
+    mentionAction: string;
+    linkAction: string;
+    deleteAction: string;
+    deleteTitle: string;
+    deleteConfirm: string;
+    deleteError: string;
+    linkTitle: string;
+    linkModuleLabel: string;
+    linkTypeLabel: string;
+    linkIdLabel: string;
+    linkTitleLabel: string;
+    linkConfirm: string;
+    linkError: string;
+    uploadTitle: string;
+    fileNameLabel: string;
+    fileNamePlaceholder: string;
+    fileRequired: string;
+    fileNameRequired: string;
+    uploadError: string;
+    uploadAction: string;
+    tagsLabel: string;
+    tagsPlaceholder: string;
+    descriptionLabel: string;
     page: string;
     pageOf: string;
     prev: string;
     next: string;
+    references: {
+      title: string;
+      titleLabel: string;
+      titlePlaceholder: string;
+      titleRequired: string;
+      mentionUsersLabel: string;
+      mentionUsersPlaceholder: string;
+      mentionSearchRequired: string;
+      mentionSelectionRequired: string;
+      mentionSearchAction: string;
+      createAction: string;
+      createError: string;
+      empty: string;
+      loadError: string;
+      mentionedAt: string;
+      scheduledAt: string;
+      kindMention: string;
+      kindScheduled: string;
+      customModule: string;
+    };
     folders: {
       contracts: string;
       tax: string;
@@ -471,6 +548,13 @@ export const dictionaries: Record<Language, Dictionary> = {
       newFolder: "+ Nova pasta",
       uploadFile: "+ Enviar arquivo",
       allFolders: "Todas as pastas",
+      foldersTitle: "Pastas",
+      subfoldersTitle: "Árvore de pastas",
+      filesTitle: "Arquivos",
+      currentFolderLabel: "Pasta atual",
+      folderRoot: "Raiz",
+      folderParentLabel: "Pasta pai",
+      dragHint: "Arraste documentos para mover entre pastas.",
       searchLabel: "Buscar",
       searchPlaceholder: "Pesquisar por nome do arquivo",
       typeLabel: "Tipo",
@@ -488,10 +572,80 @@ export const dictionaries: Record<Language, Dictionary> = {
       tableUpdated: "Atualizado",
       tableActions: "Ações",
       open: "Abrir",
+      empty: "Nenhum documento encontrado.",
+      loadError: "Não foi possível carregar os documentos.",
+      historyAction: "Histórico",
+      historyTitle: "Histórico de referências",
+      fileLabel: "Arquivo",
+      noTags: "Sem tags associadas.",
+      close: "Fechar",
+      cancel: "Cancelar",
+      save: "Salvar",
+      saving: "Salvando...",
+      folderTitle: "Nova pasta",
+      folderNameLabel: "Nome da pasta",
+      folderNamePlaceholder: "Ex: Contratos",
+      folderDescriptionLabel: "Descrição",
+      folderLabel: "Pasta",
+      folderRequired: "Informe o nome da pasta.",
+      folderSaveError: "Não foi possível criar a pasta.",
+      folderRenameError: "Não foi possível renomear a pasta.",
+      moveAction: "Mover",
+      moveTitle: "Mover documento",
+      moveLabel: "Mover para",
+      moveConfirm: "Mover",
+      moveError: "Não foi possível mover o documento.",
+      renameAction: "Renomear",
+      renameTitle: "Renomear",
+      renameConfirm: "Salvar",
+      renameError: "Não foi possível renomear o item.",
+      mentionAction: "Marcar alguém",
+      linkAction: "Vincular módulo",
+      deleteAction: "Excluir",
+      deleteTitle: "Excluir",
+      deleteConfirm: "Tem certeza que deseja excluir",
+      deleteError: "Não foi possível excluir o item.",
+      linkTitle: "Vincular a outro módulo",
+      linkModuleLabel: "Módulo",
+      linkTypeLabel: "Tipo",
+      linkIdLabel: "ID",
+      linkTitleLabel: "Título",
+      linkConfirm: "Vincular",
+      linkError: "Não foi possível vincular o documento.",
+      uploadTitle: "Enviar arquivo",
+      fileNameLabel: "Nome do arquivo",
+      fileNamePlaceholder: "Ex: Nota fiscal janeiro",
+      fileRequired: "Selecione um arquivo para enviar.",
+      fileNameRequired: "Informe o nome do arquivo.",
+      uploadError: "Não foi possível enviar o arquivo.",
+      uploadAction: "Enviar",
+      tagsLabel: "Tags",
+      tagsPlaceholder: "Ex: financeiro, recorrente",
+      descriptionLabel: "Descrição",
       page: "Página",
       pageOf: "de",
       prev: "Anterior",
       next: "Próximo",
+      references: {
+        title: "Referências",
+        titleLabel: "Título",
+        titlePlaceholder: "Ex: Menção manual",
+        titleRequired: "Informe o título da referência.",
+        mentionUsersLabel: "Buscar por e-mail",
+        mentionUsersPlaceholder: "email@empresa.com",
+        mentionSearchRequired: "Informe o e-mail para buscar.",
+        mentionSelectionRequired: "Selecione ao menos um usuário.",
+        mentionSearchAction: "Adicionar",
+        createAction: "Adicionar menção",
+        createError: "Não foi possível salvar a referência.",
+        empty: "Ainda não há referências vinculadas.",
+        loadError: "Não foi possível carregar o histórico.",
+        mentionedAt: "Mencionado em",
+        scheduledAt: "Próxima notificação",
+        kindMention: "Menção",
+        kindScheduled: "Agendado",
+        customModule: "Outro módulo",
+      },
       folders: {
         contracts: "Contratos",
         tax: "Fiscal",
@@ -797,6 +951,13 @@ export const dictionaries: Record<Language, Dictionary> = {
       newFolder: "+ New folder",
       uploadFile: "+ Upload file",
       allFolders: "All folders",
+      foldersTitle: "Folders",
+      subfoldersTitle: "Folder tree",
+      filesTitle: "Files",
+      currentFolderLabel: "Current folder",
+      folderRoot: "Root",
+      folderParentLabel: "Parent folder",
+      dragHint: "Drag documents to move between folders.",
       searchLabel: "Search",
       searchPlaceholder: "Search by file name",
       typeLabel: "Type",
@@ -814,10 +975,80 @@ export const dictionaries: Record<Language, Dictionary> = {
       tableUpdated: "Updated",
       tableActions: "Actions",
       open: "Open",
+      empty: "No documents found.",
+      loadError: "Unable to load documents.",
+      historyAction: "History",
+      historyTitle: "References history",
+      fileLabel: "File",
+      noTags: "No tags associated.",
+      close: "Close",
+      cancel: "Cancel",
+      save: "Save",
+      saving: "Saving...",
+      folderTitle: "New folder",
+      folderNameLabel: "Folder name",
+      folderNamePlaceholder: "Ex: Contracts",
+      folderDescriptionLabel: "Description",
+      folderLabel: "Folder",
+      folderRequired: "Provide a folder name.",
+      folderSaveError: "Unable to create the folder.",
+      folderRenameError: "Unable to rename the folder.",
+      moveAction: "Move",
+      moveTitle: "Move document",
+      moveLabel: "Move to",
+      moveConfirm: "Move",
+      moveError: "Unable to move the document.",
+      renameAction: "Rename",
+      renameTitle: "Rename",
+      renameConfirm: "Save",
+      renameError: "Unable to rename the item.",
+      mentionAction: "Mention someone",
+      linkAction: "Link module",
+      deleteAction: "Delete",
+      deleteTitle: "Delete",
+      deleteConfirm: "Are you sure you want to delete",
+      deleteError: "Unable to delete the item.",
+      linkTitle: "Link to another module",
+      linkModuleLabel: "Module",
+      linkTypeLabel: "Type",
+      linkIdLabel: "ID",
+      linkTitleLabel: "Title",
+      linkConfirm: "Link",
+      linkError: "Unable to link the document.",
+      uploadTitle: "Upload file",
+      fileNameLabel: "File name",
+      fileNamePlaceholder: "Ex: January invoice",
+      fileRequired: "Select a file to upload.",
+      fileNameRequired: "Provide a file name.",
+      uploadError: "Unable to upload the file.",
+      uploadAction: "Upload",
+      tagsLabel: "Tags",
+      tagsPlaceholder: "Ex: finance, recurring",
+      descriptionLabel: "Description",
       page: "Page",
       pageOf: "of",
       prev: "Previous",
       next: "Next",
+      references: {
+        title: "References",
+        titleLabel: "Title",
+        titlePlaceholder: "Ex: Manual mention",
+        titleRequired: "Provide a reference title.",
+        mentionUsersLabel: "Search by email",
+        mentionUsersPlaceholder: "email@company.com",
+        mentionSearchRequired: "Enter an email to search.",
+        mentionSelectionRequired: "Select at least one user.",
+        mentionSearchAction: "Add",
+        createAction: "Add mention",
+        createError: "Unable to save the reference.",
+        empty: "No references linked yet.",
+        loadError: "Unable to load the history.",
+        mentionedAt: "Mentioned at",
+        scheduledAt: "Next notification",
+        kindMention: "Mention",
+        kindScheduled: "Scheduled",
+        customModule: "Other module",
+      },
       folders: {
         contracts: "Contracts",
         tax: "Tax",
