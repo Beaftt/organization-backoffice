@@ -1,19 +1,28 @@
 import CalendarClient from "./CalendarClient";
 
 type SearchParams = {
-  module?: string;
-  status?: string;
+  owners?: string;
+  from?: string;
+  to?: string;
+  tag?: string;
 };
 
-export default function CalendarPage({
+export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams?: SearchParams;
+  searchParams?: Promise<SearchParams> | SearchParams;
 }) {
+  const resolved = searchParams ? await searchParams : undefined;
+  const owners = resolved?.owners
+    ? resolved.owners.split(",").map((owner) => owner.trim()).filter(Boolean)
+    : [];
+
   return (
     <CalendarClient
-      initialModule={searchParams?.module ?? "all"}
-      initialStatus={searchParams?.status ?? "all"}
+      initialOwners={owners}
+      initialFrom={resolved?.from}
+      initialTo={resolved?.to}
+      initialTag={resolved?.tag ?? ""}
     />
   );
 }

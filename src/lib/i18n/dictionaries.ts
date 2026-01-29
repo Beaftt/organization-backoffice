@@ -1,5 +1,6 @@
 export type Language = "pt" | "en";
 
+/*
 export type Dictionary = {
   auth: {
     title: string;
@@ -29,135 +30,204 @@ export type Dictionary = {
     workspaceSettings: string;
     profileSettings: string;
     logout: string;
-    modules: string;
-    workspaces: string;
-    theme: string;
-    language: string;
-  };
-  modules: {
-    reminders: string;
-    secrets: string;
-    documents: string;
-    finance: string;
-    hr: string;
-    purchasing: string;
-    calendar: string;
-  };
-  limits: {
-    title: string;
-    subtitle: string;
-    view: string;
-    currentPlan: string;
-    changePlan: string;
-    seatPacks: string;
-    usageTitle: string;
-    usedOf: string;
-    unlimited: string;
-    members: string;
-    workspaces: string;
-    storage: string;
-    integrations: string;
-    integrationsEnabled: string;
-    integrationsBlocked: string;
-    businessRules: string;
-    membersDescription: string;
-    workspacesDescription: string;
-    storageDescription: string;
-    ruleWorkspacesTitle: string;
-    ruleWorkspacesDescription: string;
-    ruleRolesTitle: string;
-    ruleRolesDescription: string;
-    ruleSharingTitle: string;
-    ruleSharingDescription: string;
-    upgradeTitle: string;
-    upgradeSubtitle: string;
-    upgradeCta: string;
-  };
-  settings: {
-    title: string;
-    plan: string;
-    billing: string;
-    limits: string;
-  };
-  profile: {
-    title: string;
-    name: string;
-    photo: string;
-    save: string;
-  };
-  secrets: {
-    title: string;
-    subtitle: string;
-    newButton: string;
-    searchLabel: string;
-    searchPlaceholder: string;
-    typeLabel: string;
-    all: string;
-    sortLabel: string;
-    directionLabel: string;
-    updatedAt: string;
-    titleLabel: string;
-    desc: string;
-    asc: string;
-    tableTitle: string;
-    tableUser: string;
-    tableType: string;
-    tableUpdated: string;
-    tableActions: string;
-    view: string;
-    loading: string;
-    empty: string;
-    page: string;
-    prev: string;
-    next: string;
-    modalTitle: string;
-    fieldTitle: string;
-    fieldType: string;
-    fieldUser: string;
-    fieldSecret: string;
-    fieldUrl: string;
-    fieldNotes: string;
-    cancel: string;
-    save: string;
-    saving: string;
-    requiredError: string;
-    saveError: string;
-    loadError: string;
-    viewTitle: string;
-    close: string;
-    edit: string;
-    update: string;
-    updating: string;
-    delete: string;
-    deleting: string;
-    deleteConfirm: string;
-    deleteError: string;
-    updateError: string;
-    typeAccount: string;
-    typeServer: string;
-    typeApi: string;
-    typeOther: string;
-  };
-  documents: {
-    subtitle: string;
-    newFolder: string;
-    uploadFile: string;
-    allFolders: string;
-    foldersTitle: string;
-    subfoldersTitle: string;
-    filesTitle: string;
-    currentFolderLabel: string;
-    folderRoot: string;
-    folderParentLabel: string;
-    dragHint: string;
-    searchLabel: string;
-    searchPlaceholder: string;
-    typeLabel: string;
-    typeAll: string;
-    typePdf: string;
-    typeImage: string;
-    typeSpreadsheet: string;
-    typeOther: string;
+    finance: {
+      subtitle: string;
+      newType: string;
+      newTransaction: string;
+      recurringTitle: string;
+      typesTitle: string;
+      searchLabel: string;
+      searchPlaceholder: string;
+      groupLabel: string;
+      groupAll: string;
+      groupIncome: string;
+      groupExpense: string;
+      typeLabel: string;
+      statusLabel: string;
+      statusAll: string;
+      statusPaid: string;
+      statusPending: string;
+      sortLabel: string;
+      sortDate: string;
+      sortAmount: string;
+      tableTitle: string;
+      tableType: string;
+      tableDate: string;
+      tableAmount: string;
+      tableStatus: string;
+      tableActions: string;
+      details: string;
+      page: string;
+      pageOf: string;
+      prev: string;
+      next: string;
+      nextDueLabel: string;
+      cadenceMonthly: string;
+      cadenceQuarterly: string;
+      types: {
+        salary: string;
+        subscriptions: string;
+        taxes: string;
+        services: string;
+      };
+      transactions: {
+        salaryJanuary: string;
+        spotify: string;
+        iss: string;
+        consulting: string;
+        netflix: string;
+      };
+      recurring: {
+        monthlyTaxes: string;
+        streamingSubscriptions: string;
+        accountingServices: string;
+      };
+    };
+    calendar: {
+      subtitle: string;
+      newEvent: string;
+      filterModuleLabel: string;
+      filterStatusLabel: string;
+      filterAll: string;
+      statusPending: string;
+      statusDone: string;
+      monthTitle: string;
+      monthSummary: string;
+      monthEventsTitle: string;
+      days: string[];
+      calendar: {
+        subtitle: "Organize lembretes, reuniões e prazos em um só lugar.",
+        newEvent: "Novo evento",
+        filterModuleLabel: "Módulo",
+        filterStatusLabel: "Status",
+        filterAll: "Todos",
+        statusPending: "Pendente",
+        statusDone: "Concluído",
+        monthTitle: "Visão mensal",
+        monthSummary: "Confira eventos e compromissos do mês.",
+        monthEventsTitle: "Eventos do mês",
+        viewDay: "Ver dia",
+        dayViewTitle: "Visualização do dia",
+        documentsLoading: "Carregando documentos...",
+        documentsEmpty: "Nenhum documento na raiz.",
+        days: ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"],
+        events: {
+          monthlyTaxes: "Impostos mensais",
+          hrRecruitmentMeeting: "Reunião de recrutamento",
+          renewDocument: "Renovar documento",
+          updateCredentials: "Atualizar credenciais",
+        },
+        filtersTitle: "Filtros",
+        viewDay: "Ver dia",
+        dayViewTitle: "Visualização do dia",
+        documentsLoading: "Carregando documentos...",
+        documentsEmpty: "Nenhum documento na raiz.",
+        sectionDetails: "Detalhes",
+        sectionParticipants: "Participantes",
+        sectionDocuments: "Documentos e ata",
+        sectionRecurrence: "Recorrência",
+        filterOwnersLabel: "Calendários visíveis",
+        filterOwnersHint: "Selecione membros para filtrar. Sem seleção mostra tudo que você pode ver.",
+        filterDateFromLabel: "De",
+        filterDateToLabel: "Até",
+        tagsLabel: "Tags",
+        tagsPlaceholder: "ex: financeiro, equipe",
+        shareTitle: "Compartilhamento",
+        shareSubtitle: "Controle quem pode ver seus eventos.",
+        shareWithAllLabel: "Compartilhar com todos do workspace",
+        shareAllowedUsersLabel: "Compartilhar apenas com",
+        shareSave: "Salvar compartilhamento",
+        shareSaving: "Salvando...",
+        shareLastUpdated: "Atualizado em",
+        shareLoadError: "Não foi possível carregar o compartilhamento.",
+        shareSaveError: "Não foi possível salvar o compartilhamento.",
+        shareNoMembers: "Nenhum membro disponível.",
+        formTitle: "Novo evento",
+        formDescription: "Crie eventos recorrentes, com ata e documentos anexos.",
+        titleLabel: "Título",
+        titlePlaceholder: "Ex: Reunião de diretoria",
+        titleRequired: "Informe um título.",
+        startLabel: "Início",
+        startRequired: "Informe a data de início.",
+        endLabel: "Fim",
+        allDayLabel: "Evento de dia inteiro",
+        documentOnlyLabel: "Evento apenas para documentos",
+        documentOnlyTitle: "Evento de documentos",
+        descriptionLabel: "Descrição",
+        descriptionPlaceholder: "Resumo do evento",
+        participantsLabel: "Participantes",
+        selectUsersHint: "Selecione membros para participar.",
+        documentsLabel: "Documentos do evento",
+        documentsPlaceholder: "IDs dos documentos separados por vírgula",
+        minutesTitle: "Ata",
+        minutesLabel: "Texto da ata",
+        minutesPlaceholder: "Notas e decisões da reunião",
+        minutesDocumentsLabel: "Arquivos da ata",
+        minutesDocumentsPlaceholder: "IDs dos documentos da ata",
+        recurrenceTitle: "Recorrência",
+        recurrenceEnable: "Definir recorrência",
+        recurrenceFrequencyLabel: "Frequência",
+        recurrenceIntervalLabel: "Intervalo",
+        recurrenceWeekdaysLabel: "Dias da semana (0=Dom, 6=Sáb)",
+        recurrenceMonthDaysLabel: "Dias do mês",
+        recurrenceUntilLabel: "Repetir até",
+        createAction: "Criar evento",
+        creating: "Criando...",
+        createError: "Não foi possível criar o evento.",
+        deleteAction: "Excluir",
+        deleteError: "Não foi possível excluir o evento.",
+        listTitle: "Eventos",
+        ownerLabel: "Responsável:",
+        noEvents: "Nenhum evento encontrado.",
+        tagsEmpty: "Sem tags",
+        loading: "Carregando eventos...",
+        loadError: "Não foi possível carregar os eventos.",
+      },
+      shareLastUpdated: string;
+      shareLoadError: string;
+      shareSaveError: string;
+      shareNoMembers: string;
+      formTitle: string;
+      formDescription: string;
+      titleLabel: string;
+      titlePlaceholder: string;
+      titleRequired: string;
+      startLabel: string;
+      startRequired: string;
+      endLabel: string;
+      allDayLabel: string;
+      documentOnlyLabel: string;
+      documentOnlyTitle: string;
+      descriptionLabel: string;
+      descriptionPlaceholder: string;
+      participantsLabel: string;
+      selectUsersHint: string;
+      documentsLabel: string;
+      documentsPlaceholder: string;
+      minutesTitle: string;
+      minutesLabel: string;
+      minutesPlaceholder: string;
+      minutesDocumentsLabel: string;
+      minutesDocumentsPlaceholder: string;
+      recurrenceTitle: string;
+      recurrenceEnable: string;
+      recurrenceFrequencyLabel: string;
+      recurrenceIntervalLabel: string;
+      recurrenceWeekdaysLabel: string;
+      recurrenceMonthDaysLabel: string;
+      recurrenceUntilLabel: string;
+      createAction: string;
+      creating: string;
+      createError: string;
+      deleteAction: string;
+      deleteError: string;
+      listTitle: string;
+      ownerLabel: string;
+      noEvents: string;
+      tagsEmpty: string;
+      loading: string;
+      loadError: string;
+    };
     sortLabel: string;
     sortUpdated: string;
     sortName: string;
@@ -259,6 +329,63 @@ export type Dictionary = {
     subtitle: string;
     newType: string;
     newTransaction: string;
+      filtersTitle: string;
+      filterOwnersLabel: string;
+      filterOwnersHint: string;
+      filterDateFromLabel: string;
+      filterDateToLabel: string;
+      tagsLabel: string;
+      tagsPlaceholder: string;
+      shareTitle: string;
+      shareSubtitle: string;
+      shareWithAllLabel: string;
+      shareAllowedUsersLabel: string;
+      shareSave: string;
+      shareSaving: string;
+      shareLastUpdated: string;
+      shareLoadError: string;
+      shareSaveError: string;
+      shareNoMembers: string;
+      formTitle: string;
+      formDescription: string;
+      titleLabel: string;
+      titlePlaceholder: string;
+      titleRequired: string;
+      startLabel: string;
+      startRequired: string;
+      endLabel: string;
+      allDayLabel: string;
+      documentOnlyLabel: string;
+      documentOnlyTitle: string;
+      descriptionLabel: string;
+      descriptionPlaceholder: string;
+      participantsLabel: string;
+      selectUsersHint: string;
+      documentsLabel: string;
+      documentsPlaceholder: string;
+      minutesTitle: string;
+      minutesLabel: string;
+      minutesPlaceholder: string;
+      minutesDocumentsLabel: string;
+      minutesDocumentsPlaceholder: string;
+      recurrenceTitle: string;
+      recurrenceEnable: string;
+      recurrenceFrequencyLabel: string;
+      recurrenceIntervalLabel: string;
+      recurrenceWeekdaysLabel: string;
+      recurrenceMonthDaysLabel: string;
+      recurrenceUntilLabel: string;
+      createAction: string;
+      creating: string;
+      createError: string;
+      deleteAction: string;
+      deleteError: string;
+      listTitle: string;
+      ownerLabel: string;
+      noEvents: string;
+      tagsEmpty: string;
+      loading: string;
+      loadError: string;
     recurringTitle: string;
     typesTitle: string;
     searchLabel: string;
@@ -338,6 +465,100 @@ export type Dictionary = {
     emptyItems: string;
     quickAddHint: string;
     monthlyResetLabel: string;
+      filtersTitle: "Filtros",
+      openFilters: "Filtros",
+      openShare: "Compartilhar",
+      openCreate: "Novo evento",
+      monthLabel: "Mês",
+      todayAction: "Hoje",
+      prevMonthAction: "Mês anterior",
+      nextMonthAction: "Próximo mês",
+      closeAction: "Fechar",
+      clearFilters: "Limpar filtros",
+      dayEmpty: "Sem eventos",
+      eventsCount: "{count} eventos",
+      eventDetailsTitle: "Detalhes do evento",
+      openFilters: "Filtros",
+      openShare: "Compartilhar",
+      openCreate: "Novo evento",
+      monthLabel: "Mês",
+      todayAction: "Hoje",
+      prevMonthAction: "Mês anterior",
+      nextMonthAction: "Próximo mês",
+      closeAction: "Fechar",
+      clearFilters: "Limpar filtros",
+      dayEmpty: "Sem eventos",
+      eventsCount: "{count} eventos",
+      eventDetailsTitle: "Detalhes do evento",
+      openFilters: "Filtros",
+      openShare: "Compartilhar",
+      openCreate: "Novo evento",
+      monthLabel: "Mês",
+      todayAction: "Hoje",
+      prevMonthAction: "Mês anterior",
+      nextMonthAction: "Próximo mês",
+      closeAction: "Fechar",
+      clearFilters: "Limpar filtros",
+      dayEmpty: "Sem eventos",
+      eventsCount: "{count} eventos",
+      eventDetailsTitle: "Detalhes do evento",
+      filterOwnersLabel: "Calendários visíveis",
+      filterOwnersHint: "Selecione membros para filtrar. Sem seleção mostra tudo que você pode ver.",
+      filterDateFromLabel: "De",
+      filterDateToLabel: "Até",
+      tagsLabel: "Tags",
+      tagsPlaceholder: "ex: financeiro, equipe",
+      shareTitle: "Compartilhamento",
+      shareSubtitle: "Controle quem pode ver seus eventos.",
+      shareWithAllLabel: "Compartilhar com todos do workspace",
+      shareAllowedUsersLabel: "Compartilhar apenas com",
+      shareSave: "Salvar compartilhamento",
+      shareSaving: "Salvando...",
+      shareLastUpdated: "Atualizado em",
+      shareLoadError: "Não foi possível carregar o compartilhamento.",
+      shareSaveError: "Não foi possível salvar o compartilhamento.",
+      shareNoMembers: "Nenhum membro disponível.",
+      formTitle: "Novo evento",
+      formDescription: "Crie eventos recorrentes, com ata e documentos anexos.",
+      titleLabel: "Título",
+      titlePlaceholder: "Ex: Reunião de diretoria",
+      titleRequired: "Informe um título.",
+      startLabel: "Início",
+      startRequired: "Informe a data de início.",
+      endLabel: "Fim",
+      allDayLabel: "Evento de dia inteiro",
+      documentOnlyLabel: "Evento apenas para documentos",
+      documentOnlyTitle: "Evento de documentos",
+      descriptionLabel: "Descrição",
+      descriptionPlaceholder: "Resumo do evento",
+      participantsLabel: "Participantes",
+      selectUsersHint: "Selecione membros para participar.",
+      documentsLabel: "Documentos do evento",
+      documentsPlaceholder: "IDs dos documentos separados por vírgula",
+      minutesTitle: "Ata",
+      minutesLabel: "Texto da ata",
+      minutesPlaceholder: "Notas e decisões da reunião",
+      minutesDocumentsLabel: "Arquivos da ata",
+      minutesDocumentsPlaceholder: "IDs dos documentos da ata",
+      recurrenceTitle: "Recorrência",
+      recurrenceEnable: "Definir recorrência",
+      recurrenceFrequencyLabel: "Frequência",
+      recurrenceIntervalLabel: "Intervalo",
+      recurrenceWeekdaysLabel: "Dias da semana (0=Dom, 6=Sáb)",
+      recurrenceMonthDaysLabel: "Dias do mês",
+      recurrenceUntilLabel: "Repetir até",
+      createAction: "Criar evento",
+      creating: "Criando...",
+      createError: "Não foi possível criar o evento.",
+      editAction: "Editar",
+      deleteAction: "Excluir",
+      deleteError: "Não foi possível excluir o evento.",
+      listTitle: "Eventos",
+      ownerLabel: "Responsável:",
+      noEvents: "Nenhum evento encontrado.",
+      tagsEmpty: "Sem tags",
+      loading: "Carregando eventos...",
+      loadError: "Não foi possível carregar os eventos.",
     financeLinkLabel: string;
     calendarLinkLabel: string;
     statusDone: string;
@@ -358,6 +579,18 @@ export type Dictionary = {
     saveError: string;
     updateError: string;
     filtersTitle: string;
+    openFilters: string;
+    openShare: string;
+    openCreate: string;
+    monthLabel: string;
+    todayAction: string;
+    prevMonthAction: string;
+    nextMonthAction: string;
+    closeAction: string;
+    clearFilters: string;
+    dayEmpty: string;
+    eventsCount: string;
+    eventDetailsTitle: string;
     searchLabel: string;
     searchPlaceholder: string;
     statusLabel: string;
@@ -401,7 +634,8 @@ export type Dictionary = {
   };
 };
 
-export const dictionaries: Record<Language, Dictionary> = {
+*/
+export const dictionaries = {
   pt: {
     auth: {
       title: "Entrar",
@@ -714,23 +948,101 @@ export const dictionaries: Record<Language, Dictionary> = {
       },
     },
     calendar: {
-      subtitle: "Eventos integrados de finanças, RH, documentos e lembretes.",
-      newEvent: "+ Novo evento",
+      subtitle: "Organize lembretes, reuniões e prazos em um só lugar.",
+      newEvent: "Novo evento",
       filterModuleLabel: "Módulo",
       filterStatusLabel: "Status",
       filterAll: "Todos",
       statusPending: "Pendente",
       statusDone: "Concluído",
-      monthTitle: "Janeiro 2026",
-      monthSummary: "Resumo mensal",
+      monthTitle: "Visão mensal",
+      monthSummary: "Confira eventos e compromissos do mês.",
       monthEventsTitle: "Eventos do mês",
       days: ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"],
       events: {
         monthlyTaxes: "Impostos mensais",
-        hrRecruitmentMeeting: "Reunião RH - recrutamento",
+        hrRecruitmentMeeting: "Reunião de recrutamento",
         renewDocument: "Renovar documento",
         updateCredentials: "Atualizar credenciais",
       },
+      filtersTitle: "Filtros",
+      viewDay: "Ver dia",
+      dayViewTitle: "Visualização do dia",
+      documentsLoading: "Carregando documentos...",
+      documentsEmpty: "Nenhum documento na raiz.",
+      sectionDetails: "Detalhes",
+      sectionParticipants: "Participantes",
+      sectionDocuments: "Documentos e ata",
+      sectionRecurrence: "Recorrência",
+      openFilters: "Filtros",
+      openShare: "Compartilhar",
+      openCreate: "Novo evento",
+      monthLabel: "Mês",
+      todayAction: "Hoje",
+      prevMonthAction: "Mês anterior",
+      nextMonthAction: "Próximo mês",
+      closeAction: "Fechar",
+      clearFilters: "Limpar filtros",
+      dayEmpty: "Sem eventos",
+      eventsCount: "{count} eventos",
+      eventDetailsTitle: "Detalhes do evento",
+      filterOwnersLabel: "Calendários visíveis",
+      filterOwnersHint: "Selecione membros para filtrar. Sem seleção mostra tudo que você pode ver.",
+      filterDateFromLabel: "De",
+      filterDateToLabel: "Até",
+      tagsLabel: "Tags",
+      tagsPlaceholder: "ex: financeiro, equipe",
+      shareTitle: "Compartilhamento",
+      shareSubtitle: "Controle quem pode ver seus eventos.",
+      shareWithAllLabel: "Compartilhar com todos do workspace",
+      shareAllowedUsersLabel: "Compartilhar apenas com",
+      shareSave: "Salvar compartilhamento",
+      shareSaving: "Salvando...",
+      shareLastUpdated: "Atualizado em",
+      shareLoadError: "Não foi possível carregar o compartilhamento.",
+      shareSaveError: "Não foi possível salvar o compartilhamento.",
+      shareNoMembers: "Nenhum membro disponível.",
+      formTitle: "Novo evento",
+      formDescription: "Crie eventos recorrentes, com ata e documentos anexos.",
+      titleLabel: "Título",
+      titlePlaceholder: "Ex: Reunião de diretoria",
+      titleRequired: "Informe um título.",
+      startLabel: "Início",
+      startRequired: "Informe a data de início.",
+      endLabel: "Fim",
+      allDayLabel: "Evento de dia inteiro",
+      documentOnlyLabel: "Evento apenas para documentos",
+      documentOnlyTitle: "Evento de documentos",
+      descriptionLabel: "Descrição",
+      descriptionPlaceholder: "Resumo do evento",
+      participantsLabel: "Participantes",
+      selectUsersHint: "Selecione membros para participar.",
+      documentsLabel: "Documentos do evento",
+      documentsPlaceholder: "IDs dos documentos separados por vírgula",
+      minutesTitle: "Ata",
+      minutesLabel: "Texto da ata",
+      minutesPlaceholder: "Notas e decisões da reunião",
+      minutesDocumentsLabel: "Arquivos da ata",
+      minutesDocumentsPlaceholder: "IDs dos documentos da ata",
+      recurrenceTitle: "Recorrência",
+      recurrenceEnable: "Definir recorrência",
+      recurrenceFrequencyLabel: "Frequência",
+      recurrenceIntervalLabel: "Intervalo",
+      recurrenceWeekdaysLabel: "Dias da semana (0=Dom, 6=Sáb)",
+      recurrenceMonthDaysLabel: "Dias do mês",
+      recurrenceUntilLabel: "Repetir até",
+      createAction: "Criar evento",
+      creating: "Criando...",
+      createError: "Não foi possível criar o evento.",
+      editAction: "Editar",
+      deleteAction: "Excluir",
+      deleteError: "Não foi possível excluir o evento.",
+      listTitle: "Eventos",
+      ownerLabel: "Responsável:",
+      noEvents: "Nenhum evento encontrado.",
+      tagsEmpty: "Sem tags",
+      loading: "Carregando eventos...",
+      loadError: "Não foi possível carregar os eventos.",
     },
     reminders: {
       title: "Lembretes",
@@ -1117,23 +1429,101 @@ export const dictionaries: Record<Language, Dictionary> = {
       },
     },
     calendar: {
-      subtitle: "Integrated events across finance, HR, documents, and reminders.",
-      newEvent: "+ New event",
+      subtitle: "Track reminders, meetings, and deadlines in one place.",
+      newEvent: "New event",
       filterModuleLabel: "Module",
       filterStatusLabel: "Status",
       filterAll: "All",
       statusPending: "Pending",
       statusDone: "Done",
-      monthTitle: "January 2026",
-      monthSummary: "Monthly summary",
-      monthEventsTitle: "Events this month",
+      monthTitle: "Monthly view",
+      monthSummary: "Check events and commitments for the month.",
+      monthEventsTitle: "Month events",
       days: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
       events: {
         monthlyTaxes: "Monthly taxes",
-        hrRecruitmentMeeting: "HR meeting - recruitment",
+        hrRecruitmentMeeting: "Recruitment meeting",
         renewDocument: "Renew document",
         updateCredentials: "Update credentials",
       },
+      filtersTitle: "Filters",
+      viewDay: "Day view",
+      dayViewTitle: "Day view",
+      documentsLoading: "Loading documents...",
+      documentsEmpty: "No documents in root.",
+      sectionDetails: "Details",
+      sectionParticipants: "Participants",
+      sectionDocuments: "Documents & minutes",
+      sectionRecurrence: "Recurrence",
+      openFilters: "Filters",
+      openShare: "Share",
+      openCreate: "New event",
+      monthLabel: "Month",
+      todayAction: "Today",
+      prevMonthAction: "Previous month",
+      nextMonthAction: "Next month",
+      closeAction: "Close",
+      clearFilters: "Clear filters",
+      dayEmpty: "No events",
+      eventsCount: "{count} events",
+      eventDetailsTitle: "Event details",
+      filterOwnersLabel: "Visible calendars",
+      filterOwnersHint: "Select members to filter. Empty selection shows everything you can view.",
+      filterDateFromLabel: "From",
+      filterDateToLabel: "To",
+      tagsLabel: "Tags",
+      tagsPlaceholder: "e.g. finance, team",
+      shareTitle: "Sharing",
+      shareSubtitle: "Control who can see your events.",
+      shareWithAllLabel: "Share with everyone in the workspace",
+      shareAllowedUsersLabel: "Share only with",
+      shareSave: "Save sharing",
+      shareSaving: "Saving...",
+      shareLastUpdated: "Updated on",
+      shareLoadError: "Unable to load sharing settings.",
+      shareSaveError: "Unable to save sharing settings.",
+      shareNoMembers: "No members available.",
+      formTitle: "New event",
+      formDescription: "Create recurring events with minutes and attachments.",
+      titleLabel: "Title",
+      titlePlaceholder: "Ex: Leadership meeting",
+      titleRequired: "Provide a title.",
+      startLabel: "Start",
+      startRequired: "Provide a start date.",
+      endLabel: "End",
+      allDayLabel: "All-day event",
+      documentOnlyLabel: "Document-only event",
+      documentOnlyTitle: "Documents event",
+      descriptionLabel: "Description",
+      descriptionPlaceholder: "Event summary",
+      participantsLabel: "Participants",
+      selectUsersHint: "Select members to participate.",
+      documentsLabel: "Event documents",
+      documentsPlaceholder: "Document IDs separated by commas",
+      minutesTitle: "Minutes",
+      minutesLabel: "Minutes text",
+      minutesPlaceholder: "Notes and decisions",
+      minutesDocumentsLabel: "Minutes files",
+      minutesDocumentsPlaceholder: "Minutes document IDs",
+      recurrenceTitle: "Recurrence",
+      recurrenceEnable: "Set recurrence",
+      recurrenceFrequencyLabel: "Frequency",
+      recurrenceIntervalLabel: "Interval",
+      recurrenceWeekdaysLabel: "Weekdays (0=Sun, 6=Sat)",
+      recurrenceMonthDaysLabel: "Month days",
+      recurrenceUntilLabel: "Repeat until",
+      createAction: "Create event",
+      creating: "Creating...",
+      createError: "Unable to create event.",
+      editAction: "Edit",
+      deleteAction: "Delete",
+      deleteError: "Unable to delete event.",
+      listTitle: "Events",
+      ownerLabel: "Owner:",
+      noEvents: "No events found.",
+      tagsEmpty: "No tags",
+      loading: "Loading events...",
+      loadError: "Unable to load events.",
     },
     reminders: {
       title: "Reminders",
@@ -1209,3 +1599,5 @@ export const dictionaries: Record<Language, Dictionary> = {
     },
   },
 };
+
+export type Dictionary = (typeof dictionaries)["pt"];
