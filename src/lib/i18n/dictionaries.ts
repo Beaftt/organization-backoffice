@@ -7,9 +7,17 @@ export type Dictionary = {
     subtitle: string;
     email: string;
     password: string;
+      summaryIncome: "Income",
+      summaryExpense: "Expenses",
+      summaryNet: "Net",
+      summaryAccounts: "Accounts",
     confirmPassword: string;
     login: string;
+      newAccount: "+ New account",
     register: string;
+      notificationsTitle: "Notifications",
+      notificationsSubtitle: "Card alerts and finance updates.",
+      notificationsEmpty: "No recent notifications.",
     google: string;
     goToRegister: string;
     goToLogin: string;
@@ -18,6 +26,8 @@ export type Dictionary = {
     passwordMismatch: string;
     remember: string;
     defaultModuleLabel: string;
+      typeAll: "All",
+      typeRequired: "Provide a type.",
   };
   layout: {
     dashboard: string;
@@ -25,6 +35,22 @@ export type Dictionary = {
     profile: string;
     limits: string;
     back: string;
+      titleLabel: "Title",
+      titleRequired: "Provide a title.",
+      amountLabel: "Amount",
+      amountRequired: "Provide an amount.",
+      dateLabel: "Date",
+      dateRequired: "Provide a date.",
+      accountLabel: "Account",
+      accountAll: "All",
+      accountTypeLabel: "Account type",
+      accountRequired: "Provide an account.",
+      descriptionLabel: "Description",
+      tagsLabel: "Tags",
+      tagsPlaceholder: "e.g. taxes, recurring",
+      addTagAction: "Add tag",
+      tagsEmpty: "No tags",
+      listTitle: "Entries",
     newWorkspace: string;
     shareWorkspace: string;
     workspaceSettings: string;
@@ -32,13 +58,26 @@ export type Dictionary = {
     logout: string;
     finance: {
       subtitle: string;
+      editAction: "Edit",
+      deleteAction: "Delete",
+      close: "Close",
+      cancel: "Cancel",
+      save: "Save",
+      saving: "Saving...",
       newType: string;
       newTransaction: string;
       recurringTitle: string;
       typesTitle: string;
       searchLabel: string;
+      recurrenceFrequencyLabel: "Frequency",
       searchPlaceholder: string;
       groupLabel: string;
+      loading: "Loading finance data...",
+      empty: "No entries found.",
+      loadError: "Unable to load finance data.",
+      saveError: "Unable to save.",
+      deleteError: "Unable to delete.",
+      tagError: "Unable to create tag.",
       groupAll: string;
       groupIncome: string;
       groupExpense: string;
@@ -930,9 +969,23 @@ export const dictionaries = {
     },
     finance: {
       subtitle: "Registre despesas, receitas e recorrências mensais.",
+      summaryIncome: "Receitas",
+      summaryExpense: "Despesas",
+      summaryNet: "Saldo",
+      summaryAccounts: "Contas",
+      monthTitle: "Contas por mês",
+      monthSummary: "Resumo mensal por conta",
+      monthEventsTitle: "Lançamentos do mês",
       newType: "+ Novo tipo",
       newTransaction: "+ Nova transação",
+      newAccount: "+ Nova conta",
       recurringTitle: "Checklist de contas recorrentes",
+      recurringLabel: "Transação recorrente",
+      addToCalendarLabel: "Adicionar recorrência ao calendário",
+      recurrenceTabLabel: "Recorrência",
+      notificationsTitle: "Notificações",
+      notificationsSubtitle: "Alertas dos cartões e avisos financeiros.",
+      notificationsEmpty: "Nenhuma notificação recente.",
       typesTitle: "Tipos financeiros",
       searchLabel: "Buscar",
       searchPlaceholder: "Pesquisar transações",
@@ -941,6 +994,8 @@ export const dictionaries = {
       groupIncome: "Receita",
       groupExpense: "Despesa",
       typeLabel: "Tipo",
+      typeAll: "Todos",
+      typeRequired: "Informe um tipo.",
       statusLabel: "Status",
       statusAll: "Todos",
       statusPaid: "Pago",
@@ -948,6 +1003,23 @@ export const dictionaries = {
       sortLabel: "Ordenar",
       sortDate: "Data",
       sortAmount: "Valor",
+      titleLabel: "Título",
+      titleRequired: "Informe um título.",
+      amountLabel: "Valor",
+      amountRequired: "Informe um valor.",
+      dateLabel: "Data",
+      dateRequired: "Informe uma data.",
+      accountLabel: "Conta",
+      accountAll: "Todas",
+      accountUnknown: "Conta desconhecida",
+      accountTypeLabel: "Tipo de conta",
+      accountRequired: "Informe uma conta.",
+      descriptionLabel: "Descrição",
+      tagsLabel: "Tags",
+      tagsPlaceholder: "ex: impostos, recorrente",
+      addTagAction: "Adicionar tag",
+      tagsEmpty: "Sem tags",
+      listTitle: "Lançamentos",
       tableTitle: "Título",
       tableType: "Tipo",
       tableDate: "Data",
@@ -955,13 +1027,29 @@ export const dictionaries = {
       tableStatus: "Status",
       tableActions: "Ações",
       details: "Detalhes",
+      editAction: "Editar",
+      deleteAction: "Excluir",
+      close: "Fechar",
+      cancel: "Cancelar",
+      save: "Salvar",
+      saving: "Salvando...",
       page: "Página",
       pageOf: "de",
       prev: "Anterior",
       next: "Próximo",
       nextDueLabel: "Próx:",
+      recurrenceFrequencyLabel: "Frequência",
       cadenceMonthly: "Mensal",
       cadenceQuarterly: "Trimestral",
+      cadenceDaily: "Diária",
+      cadenceWeekly: "Semanal",
+      cadenceYearly: "Anual",
+      loading: "Carregando finanças...",
+      empty: "Nenhum lançamento encontrado.",
+      loadError: "Não foi possível carregar as finanças.",
+      saveError: "Não foi possível salvar.",
+      deleteError: "Não foi possível excluir.",
+      tagError: "Não foi possível criar a tag.",
       types: {
         salary: "Salário",
         subscriptions: "Assinaturas",
@@ -1463,9 +1551,23 @@ export const dictionaries = {
     },
     finance: {
       subtitle: "Track expenses, income, and monthly recurring items.",
+      summaryIncome: "Income",
+      summaryExpense: "Expenses",
+      summaryNet: "Net",
+      summaryAccounts: "Accounts",
+      monthTitle: "Accounts by month",
+      monthSummary: "Monthly summary by account",
+      monthEventsTitle: "Month transactions",
       newType: "+ New type",
       newTransaction: "+ New transaction",
+      newAccount: "+ New account",
       recurringTitle: "Recurring bills checklist",
+      recurringLabel: "Recurring transaction",
+      addToCalendarLabel: "Add recurrence to calendar",
+      recurrenceTabLabel: "Recurrence",
+      notificationsTitle: "Notifications",
+      notificationsSubtitle: "Card alerts and finance updates.",
+      notificationsEmpty: "No recent notifications.",
       typesTitle: "Finance types",
       searchLabel: "Search",
       searchPlaceholder: "Search transactions",
@@ -1474,6 +1576,8 @@ export const dictionaries = {
       groupIncome: "Income",
       groupExpense: "Expense",
       typeLabel: "Type",
+      typeAll: "All",
+      typeRequired: "Provide a type.",
       statusLabel: "Status",
       statusAll: "All",
       statusPaid: "Paid",
@@ -1481,6 +1585,23 @@ export const dictionaries = {
       sortLabel: "Sort",
       sortDate: "Date",
       sortAmount: "Amount",
+      titleLabel: "Title",
+      titleRequired: "Provide a title.",
+      amountLabel: "Amount",
+      amountRequired: "Provide an amount.",
+      dateLabel: "Date",
+      dateRequired: "Provide a date.",
+      accountLabel: "Account",
+      accountAll: "All",
+      accountUnknown: "Unknown account",
+      accountTypeLabel: "Account type",
+      accountRequired: "Provide an account.",
+      descriptionLabel: "Description",
+      tagsLabel: "Tags",
+      tagsPlaceholder: "e.g. taxes, recurring",
+      addTagAction: "Add tag",
+      tagsEmpty: "No tags",
+      listTitle: "Entries",
       tableTitle: "Title",
       tableType: "Type",
       tableDate: "Date",
@@ -1488,13 +1609,29 @@ export const dictionaries = {
       tableStatus: "Status",
       tableActions: "Actions",
       details: "Details",
+      editAction: "Edit",
+      deleteAction: "Delete",
+      close: "Close",
+      cancel: "Cancel",
+      save: "Save",
+      saving: "Saving...",
       page: "Page",
       pageOf: "of",
       prev: "Previous",
       next: "Next",
       nextDueLabel: "Next:",
+      recurrenceFrequencyLabel: "Frequency",
       cadenceMonthly: "Monthly",
       cadenceQuarterly: "Quarterly",
+      cadenceDaily: "Daily",
+      cadenceWeekly: "Weekly",
+      cadenceYearly: "Yearly",
+      loading: "Loading finance data...",
+      empty: "No entries found.",
+      loadError: "Unable to load finance data.",
+      saveError: "Unable to save.",
+      deleteError: "Unable to delete.",
+      tagError: "Unable to create tag.",
       types: {
         salary: "Salary",
         subscriptions: "Subscriptions",

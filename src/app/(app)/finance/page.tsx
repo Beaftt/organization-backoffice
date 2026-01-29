@@ -9,19 +9,20 @@ type SearchParams = {
   page?: string;
 };
 
-export default function FinancePage({
+export default async function FinancePage({
   searchParams,
 }: {
-  searchParams?: SearchParams;
+  searchParams: Promise<SearchParams>;
 }) {
+  const resolvedParams = await searchParams;
   return (
     <FinanceClient
-      initialQuery={searchParams?.q ?? ""}
-      initialGroup={searchParams?.group ?? "all"}
-      initialType={searchParams?.type ?? "all"}
-      initialStatus={searchParams?.status ?? "all"}
-      initialSort={searchParams?.sort ?? "date"}
-      initialPage={Number(searchParams?.page ?? 1)}
+      initialQuery={resolvedParams?.q ?? ""}
+      initialGroup={resolvedParams?.group ?? "all"}
+      initialType={resolvedParams?.type ?? "all"}
+      initialStatus={resolvedParams?.status ?? "all"}
+      initialSort={resolvedParams?.sort ?? "date"}
+      initialPage={Number(resolvedParams?.page ?? 1)}
     />
   );
 }
