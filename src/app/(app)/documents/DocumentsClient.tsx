@@ -201,7 +201,7 @@ export default function DocumentsClient({
       CALENDAR: t.modules.calendar,
       REMINDERS: t.modules.reminders,
       HR: t.modules.hr,
-      PURCHASING: t.modules.purchasing,
+      PURCHASING: t.modules.studies,
       SECRETS: t.modules.secrets,
       CUSTOM: t.documents.references.customModule,
     }),

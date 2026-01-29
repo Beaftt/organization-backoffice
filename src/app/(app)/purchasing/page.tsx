@@ -1,5 +1,5 @@
-import PurchasingClient from "./PurchasingClient";
+import { redirect } from "next/navigation";
 
 export default function PurchasingPage() {
-  return <PurchasingClient />;
+  redirect("/studies");
 }

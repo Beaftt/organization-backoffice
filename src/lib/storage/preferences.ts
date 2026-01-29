@@ -5,7 +5,7 @@ export type DefaultModule =
   | "documents"
   | "finance"
   | "hr"
-  | "purchasing"
+  | "studies"
   | "calendar";
 
 const DEFAULT_MODULE_KEY = "org.default.module";

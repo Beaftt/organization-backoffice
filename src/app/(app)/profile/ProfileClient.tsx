@@ -121,7 +121,7 @@ export default function ProfileClient() {
             <option value="secrets">{t.modules.secrets}</option>
             <option value="documents">{t.modules.documents}</option>
             <option value="hr">{t.modules.hr}</option>
-            <option value="purchasing">{t.modules.purchasing}</option>
+            <option value="studies">{t.modules.studies}</option>
             <option value="calendar">{t.modules.calendar}</option>
           </select>
         </label>

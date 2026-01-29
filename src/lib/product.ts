@@ -59,9 +59,9 @@ export const platformModules: PlatformModule[] = [
     tier: "business",
   },
   {
-    name: "Purchasing",
+    name: "Studies & courses",
     description:
-      "Requests, approvals, and supplier management for teams.",
+      "Track courses, assessments, readings, and academic projects.",
     tier: "business",
   },
   {
@@ -113,7 +113,7 @@ export const accountTypes: AccountType[] = [
       "Built for teams and companies that need multiple business modules.",
     highlights: [
       "Multiple members with role-based access",
-      "Business modules like HR and purchasing",
+      "Business modules like HR and studies",
       "Workspace-level policies and approvals",
     ],
   },
@@ -143,7 +143,7 @@ export const plans: Plan[] = [
     audience: "Growing teams",
     priceLabel: "Custom",
     limits: ["Up to 3 workspaces", "Up to 15 people"],
-    modules: ["Finance", "HR", "Purchasing"],
+    modules: ["Finance", "HR", "Studies"],
     integrations: ["Notion", "Accounting export"],
   },
   {
@@ -151,7 +151,7 @@ export const plans: Plan[] = [
     audience: "Scaling operations",
     priceLabel: "Custom",
     limits: ["Up to 10 workspaces", "Up to 50 people"],
-    modules: ["Finance", "HR", "Purchasing", "Approvals"],
+    modules: ["Finance", "HR", "Studies", "Approvals"],
     integrations: ["Notion", "Banking sync", "Payroll export"],
   },
   {

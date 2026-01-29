@@ -12,8 +12,8 @@ export const resolveDefaultRoute = (value: DefaultModule | null) => {
       return "/documents";
     case "hr":
       return "/hr";
-    case "purchasing":
-      return "/purchasing";
+    case "studies":
+      return "/studies";
     case "calendar":
       return "/calendar";
     case "dashboard":

@@ -21,7 +21,7 @@ const moduleLinks = [
   { key: "secrets", href: "/secrets", entitlement: "module.organization" },
   { key: "documents", href: "/documents", entitlement: "module.organization" },
   { key: "finance", href: "/finance", entitlement: "module.finance" },
-  { key: "purchasing", href: "/purchasing", entitlement: "module.organization" },
+  { key: "studies", href: "/studies", entitlement: "module.organization" },
   { key: "hr", href: "/hr", entitlement: "module.hr" },
 ];
 
@@ -38,7 +38,7 @@ const routeTitles: Record<string, string> = {
   "/documents": "documents",
   "/finance": "finance",
   "/hr": "hr",
-  "/purchasing": "purchasing",
+  "/studies": "studies",
   "/calendar": "calendar",
 };
 
