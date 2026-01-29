@@ -96,11 +96,6 @@ export default function CalendarClient({
     documentOnly: false,
   });
 
-  const membersById = useMemo(
-    () => new Map(members.map((member) => [member.userId, member])),
-    [members],
-  );
-
   const rootDocuments = useMemo(
     () => documents.filter((document) => !document.folderId),
     [documents],
@@ -111,12 +106,12 @@ export default function CalendarClient({
     [theme],
   );
 
-  const toDateInput = (date: Date) => {
+  const toDateInput = useCallback((date: Date) => {
     const year = date.getFullYear();
     const month = `${date.getMonth() + 1}`.padStart(2, "0");
     const day = `${date.getDate()}`.padStart(2, "0");
     return `${year}-${month}-${day}`;
-  };
+  }, []);
 
   const toDateTimeInput = (value?: string | null) => {
     if (!value) return "";
@@ -148,11 +143,14 @@ export default function CalendarClient({
       year: "numeric",
     }).format(value);
 
-  const formatShortDate = (value: Date) =>
-    new Intl.DateTimeFormat("pt-BR", {
-      day: "2-digit",
-      month: "short",
-    }).format(value);
+  const formatShortDate = useCallback(
+    (value: Date) =>
+      new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "short",
+      }).format(value),
+    [],
+  );
 
   const monthDays = useMemo(() => {
     const year = monthDate.getFullYear();
@@ -167,7 +165,7 @@ export default function CalendarClient({
     });
   }, [monthDate]);
 
-  const formatDayLabel = (value: string) => {
+  const formatDayLabel = useCallback((value: string) => {
     const parsed = new Date(`${value}T00:00:00`);
     if (Number.isNaN(parsed.getTime())) return value;
     return new Intl.DateTimeFormat("pt-BR", {
@@ -176,10 +174,13 @@ export default function CalendarClient({
       month: "long",
       year: "numeric",
     }).format(parsed);
-  };
+  }, []);
 
   const todayKey = toDateInput(new Date());
-  const todayLabel = useMemo(() => formatDayLabel(todayKey), [todayKey]);
+  const todayLabel = useMemo(
+    () => formatDayLabel(todayKey),
+    [formatDayLabel, todayKey],
+  );
 
   const allOwnersSelected = selectedOwners.length === 0;
 
@@ -219,7 +220,7 @@ export default function CalendarClient({
       setFromDate(toDateInput(start));
       setToDate(toDateInput(end));
     },
-    [todayKey],
+    [toDateInput, todayKey],
   );
 
   useEffect(() => {
@@ -230,7 +231,7 @@ export default function CalendarClient({
       setFromDate((prev) => prev || toDateInput(start));
       setToDate((prev) => prev || toDateInput(end));
     }
-  }, [initialFrom, initialTo]);
+  }, [initialFrom, initialTo, toDateInput]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -304,11 +305,14 @@ export default function CalendarClient({
     }).format(parsed);
   };
 
-  const toLocalDateKey = (value: string) => {
+  const toLocalDateKey = useCallback(
+    (value: string) => {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return "";
     return toDateInput(parsed);
-  };
+    },
+    [toDateInput],
+  );
 
   const loadMembers = useCallback(async () => {
     const workspaceId = getWorkspaceId();
@@ -482,94 +486,102 @@ export default function CalendarClient({
     }
   }, [isCreateOpen, loadDocuments]);
 
-  const matchesRecurrence = (
-    date: Date,
-    start: Date,
-    recurrence: CalendarRecurrence,
-  ) => {
-    const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-    const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const diffMs = targetDate.getTime() - startDate.getTime();
-    if (diffMs < 0) return false;
-    const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-    const interval = recurrence.interval ?? 1;
-
-    switch (recurrence.frequency) {
-      case "DAILY":
-        return diffDays % interval === 0;
-      case "WEEKLY": {
-        const diffWeeks = Math.floor(diffDays / 7);
-        if (diffWeeks % interval !== 0) return false;
-        const weekdays = recurrence.byWeekday?.length
-          ? recurrence.byWeekday
-          : [start.getDay()];
-        return weekdays.includes(targetDate.getDay());
-      }
-      case "MONTHLY": {
-        const monthDiff =
-          (targetDate.getFullYear() - startDate.getFullYear()) * 12 +
-          (targetDate.getMonth() - startDate.getMonth());
-        if (monthDiff % interval !== 0) return false;
-        const days = recurrence.byMonthDay?.length
-          ? recurrence.byMonthDay
-          : [start.getDate()];
-        return days.includes(targetDate.getDate());
-      }
-      case "YEARLY": {
-        const yearDiff = targetDate.getFullYear() - startDate.getFullYear();
-        if (yearDiff % interval !== 0) return false;
-        return (
-          targetDate.getMonth() === startDate.getMonth() &&
-          targetDate.getDate() === startDate.getDate()
-        );
-      }
-      default:
-        return false;
-    }
-  };
-
-  const expandRecurringEvents = (
-    event: CalendarEvent,
-    rangeStart: Date,
-    rangeEnd: Date,
-  ) => {
-    if (!event.recurrence) return [event];
-    const start = new Date(event.startAt);
-    if (Number.isNaN(start.getTime())) return [event];
-    const duration = event.endAt
-      ? new Date(event.endAt).getTime() - start.getTime()
-      : 0;
-    const until = event.recurrence.until ? new Date(event.recurrence.until) : null;
-    const limit = until && until < rangeEnd ? until : rangeEnd;
-    const results: CalendarEvent[] = [];
-
-    for (
-      let cursor = new Date(rangeStart);
-      cursor <= limit;
-      cursor.setDate(cursor.getDate() + 1)
-    ) {
-      if (!matchesRecurrence(cursor, start, event.recurrence)) continue;
-      const occurrenceStart = new Date(
-        cursor.getFullYear(),
-        cursor.getMonth(),
-        cursor.getDate(),
-        start.getHours(),
-        start.getMinutes(),
-        start.getSeconds(),
-        start.getMilliseconds(),
+  const matchesRecurrence = useCallback(
+    (date: Date, start: Date, recurrence: CalendarRecurrence) => {
+      const startDate = new Date(
+        start.getFullYear(),
+        start.getMonth(),
+        start.getDate(),
       );
-      const occurrenceEnd = duration
-        ? new Date(occurrenceStart.getTime() + duration)
-        : null;
-      results.push({
-        ...event,
-        startAt: occurrenceStart.toISOString(),
-        endAt: occurrenceEnd ? occurrenceEnd.toISOString() : null,
-      });
-    }
+      const targetDate = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+      );
+      const diffMs = targetDate.getTime() - startDate.getTime();
+      if (diffMs < 0) return false;
+      const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+      const interval = recurrence.interval ?? 1;
 
-    return results;
-  };
+      switch (recurrence.frequency) {
+        case "DAILY":
+          return diffDays % interval === 0;
+        case "WEEKLY": {
+          const diffWeeks = Math.floor(diffDays / 7);
+          if (diffWeeks % interval !== 0) return false;
+          const weekdays = recurrence.byWeekday?.length
+            ? recurrence.byWeekday
+            : [start.getDay()];
+          return weekdays.includes(targetDate.getDay());
+        }
+        case "MONTHLY": {
+          const monthDiff =
+            (targetDate.getFullYear() - startDate.getFullYear()) * 12 +
+            (targetDate.getMonth() - startDate.getMonth());
+          if (monthDiff % interval !== 0) return false;
+          const days = recurrence.byMonthDay?.length
+            ? recurrence.byMonthDay
+            : [start.getDate()];
+          return days.includes(targetDate.getDate());
+        }
+        case "YEARLY": {
+          const yearDiff = targetDate.getFullYear() - startDate.getFullYear();
+          if (yearDiff % interval !== 0) return false;
+          return (
+            targetDate.getMonth() === startDate.getMonth() &&
+            targetDate.getDate() === startDate.getDate()
+          );
+        }
+        default:
+          return false;
+      }
+    },
+    [],
+  );
+
+  const expandRecurringEvents = useCallback(
+    (event: CalendarEvent, rangeStart: Date, rangeEnd: Date) => {
+      if (!event.recurrence) return [event];
+      const start = new Date(event.startAt);
+      if (Number.isNaN(start.getTime())) return [event];
+      const duration = event.endAt
+        ? new Date(event.endAt).getTime() - start.getTime()
+        : 0;
+      const until = event.recurrence.until
+        ? new Date(event.recurrence.until)
+        : null;
+      const limit = until && until < rangeEnd ? until : rangeEnd;
+      const results: CalendarEvent[] = [];
+
+      for (
+        let cursor = new Date(rangeStart);
+        cursor <= limit;
+        cursor.setDate(cursor.getDate() + 1)
+      ) {
+        if (!matchesRecurrence(cursor, start, event.recurrence)) continue;
+        const occurrenceStart = new Date(
+          cursor.getFullYear(),
+          cursor.getMonth(),
+          cursor.getDate(),
+          start.getHours(),
+          start.getMinutes(),
+          start.getSeconds(),
+          start.getMilliseconds(),
+        );
+        const occurrenceEnd = duration
+          ? new Date(occurrenceStart.getTime() + duration)
+          : null;
+        results.push({
+          ...event,
+          startAt: occurrenceStart.toISOString(),
+          endAt: occurrenceEnd ? occurrenceEnd.toISOString() : null,
+        });
+      }
+
+      return results;
+    },
+    [matchesRecurrence],
+  );
 
   const filteredEvents = useMemo(() => {
     const filter = tagFilter.trim().toLowerCase();
@@ -586,7 +598,7 @@ export default function CalendarClient({
     return filteredEvents.flatMap((event) =>
       expandRecurringEvents(event, rangeStart, rangeEnd),
     );
-  }, [filteredEvents, fromDate, toDate]);
+  }, [expandRecurringEvents, filteredEvents, fromDate, toDate]);
 
   const eventsByDay = useMemo(() => {
     return expandedEvents.reduce<Record<string, CalendarEvent[]>>(
@@ -599,7 +611,7 @@ export default function CalendarClient({
       },
       {},
     );
-  }, [expandedEvents]);
+  }, [expandedEvents, toLocalDateKey]);
 
   const selectedDayEvents = useMemo(() => {
     if (!selectedDay) return [];
@@ -646,7 +658,7 @@ export default function CalendarClient({
         day: date.getDate(),
       };
     });
-  }, [weekStartDate]);
+  }, [toDateInput, weekStartDate]);
 
   const yearReference = useMemo(() => {
     if (viewMode !== "year") return null;
@@ -728,7 +740,16 @@ export default function CalendarClient({
       return `${yearReference}`;
     }
     return monthLabel;
-  }, [dayViewKey, formatDayLabel, formatShortDate, monthLabel, todayLabel, viewMode, weekStartDate, yearReference]);
+  }, [
+    dayViewKey,
+    formatDayLabel,
+    formatShortDate,
+    monthLabel,
+    todayLabel,
+    viewMode,
+    weekStartDate,
+    yearReference,
+  ]);
 
   const handleToday = () => {
     setRangeForMode(viewMode, todayKey);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Image, { type ImageLoader } from "next/image";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -31,6 +32,8 @@ import { listUsers, lookupUserByEmail, type UserLookup } from "@/lib/api/users";
 import { useLanguage } from "@/lib/i18n/language-context";
 
 const pageSize = 6;
+
+const profileImageLoader: ImageLoader = ({ src }) => src;
 
 type DocumentsClientProps = {
   initialQuery?: string;
@@ -1750,9 +1753,13 @@ export default function DocumentsClient({
                           title={member.name || member.email}
                         >
                           {member.pictureUrl ? (
-                            <img
+                            <Image
                               src={member.pictureUrl}
                               alt={member.name || member.email}
+                              width={44}
+                              height={44}
+                              loader={profileImageLoader}
+                              unoptimized
                               className="h-full w-full rounded-full object-cover"
                             />
                           ) : (

@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import type { ErrorEnvelope, SuccessEnvelope } from "@/lib/api/client";
+import { logServerEvent } from "@/lib/observability/server-logger";
 
 const getBaseUrl = () =>
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
@@ -33,12 +34,21 @@ export const serverFetch = async <T>(
     headers.set("x-workspace-id", workspaceId);
   }
 
-  const response = await fetch(`${getBaseUrl()}${path}`, {
-    ...options,
-    headers,
-    credentials: "include",
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${getBaseUrl()}${path}`, {
+      ...options,
+      headers,
+      credentials: "include",
+      cache: "no-store",
+    });
+  } catch {
+    logServerEvent("error", "api_request_failed", "Server fetch failed", {
+      path,
+      method: options.method ?? "GET",
+    });
+    throw new Error("Failed to reach backend");
+  }
 
   if (response.status === 204) {
     return undefined as T;
@@ -47,6 +57,11 @@ export const serverFetch = async <T>(
   const payload = (await response.json()) as SuccessEnvelope<T> | ErrorEnvelope;
 
   if (!response.ok) {
+    logServerEvent("warn", "api_request_failed", "Server API request failed", {
+      path,
+      method: options.method ?? "GET",
+      statusCode: response.status,
+    });
     const message = payload.message ?? "Request failed";
     throw new Error(message);
   }

@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { logServerEvent } from "@/lib/observability/server-logger";
 
 const AUTH_COOKIE = "access_token";
 
@@ -15,6 +16,9 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get(AUTH_COOKIE)?.value;
   if (pathname === "/login" || pathname === "/register") {
     if (token) {
+      logServerEvent("info", "auth_redirect", "Redirected authenticated user", {
+        pathname,
+      });
       const dashboardUrl = request.nextUrl.clone();
       dashboardUrl.pathname = "/dashboard";
       dashboardUrl.search = "";
@@ -28,6 +32,9 @@ export function middleware(request: NextRequest) {
   }
 
   if (!token) {
+    logServerEvent("info", "auth_redirect", "Redirected unauthenticated user", {
+      pathname,
+    });
     const dashboardUrl = request.nextUrl.clone();
     dashboardUrl.pathname = "/login";
     dashboardUrl.search = "";

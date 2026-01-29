@@ -1,4 +1,6 @@
-import { getWorkspaceId } from "@/lib/storage/workspace";
+import { clearWorkspaceId, getWorkspaceId } from "@/lib/storage/workspace";
+import { clearLastVisitedRoute } from "@/lib/storage/navigation";
+import { logClientEvent } from "@/lib/observability/logger";
 
 export type SuccessEnvelope<T> = {
   statusCode: number;
@@ -62,6 +64,27 @@ const refreshAuthSession = async () => {
   return body.data;
 };
 
+const handleAuthFailure = async () => {
+  try {
+    await fetch(`${getBaseUrl()}/auth/logout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+    });
+  } catch {
+    // ignore logout errors
+  }
+
+  clearWorkspaceId();
+  clearLastVisitedRoute();
+
+  if (typeof window !== "undefined") {
+    window.location.replace("/login");
+  }
+};
+
 export const apiFetch = async <T>(
   path: string,
   options: RequestInit & { workspaceId?: string; skipAuth?: boolean } = {},
@@ -87,6 +110,10 @@ export const apiFetch = async <T>(
       credentials: "include",
     });
   } catch {
+    logClientEvent("error", "api_request_failed", "Network error", {
+      path,
+      method: options.method ?? "GET",
+    });
     throw new ApiError({
       message: "Failed to reach backend",
       statusCode: 0,
@@ -94,9 +121,25 @@ export const apiFetch = async <T>(
     });
   }
 
-  if (response.status === 401 && !hasRetried) {
-    await refreshAuthSession();
-    return apiFetch<T>(path, options, true);
+  if (response.status === 401 && !options.skipAuth) {
+    if (!hasRetried) {
+      try {
+        await refreshAuthSession();
+        return apiFetch<T>(path, options, true);
+      } catch {
+        await handleAuthFailure();
+        throw new ApiError({
+          message: "Unauthorized",
+          statusCode: response.status,
+        });
+      }
+    }
+
+    await handleAuthFailure();
+    throw new ApiError({
+      message: "Unauthorized",
+      statusCode: response.status,
+    });
   }
 
   if (response.status === 204) {
@@ -106,6 +149,11 @@ export const apiFetch = async <T>(
   const payload = (await response.json()) as SuccessEnvelope<T> | ErrorEnvelope;
 
   if (!response.ok) {
+    logClientEvent("warn", "api_request_failed", "API request failed", {
+      path,
+      method: options.method ?? "GET",
+      statusCode: response.status,
+    });
     throw new ApiError({
       message: payload.message ?? "Request failed",
       statusCode: payload.statusCode ?? response.status,

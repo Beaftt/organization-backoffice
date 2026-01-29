@@ -114,37 +114,6 @@ export default function StudiesClient() {
       }));
   }, [filteredCourses]);
 
-  const homeworkProgress = useMemo(() => {
-    if (!tasks.length) return [];
-    const grouped = new Map<string, { title: string; total: number; done: number }>();
-    tasks.forEach((task) => {
-      const course = courses.find((item) => item.id === task.courseId);
-      const key = task.courseId ?? "unassigned";
-      const title = course?.title ?? t.studies.unassignedCourseLabel;
-      const current = grouped.get(key) ?? { title, total: 0, done: 0 };
-      current.total += 1;
-      if (task.status === "DONE") current.done += 1;
-      grouped.set(key, current);
-    });
-
-    const palette = [
-      "bg-violet-500/20 text-violet-700",
-      "bg-amber-500/20 text-amber-700",
-      "bg-sky-500/20 text-sky-700",
-    ];
-
-    return Array.from(grouped.values())
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 3)
-      .map((item, index) => ({
-        id: `${item.title}-${index}`,
-        title: item.title,
-        percent: item.total ? Math.round((item.done / item.total) * 100) : 0,
-        tasks: item.total,
-        accent: palette[index % palette.length],
-      }));
-  }, [tasks, courses, t]);
-
   const formatDate = useCallback((value: string | null) => {
     if (!value) return "—";
     const date = new Date(value);

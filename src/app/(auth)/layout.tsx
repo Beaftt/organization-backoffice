@@ -1,34 +1,15 @@
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <div className="mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-4 py-10 sm:px-6">
-        <div className="relative grid w-full overflow-hidden rounded-[32px] bg-[var(--surface)] shadow-[0_20px_60px_rgba(22,26,40,0.12)] lg:grid-cols-[0.85fr_1.15fr]">
-          <div className="hidden flex-col justify-between bg-[var(--sidebar)] p-10 text-[var(--sidebar-text)] lg:flex">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-lg font-semibold">
-                OP
-              </div>
-              <div>
-                <p className="text-base font-semibold">Organization</p>
-                <p className="text-sm text-white/70">Backoffice</p>
-              </div>
-            </div>
-            <div className="mt-16">
-              <h1 className="text-3xl font-semibold leading-tight">
-                Centralize módulos, permissões e automações em um só lugar.
-              </h1>
-              <p className="mt-4 text-sm text-white/80">
-                Faça login para acessar seus workspaces com segurança.
-              </p>
-            </div>
-            <div className="rounded-2xl bg-white/15 p-4 text-xs text-white/80">
-              Segurança, organização e produtividade.
-            </div>
-          </div>
-          <div className="flex items-center justify-center px-6 py-10 sm:px-10">
-            <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-sm">
-              {children}
-            </div>
+    <div className="relative min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 left-1/2 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-[var(--sidebar)]/20 blur-[140px]" />
+        <div className="absolute -bottom-48 left-10 h-[360px] w-[360px] rounded-full bg-[#ff8c42]/20 blur-[160px]" />
+        <div className="absolute -bottom-24 right-10 h-[320px] w-[320px] rounded-full bg-[#7dd3fc]/20 blur-[140px]" />
+      </div>
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-4 py-10 sm:px-6">
+        <div className="w-full rounded-[36px] border border-white/25 bg-white/10 p-2 shadow-[0_30px_80px_rgba(12,18,36,0.25)] backdrop-blur-2xl">
+          <div className="rounded-[30px] border border-[var(--border)] bg-[var(--surface)]/90 px-6 py-10 text-[var(--foreground)] shadow-sm sm:px-10">
+            {children}
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import Script from "next/script";
+import Image from "next/image";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,6 +13,7 @@ import { getDefaultModule } from "@/lib/storage/preferences";
 import { setWorkspaceId } from "@/lib/storage/workspace";
 import { ApiError } from "@/lib/api/client";
 import { resolveDefaultRoute } from "@/lib/navigation/default-route";
+import { useTheme } from "@/components/providers/ThemeProvider";
 
 type GoogleIdPrompt = {
   prompt: () => void;
@@ -34,6 +36,7 @@ type GoogleWindow = {
 export default function LoginPage() {
   const router = useRouter();
   const { t, language } = useLanguage();
+  const { theme, toggleTheme } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -98,14 +101,38 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       <Script
         src="https://accounts.google.com/gsi/client"
         onLoad={handleGoogleScript}
       />
-      <div>
-        <h2 className="text-2xl font-semibold">{t.auth.title}</h2>
-        <p className="text-sm text-zinc-600">{t.auth.subtitle}</p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--sidebar)] text-sm font-semibold text-white shadow-sm">
+            OP
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Organization</p>
+            <p className="text-xs text-[var(--foreground)]/60">Backoffice</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-sm text-[var(--foreground)]/70 transition hover:text-[var(--foreground)]"
+          aria-label={theme === "light" ? "Ativar modo escuro" : "Ativar modo claro"}
+        >
+          {theme === "light" ? "☾" : "☀︎"}
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        <h2 className="text-2xl font-semibold text-[var(--foreground)]">
+          {t.auth.title}
+        </h2>
+        <p className="text-sm text-[var(--foreground)]/70">
+          {t.auth.subtitle}
+        </p>
       </div>
 
       <div className="flex flex-col gap-4">
@@ -121,7 +148,7 @@ export default function LoginPage() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
-        <label className="flex items-center gap-2 text-sm text-zinc-600">
+        <label className="flex items-center gap-2 text-sm text-[var(--foreground)]/70">
           <input
             type="checkbox"
             checked={rememberMe}
@@ -138,20 +165,32 @@ export default function LoginPage() {
         {loading ? "..." : t.auth.login}
       </Button>
 
-      <Button
-        variant="secondary"
-        onClick={() => {
-          const googleWindow = window as unknown as GoogleWindow;
-          if (googleWindow.google?.accounts?.id) {
-            googleWindow.google.accounts.id.prompt();
-          }
-        }}
-        disabled={loading}
-      >
-        {t.auth.google}
-      </Button>
+      <div className="flex items-center gap-3">
+        <span className="h-px flex-1 bg-[var(--border)]" />
+        <span className="text-xs text-[var(--foreground)]/60">
+          {t.auth.google}
+        </span>
+        <span className="h-px flex-1 bg-[var(--border)]" />
+      </div>
 
-      <Link className="text-sm text-zinc-600" href="/register">
+      <div className="flex justify-center">
+        <Button
+          variant="secondary"
+          className="h-12 w-12 rounded-full p-0"
+          onClick={() => {
+            const googleWindow = window as unknown as GoogleWindow;
+            if (googleWindow.google?.accounts?.id) {
+              googleWindow.google.accounts.id.prompt();
+            }
+          }}
+          disabled={loading}
+          aria-label={t.auth.google}
+        >
+          <Image src="/google-icon.svg" alt="" width={22} height={22} />
+        </Button>
+      </div>
+
+      <Link className="text-sm text-[var(--foreground)]/70" href="/register">
         {t.auth.goToRegister}
       </Link>
     </div>
