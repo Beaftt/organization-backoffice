@@ -17,17 +17,18 @@ import { useTheme } from "@/components/providers/ThemeProvider";
 
 const moduleLinks = [
   { key: "reminders", href: "/reminders", entitlement: "module.organization" },
+  { key: "calendar", href: "/calendar", entitlement: "module.organization" },
   { key: "secrets", href: "/secrets", entitlement: "module.organization" },
   { key: "documents", href: "/documents", entitlement: "module.organization" },
   { key: "finance", href: "/finance", entitlement: "module.finance" },
-  { key: "hr", href: "/hr", entitlement: "module.hr" },
   { key: "purchasing", href: "/purchasing", entitlement: "module.organization" },
-  { key: "calendar", href: "/calendar", entitlement: "module.organization" },
+  { key: "hr", href: "/hr", entitlement: "module.hr" },
 ];
 
 const routeTitles: Record<string, string> = {
   "/dashboard": "dashboard",
   "/settings": "settings",
+  "/settings/users": "members",
   "/profile": "profile",
   "/limits": "limits",
   "/workspaces/new": "newWorkspace",
@@ -200,6 +201,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       ? t.layout.dashboard
       : pageKey === "settings"
         ? t.layout.settings
+        : pageKey === "members"
+          ? t.layout.members
         : pageKey === "profile"
           ? t.layout.profile
           : pageKey === "limits"
@@ -281,18 +284,32 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   ? Array.from({ length: 5 }).map((_, index) => (
                       <Skeleton key={index} className="h-9 w-full rounded-xl bg-white/20" />
                     ))
-                  : visibleModules.map((item) => (
-                      <Link
-                        key={item.key}
-                        href={item.href}
-                        onClick={() => setMobileOpen(false)}
-                        className={`rounded-xl px-3 py-2 transition hover:bg-white/20 ${
-                          pathname === item.href ? "bg-white/20 text-white" : "text-white/70"
-                        }`}
-                      >
-                        {t.modules[item.key as keyof typeof t.modules]}
-                      </Link>
-                    ))}
+                  : visibleModules.map((item) =>
+                      item.key === "hr" ? (
+                        <div
+                          key={item.key}
+                          className="flex items-center justify-between rounded-xl px-3 py-2 text-white/50"
+                        >
+                          <span>{t.modules[item.key as keyof typeof t.modules]}</span>
+                          <span className="rounded-full border border-white/30 px-2 py-0.5 text-[10px]">
+                            {t.layout.comingSoon}
+                          </span>
+                        </div>
+                      ) : (
+                        <Link
+                          key={item.key}
+                          href={item.href}
+                          onClick={() => setMobileOpen(false)}
+                          className={`rounded-xl px-3 py-2 transition hover:bg-white/20 ${
+                            pathname === item.href
+                              ? "bg-white/20 text-white"
+                              : "text-white/70"
+                          }`}
+                        >
+                          {t.modules[item.key as keyof typeof t.modules]}
+                        </Link>
+                      ),
+                    )}
               </nav>
             </div>
           </div>
@@ -336,23 +353,47 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   ? Array.from({ length: 5 }).map((_, index) => (
                       <Skeleton key={index} className="h-9 w-full rounded-xl bg-white/20" />
                     ))
-                  : visibleModules.map((item) => (
-                      <Link
-                        key={item.key}
-                        href={item.href}
-                        className={`rounded-xl px-3 py-2 transition hover:bg-white/20 ${
-                          pathname === item.href ? "bg-white/20 text-white" : "text-white/70"
-                        }`}
-                      >
-                        {t.modules[item.key as keyof typeof t.modules]}
-                      </Link>
-                    ))}
+                  : visibleModules.map((item) =>
+                      item.key === "hr" ? (
+                        <div
+                          key={item.key}
+                          className="flex items-center justify-between rounded-xl px-3 py-2 text-white/50"
+                        >
+                          <span>{t.modules[item.key as keyof typeof t.modules]}</span>
+                          <span className="rounded-full border border-white/30 px-2 py-0.5 text-[10px]">
+                            {t.layout.comingSoon}
+                          </span>
+                        </div>
+                      ) : (
+                        <Link
+                          key={item.key}
+                          href={item.href}
+                          className={`rounded-xl px-3 py-2 transition hover:bg-white/20 ${
+                            pathname === item.href
+                              ? "bg-white/20 text-white"
+                              : "text-white/70"
+                          }`}
+                        >
+                          {t.modules[item.key as keyof typeof t.modules]}
+                        </Link>
+                      ),
+                    )}
               </nav>
             </div>
 
           </div>
 
           <div className="mt-auto flex flex-col gap-2">
+            <Link
+              href="/settings/users"
+              className={`rounded-xl px-3 py-2 text-sm transition hover:bg-white/20 ${
+                pathname === "/settings/users"
+                  ? "bg-white/20 text-white"
+                  : "text-white/70"
+              }`}
+            >
+              {t.layout.members}
+            </Link>
             <Link
               href="/settings"
               className={`rounded-xl px-3 py-2 text-sm transition hover:bg-white/20 ${

@@ -66,6 +66,9 @@ export default function CalendarClient({
   const [selectedEvent, setSelectedEvent] =
     useState<CalendarEvent | null>(null);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"day" | "week" | "month" | "year">(
+    "month",
+  );
   const [isShareSaving, setIsShareSaving] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -139,6 +142,18 @@ export default function CalendarClient({
     }).format(monthDate);
   }, [monthDate]);
 
+  const formatMonthLabel = (value: Date) =>
+    new Intl.DateTimeFormat("pt-BR", {
+      month: "long",
+      year: "numeric",
+    }).format(value);
+
+  const formatShortDate = (value: Date) =>
+    new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "short",
+    }).format(value);
+
   const monthDays = useMemo(() => {
     const year = monthDate.getFullYear();
     const month = monthDate.getMonth();
@@ -152,7 +167,60 @@ export default function CalendarClient({
     });
   }, [monthDate]);
 
+  const formatDayLabel = (value: string) => {
+    const parsed = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return new Intl.DateTimeFormat("pt-BR", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    }).format(parsed);
+  };
+
   const todayKey = toDateInput(new Date());
+  const todayLabel = useMemo(() => formatDayLabel(todayKey), [todayKey]);
+
+  const allOwnersSelected = selectedOwners.length === 0;
+
+  const setRangeForMode = useCallback(
+    (mode: "day" | "week" | "month" | "year", anchorKey?: string) => {
+      const baseKey = anchorKey || todayKey;
+      const base = new Date(`${baseKey}T00:00:00`);
+      if (Number.isNaN(base.getTime())) return;
+
+      if (mode === "day") {
+        const dayKey = toDateInput(base);
+        setFromDate(dayKey);
+        setToDate(dayKey);
+        return;
+      }
+
+      if (mode === "week") {
+        const start = new Date(base);
+        start.setDate(base.getDate() - base.getDay());
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        setFromDate(toDateInput(start));
+        setToDate(toDateInput(end));
+        return;
+      }
+
+      if (mode === "year") {
+        const start = new Date(base.getFullYear(), 0, 1);
+        const end = new Date(base.getFullYear(), 11, 31);
+        setFromDate(toDateInput(start));
+        setToDate(toDateInput(end));
+        return;
+      }
+
+      const start = new Date(base.getFullYear(), base.getMonth(), 1);
+      const end = new Date(base.getFullYear(), base.getMonth() + 1, 0);
+      setFromDate(toDateInput(start));
+      setToDate(toDateInput(end));
+    },
+    [todayKey],
+  );
 
   useEffect(() => {
     if (!initialFrom || !initialTo) {
@@ -233,17 +301,6 @@ export default function CalendarClient({
     if (Number.isNaN(parsed.getTime())) return value;
     return new Intl.DateTimeFormat("pt-BR", {
       timeStyle: "short",
-    }).format(parsed);
-  };
-
-  const formatDayLabel = (value: string) => {
-    const parsed = new Date(`${value}T00:00:00`);
-    if (Number.isNaN(parsed.getTime())) return value;
-    return new Intl.DateTimeFormat("pt-BR", {
-      weekday: "long",
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
     }).format(parsed);
   };
 
@@ -552,28 +609,187 @@ export default function CalendarClient({
     );
   }, [selectedDay, eventsByDay]);
 
+  const viewAnchorKey = fromDate || todayKey;
+
+  const dayViewKey = useMemo(() => {
+    if (viewMode !== "day") return "";
+    return viewAnchorKey;
+  }, [viewAnchorKey, viewMode]);
+
+  const dayViewEvents = useMemo(() => {
+    if (!dayViewKey) return [];
+    const items = eventsByDay[dayViewKey] ?? [];
+    return [...items].sort(
+      (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
+    );
+  }, [dayViewKey, eventsByDay]);
+
+  const weekStartDate = useMemo(() => {
+    if (viewMode !== "week") return null;
+    const base = new Date(`${viewAnchorKey}T00:00:00`);
+    if (Number.isNaN(base.getTime())) return null;
+    const start = new Date(base);
+    start.setDate(base.getDate() - base.getDay());
+    return start;
+  }, [viewAnchorKey, viewMode]);
+
+  const weekDays = useMemo(() => {
+    if (!weekStartDate) return [] as Array<{ key: string; label: string; day: number }>;
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(weekStartDate);
+      date.setDate(weekStartDate.getDate() + index);
+      return {
+        key: toDateInput(date),
+        label: new Intl.DateTimeFormat("pt-BR", { weekday: "short" }).format(
+          date,
+        ),
+        day: date.getDate(),
+      };
+    });
+  }, [weekStartDate]);
+
+  const yearReference = useMemo(() => {
+    if (viewMode !== "year") return null;
+    const base = new Date(`${viewAnchorKey}T00:00:00`);
+    if (Number.isNaN(base.getTime())) return null;
+    return base.getFullYear();
+  }, [viewAnchorKey, viewMode]);
+
+  const yearMonths = useMemo(() => {
+    if (yearReference === null) return [] as Date[];
+    return Array.from({ length: 12 }, (_, index) => new Date(yearReference, index, 1));
+  }, [yearReference]);
+
+  const eventsByMonth = useMemo(() => {
+    if (yearReference === null) return new Map<number, number>();
+    const map = new Map<number, number>();
+    expandedEvents.forEach((event) => {
+      const parsed = new Date(event.startAt);
+      if (Number.isNaN(parsed.getTime())) return;
+      if (parsed.getFullYear() !== yearReference) return;
+      const month = parsed.getMonth();
+      map.set(month, (map.get(month) ?? 0) + 1);
+    });
+    return map;
+  }, [expandedEvents, yearReference]);
+
+  const handleViewModeChange = (mode: "day" | "week" | "month" | "year") => {
+    setSelectedDay(null);
+    setViewMode(mode);
+    setRangeForMode(mode, fromDate || todayKey);
+  };
+
+  const rangeTitle =
+    viewMode === "day"
+      ? t.calendar.dayLabel
+      : viewMode === "week"
+        ? t.calendar.weekLabel
+        : viewMode === "year"
+          ? t.calendar.yearLabel
+          : t.calendar.monthLabel;
+
+  const rangeSummary =
+    viewMode === "day"
+      ? t.calendar.daySummary
+      : viewMode === "week"
+        ? t.calendar.weekSummary
+        : viewMode === "year"
+          ? t.calendar.yearSummary
+          : t.calendar.monthSummary;
+
+  const prevLabel =
+    viewMode === "day"
+      ? t.calendar.prevDayAction
+      : viewMode === "week"
+        ? t.calendar.prevWeekAction
+        : viewMode === "year"
+          ? t.calendar.prevYearAction
+          : t.calendar.prevMonthAction;
+
+  const nextLabel =
+    viewMode === "day"
+      ? t.calendar.nextDayAction
+      : viewMode === "week"
+        ? t.calendar.nextWeekAction
+        : viewMode === "year"
+          ? t.calendar.nextYearAction
+          : t.calendar.nextMonthAction;
+
+  const rangeLabel = useMemo(() => {
+    if (viewMode === "day") {
+      return dayViewKey ? formatDayLabel(dayViewKey) : todayLabel;
+    }
+    if (viewMode === "week" && weekStartDate) {
+      const end = new Date(weekStartDate);
+      end.setDate(weekStartDate.getDate() + 6);
+      return `${formatShortDate(weekStartDate)} - ${formatShortDate(end)}`;
+    }
+    if (viewMode === "year" && yearReference !== null) {
+      return `${yearReference}`;
+    }
+    return monthLabel;
+  }, [dayViewKey, formatDayLabel, formatShortDate, monthLabel, todayLabel, viewMode, weekStartDate, yearReference]);
+
   const handleToday = () => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    setRangeForMode(viewMode, todayKey);
+  };
+
+  const handlePrevRange = () => {
+    const baseKey = fromDate || todayKey;
+    const base = new Date(`${baseKey}T00:00:00`);
+    if (Number.isNaN(base.getTime())) return;
+
+    if (viewMode === "day") {
+      base.setDate(base.getDate() - 1);
+      setRangeForMode("day", toDateInput(base));
+      return;
+    }
+
+    if (viewMode === "week") {
+      base.setDate(base.getDate() - 7);
+      setRangeForMode("week", toDateInput(base));
+      return;
+    }
+
+    if (viewMode === "year") {
+      base.setFullYear(base.getFullYear() - 1);
+      setRangeForMode("year", toDateInput(base));
+      return;
+    }
+
+    const month = base.getMonth() - 1;
+    const start = new Date(base.getFullYear(), month, 1);
+    const end = new Date(base.getFullYear(), month + 1, 0);
     setFromDate(toDateInput(start));
     setToDate(toDateInput(end));
   };
 
-  const handlePrevMonth = () => {
-    const year = monthDate.getFullYear();
-    const month = monthDate.getMonth() - 1;
-    const start = new Date(year, month, 1);
-    const end = new Date(year, month + 1, 0);
-    setFromDate(toDateInput(start));
-    setToDate(toDateInput(end));
-  };
+  const handleNextRange = () => {
+    const baseKey = fromDate || todayKey;
+    const base = new Date(`${baseKey}T00:00:00`);
+    if (Number.isNaN(base.getTime())) return;
 
-  const handleNextMonth = () => {
-    const year = monthDate.getFullYear();
-    const month = monthDate.getMonth() + 1;
-    const start = new Date(year, month, 1);
-    const end = new Date(year, month + 1, 0);
+    if (viewMode === "day") {
+      base.setDate(base.getDate() + 1);
+      setRangeForMode("day", toDateInput(base));
+      return;
+    }
+
+    if (viewMode === "week") {
+      base.setDate(base.getDate() + 7);
+      setRangeForMode("week", toDateInput(base));
+      return;
+    }
+
+    if (viewMode === "year") {
+      base.setFullYear(base.getFullYear() + 1);
+      setRangeForMode("year", toDateInput(base));
+      return;
+    }
+
+    const month = base.getMonth() + 1;
+    const start = new Date(base.getFullYear(), month, 1);
+    const end = new Date(base.getFullYear(), month + 1, 0);
     setFromDate(toDateInput(start));
     setToDate(toDateInput(end));
   };
@@ -590,7 +806,9 @@ export default function CalendarClient({
   };
 
   const handleOpenDayView = (dateKey: string) => {
-    setSelectedDay(dateKey);
+    setSelectedDay(null);
+    setViewMode("day");
+    setRangeForMode("day", dateKey);
   };
 
   const handleEditEvent = (event: CalendarEvent) => {
@@ -636,11 +854,14 @@ export default function CalendarClient({
   };
 
   const handleToggleOwner = (userId: string) => {
-    setSelectedOwners((prev) =>
-      prev.includes(userId)
+    setSelectedOwners((prev) => {
+      if (prev.length === 0) {
+        return [userId];
+      }
+      return prev.includes(userId)
         ? prev.filter((item) => item !== userId)
-        : [...prev, userId],
-    );
+        : [...prev, userId];
+    });
   };
 
   const handleToggleParticipant = (userId: string) => {
@@ -822,128 +1043,376 @@ export default function CalendarClient({
         </div>
       </div>
 
-      <Card>
-        <div className="grid gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
+        <Card className="h-fit">
+          <div className="grid gap-4">
             <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wide" style={textStyle}>
-                {t.calendar.monthLabel}
-              </h3>
-              <p className="text-sm capitalize" style={textStyle}>
-                {monthLabel}
+              <p className="text-xs uppercase text-zinc-500">
+                {t.calendar.sidebarTitle}
+              </p>
+              <p className="text-sm text-zinc-600">
+                {t.calendar.sidebarSubtitle}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" onClick={handleToday}>
-                {t.calendar.todayAction}
-              </Button>
-              <Button variant="secondary" onClick={handlePrevMonth}>
-                {t.calendar.prevMonthAction}
-              </Button>
-              <Button variant="secondary" onClick={handleNextMonth}>
-                {t.calendar.nextMonthAction}
-              </Button>
+            <div>
+              <p className="text-sm text-zinc-600">
+                {t.calendar.filterOwnersLabel}
+              </p>
+              <p className="text-xs text-zinc-500">
+                {t.calendar.filterOwnersHint}
+              </p>
+              <div className="mt-3 flex flex-col gap-2">
+                <label className="flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={allOwnersSelected}
+                    onChange={() => setSelectedOwners([])}
+                  />
+                  {t.calendar.filterOwnersAllLabel}
+                </label>
+                {members.length === 0 ? (
+                  <span className="text-xs text-zinc-500">
+                    {t.calendar.shareNoMembers}
+                  </span>
+                ) : (
+                  members.map((member) => (
+                    <label
+                      key={member.userId}
+                      className="flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-2 text-xs"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={
+                          !allOwnersSelected &&
+                          selectedOwners.includes(member.userId)
+                        }
+                        onChange={() => handleToggleOwner(member.userId)}
+                      />
+                      {member.label}
+                    </label>
+                  ))
+                )}
+              </div>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <div className="grid min-w-[920px] gap-2">
-              <div className="grid grid-cols-7 gap-2 text-xs font-semibold" style={textStyle}>
-                {t.calendar.days.map((day) => (
-                  <div key={day}>{day}</div>
-                ))}
+        </Card>
+
+        <Card>
+          <div className="grid gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold" style={textStyle}>
+                  {rangeLabel}
+                </p>
+                <p className="text-xs text-zinc-500">{rangeSummary}</p>
               </div>
-              <div className="grid grid-cols-7 gap-2">
-                {monthDays.map((day, index) => {
-                  if (!day) {
-                    return <div key={`empty-${index}`} />;
-                  }
-                  const dateKey = toDateInput(
-                    new Date(monthDate.getFullYear(), monthDate.getMonth(), day),
-                  );
-                  const dayEvents = eventsByDay[dateKey] ?? [];
-                  const isToday = dateKey === todayKey;
-                  return (
-                    <div
-                      key={dateKey}
-                      className={`flex min-h-[96px] flex-col gap-2 rounded-2xl border bg-[var(--surface)] p-2 transition sm:min-h-[110px] sm:p-3 ${
-                        isToday
-                          ? "border-2 border-emerald-400"
-                          : "border-[var(--border)]"
-                      }`}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => handleCreateFromDay(dateKey)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          handleCreateFromDay(dateKey);
-                        }
-                      }}
-                    >
-                      <div className="flex items-center justify-between text-xs" style={textStyle}>
-                        <div className="flex flex-wrap items-center gap-1">
-                          <span className="font-semibold" style={textStyle}>
-                            {day}
-                          </span>
-                          <button
-                            type="button"
-                            className="rounded-full border border-[var(--border)] px-1.5 py-0.5 text-[9px] font-semibold hover:bg-[var(--surface-muted)] sm:px-2 sm:text-[10px]"
-                            style={textStyle}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleCreateFromDay(dateKey);
-                            }}
-                            aria-label={t.calendar.openCreate}
-                          >
-                            +
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-full border border-[var(--border)] px-1.5 py-0.5 text-[9px] font-semibold hover:bg-[var(--surface-muted)] sm:px-2 sm:text-[10px]"
-                            style={textStyle}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleOpenDayView(dateKey);
-                            }}
-                          >
-                            {t.calendar.viewDay}
-                          </button>
-                        </div>
-                      </div>
-                      {dayEvents.length ? (
-                        <div className="flex flex-col gap-2">
-                          {dayEvents.map((event) => (
-                            <button
-                              key={event.id}
-                              type="button"
-                              onClick={(clickEvent) => {
-                                clickEvent.stopPropagation();
-                                setSelectedEvent(event);
-                              }}
-                              className="rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-2 py-1 text-left text-[11px] font-semibold hover:bg-[var(--surface)] sm:text-xs"
-                              style={textStyle}
-                            >
-                              {event.title}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-[11px]" style={textStyle}>
-                          {t.calendar.dayEmpty}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                    viewMode === "day"
+                      ? "border-[var(--primary)] bg-[var(--surface-muted)]"
+                      : "border-[var(--border)] bg-[var(--surface)]"
+                  }`}
+                  onClick={() => handleViewModeChange("day")}
+                >
+                  {t.calendar.viewDayTab}
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                    viewMode === "week"
+                      ? "border-[var(--primary)] bg-[var(--surface-muted)]"
+                      : "border-[var(--border)] bg-[var(--surface)]"
+                  }`}
+                  onClick={() => handleViewModeChange("week")}
+                >
+                  {t.calendar.viewWeekTab}
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                    viewMode === "month"
+                      ? "border-[var(--primary)] bg-[var(--surface-muted)]"
+                      : "border-[var(--border)] bg-[var(--surface)]"
+                  }`}
+                  onClick={() => handleViewModeChange("month")}
+                >
+                  {t.calendar.viewMonthTab}
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                    viewMode === "year"
+                      ? "border-[var(--primary)] bg-[var(--surface-muted)]"
+                      : "border-[var(--border)] bg-[var(--surface)]"
+                  }`}
+                  onClick={() => handleViewModeChange("year")}
+                >
+                  {t.calendar.viewYearTab}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wide" style={textStyle}>
+                  {rangeTitle}
+                </h3>
+                <p className="text-sm capitalize" style={textStyle}>
+                  {rangeLabel}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={handleToday}>
+                  {t.calendar.todayAction}
+                </Button>
+                <Button variant="secondary" onClick={handlePrevRange}>
+                  {prevLabel}
+                </Button>
+                <Button variant="secondary" onClick={handleNextRange}>
+                  {nextLabel}
+                </Button>
+              </div>
+            </div>
+
+            {viewMode === "day" ? (
+              <div className="grid gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold" style={textStyle}>
+                    {dayViewKey ? formatDayLabel(dayViewKey) : todayLabel}
+                  </p>
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      handleCreateFromDay(dayViewKey || todayKey)
+                    }
+                  >
+                    {t.calendar.openCreate}
+                  </Button>
+                </div>
+                <div className="grid gap-2">
+                  {dayViewEvents.length ? (
+                    dayViewEvents.map((event) => (
+                      <button
+                        key={event.id}
+                        type="button"
+                        onClick={() => setSelectedEvent(event)}
+                        className="flex flex-col gap-1 rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-left text-sm font-semibold hover:bg-[var(--surface)]"
+                        style={textStyle}
+                      >
+                        <span className="text-xs text-zinc-500">
+                          {event.allDay
+                            ? t.calendar.allDayLabel
+                            : formatTime(event.startAt)}
                         </span>
-                      )}
-                    </div>
+                        <span>{event.title}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <span className="text-sm text-zinc-500">
+                      {t.calendar.dayEmpty}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : viewMode === "week" ? (
+              <div className="overflow-x-auto">
+                <div className="grid min-w-[920px] gap-3">
+                  <div className="grid grid-cols-7 gap-2 text-xs font-semibold" style={textStyle}>
+                    {weekDays.map((day) => (
+                      <div key={day.key} className="flex flex-col">
+                        <span className="uppercase text-[10px] text-zinc-500">
+                          {day.label}
+                        </span>
+                        <span>{day.day}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-2">
+                    {weekDays.map((day) => {
+                      const dayEvents = eventsByDay[day.key] ?? [];
+                      const isToday = day.key === todayKey;
+                      return (
+                        <div
+                          key={day.key}
+                          className={`flex min-h-[140px] flex-col gap-2 rounded-2xl border bg-[var(--surface)] p-2 sm:p-3 ${
+                            isToday
+                              ? "border-2 border-emerald-400"
+                              : "border-[var(--border)]"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-xs" style={textStyle}>
+                            <span className="font-semibold">{day.day}</span>
+                            <button
+                              type="button"
+                              className="rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] font-semibold hover:bg-[var(--surface-muted)]"
+                              style={textStyle}
+                              onClick={() => handleCreateFromDay(day.key)}
+                            >
+                              +
+                            </button>
+                          </div>
+                          {dayEvents.length ? (
+                            <div className="flex flex-col gap-2">
+                              {dayEvents.map((event) => (
+                                <button
+                                  key={event.id}
+                                  type="button"
+                                  onClick={() => setSelectedEvent(event)}
+                                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-2 py-1 text-left text-[11px] font-semibold hover:bg-[var(--surface)]"
+                                  style={textStyle}
+                                >
+                                  {event.title}
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-[11px]" style={textStyle}>
+                              {t.calendar.dayEmpty}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : viewMode === "year" ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {yearMonths.map((month) => {
+                  const monthEvents = eventsByMonth.get(month.getMonth()) ?? 0;
+                  return (
+                    <button
+                      key={month.toISOString()}
+                      type="button"
+                      onClick={() => {
+                        setViewMode("month");
+                        setRangeForMode("month", toDateInput(month));
+                      }}
+                      className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left hover:bg-[var(--surface-muted)]"
+                      style={textStyle}
+                    >
+                      <span className="text-sm font-semibold">
+                        {formatMonthLabel(month)}
+                      </span>
+                      <span className="text-xs text-zinc-500">
+                        {t.calendar.eventsCount.replace(
+                          "{count}",
+                          String(monthEvents),
+                        )}
+                      </span>
+                    </button>
                   );
                 })}
               </div>
-            </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <div className="grid min-w-[920px] gap-2">
+                  <div className="grid grid-cols-7 gap-2 text-xs font-semibold" style={textStyle}>
+                    {t.calendar.days.map((day) => (
+                      <div key={day}>{day}</div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-2">
+                    {monthDays.map((day, index) => {
+                      if (!day) {
+                        return <div key={`empty-${index}`} />;
+                      }
+                      const dateKey = toDateInput(
+                        new Date(
+                          monthDate.getFullYear(),
+                          monthDate.getMonth(),
+                          day,
+                        ),
+                      );
+                      const dayEvents = eventsByDay[dateKey] ?? [];
+                      const isToday = dateKey === todayKey;
+                      return (
+                        <div
+                          key={dateKey}
+                          className={`flex min-h-[96px] flex-col gap-2 rounded-2xl border bg-[var(--surface)] p-2 transition sm:min-h-[110px] sm:p-3 ${
+                            isToday
+                              ? "border-2 border-emerald-400"
+                              : "border-[var(--border)]"
+                          }`}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => handleCreateFromDay(dateKey)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              handleCreateFromDay(dateKey);
+                            }
+                          }}
+                        >
+                          <div className="flex items-center justify-between text-xs" style={textStyle}>
+                            <div className="flex flex-wrap items-center gap-1">
+                              <span className="font-semibold" style={textStyle}>
+                                {day}
+                              </span>
+                              <button
+                                type="button"
+                                className="rounded-full border border-[var(--border)] px-1.5 py-0.5 text-[9px] font-semibold hover:bg-[var(--surface-muted)] sm:px-2 sm:text-[10px]"
+                                style={textStyle}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleCreateFromDay(dateKey);
+                                }}
+                                aria-label={t.calendar.openCreate}
+                              >
+                                +
+                              </button>
+                              <button
+                                type="button"
+                                className="rounded-full border border-[var(--border)] px-1.5 py-0.5 text-[9px] font-semibold hover:bg-[var(--surface-muted)] sm:px-2 sm:text-[10px]"
+                                style={textStyle}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleOpenDayView(dateKey);
+                                }}
+                              >
+                                {t.calendar.viewDay}
+                              </button>
+                            </div>
+                          </div>
+                          {dayEvents.length ? (
+                            <div className="flex flex-col gap-2">
+                              {dayEvents.map((event) => (
+                                <button
+                                  key={event.id}
+                                  type="button"
+                                  onClick={(clickEvent) => {
+                                    clickEvent.stopPropagation();
+                                    setSelectedEvent(event);
+                                  }}
+                                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-2 py-1 text-left text-[11px] font-semibold hover:bg-[var(--surface)] sm:text-xs"
+                                  style={textStyle}
+                                >
+                                  {event.title}
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-[11px]" style={textStyle}>
+                              {t.calendar.dayEmpty}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {error ? <p className="text-sm text-red-600">{error}</p> : null}
+            {isLoading ? (
+              <p className="text-sm text-zinc-500">{t.calendar.loading}</p>
+            ) : null}
           </div>
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
-          {isLoading ? (
-            <p className="text-sm text-zinc-500">{t.calendar.loading}</p>
-          ) : null}
-        </div>
-      </Card>
+        </Card>
+      </div>
 
       {isFiltersOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -999,6 +1468,14 @@ export default function CalendarClient({
                   {t.calendar.filterOwnersHint}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
+                  <label className="flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={allOwnersSelected}
+                      onChange={() => setSelectedOwners([])}
+                    />
+                    {t.calendar.filterOwnersAllLabel}
+                  </label>
                   {members.length === 0 ? (
                     <span className="text-xs text-zinc-500">
                       {t.calendar.shareNoMembers}
@@ -1011,7 +1488,10 @@ export default function CalendarClient({
                       >
                         <input
                           type="checkbox"
-                          checked={selectedOwners.includes(member.userId)}
+                          checked={
+                            !allOwnersSelected &&
+                            selectedOwners.includes(member.userId)
+                          }
                           onChange={() => handleToggleOwner(member.userId)}
                         />
                         {member.label}

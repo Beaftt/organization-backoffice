@@ -161,6 +161,15 @@ export default function SettingsClient() {
             {logoError ? <p className="text-sm text-red-600">{logoError}</p> : null}
           </div>
         </Card>
+        <Card>
+          <h2 className="text-lg font-semibold">{t.members.title}</h2>
+          <p className="mt-2 text-sm text-zinc-600">{t.members.subtitle}</p>
+          <Link href="/settings/users">
+            <Button className="mt-4" variant="secondary">
+              {t.members.manageAction}
+            </Button>
+          </Link>
+        </Card>
       </div>
     </div>
   );
