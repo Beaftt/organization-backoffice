@@ -12,6 +12,7 @@ import { getMyProfile } from "@/lib/api/user-profile";
 import { logout } from "@/lib/api/auth";
 import { clearLastVisitedRoute, setLastVisitedRoute } from "@/lib/storage/navigation";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useTheme } from "@/components/providers/ThemeProvider";
 
@@ -23,6 +24,7 @@ const moduleLinks = [
   { key: "finance", href: "/finance", entitlement: "module.finance" },
   { key: "studies", href: "/studies", entitlement: "module.organization" },
   { key: "hr", href: "/hr", entitlement: "module.hr" },
+  { key: "jobs", href: "/vagas", entitlement: "module.jobs" },
 ];
 
 const routeTitles: Record<string, string> = {
@@ -38,8 +40,11 @@ const routeTitles: Record<string, string> = {
   "/documents": "documents",
   "/finance": "finance",
   "/hr": "hr",
+  "/hr/people": "hrPeople",
+  "/hr/jobs": "hrJobs",
   "/studies": "studies",
   "/calendar": "calendar",
+  "/vagas": "jobs",
 };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -47,6 +52,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { t, language, setLanguage } = useLanguage();
   const { theme, toggleTheme } = useTheme();
+  const supportEmail =
+    process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "suporte@organization.com";
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspaceId, setActiveWorkspace] = useState<string | null>(null);
   const [entitlements, setEntitlements] = useState<Entitlement[]>([]);
@@ -56,6 +63,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [profileName, setProfileName] = useState<string>("Lucas");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportName, setSupportName] = useState("");
+  const [supportContact, setSupportContact] = useState("");
+  const [supportMessage, setSupportMessage] = useState("");
+  const [supportSent, setSupportSent] = useState(false);
   const [lastRoute, setLastRoute] = useState<string | null>(null);
   const previousPathRef = useRef<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -192,8 +204,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const activeWorkspace = useMemo(() => {
     return workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null;
   }, [workspaces, activeWorkspaceId]);
+  const isOrgWorkspace = activeWorkspace?.type === "ORG";
 
   const workspaceLogo = activeWorkspace?.logoUrl ?? "/logo_organization.png";
+  const supportWorkspaceLabel = activeWorkspace?.name ?? "Workspace";
 
   const pageKey = routeTitles[pathname] ?? "dashboard";
   const pageTitle =
@@ -211,6 +225,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               ? t.layout.newWorkspace
               : pageKey === "shareWorkspace"
                 ? t.layout.shareWorkspace
+          : pageKey === "hrPeople"
+            ? t.hr.peopleTitle
+            : pageKey === "hrJobs"
+              ? t.hr.jobsTitle
                 : t.modules[pageKey as keyof typeof t.modules];
 
   const handleLogout = async () => {
@@ -226,9 +244,32 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const visibleModules = moduleLinks.filter((item) => {
+    if (item.key === "hr" && !isOrgWorkspace) return false;
+    if (item.key === "jobs" && isOrgWorkspace) return false;
     const entitlement = entitlementsMap[item.entitlement];
     return entitlement ? entitlement === "true" : true;
   });
+
+  const handleSupportSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSupportSent(false);
+
+    const subject = `Suporte - ${supportWorkspaceLabel}`;
+    const body = [
+      `Nome: ${supportName || "(não informado)"}`,
+      `Contato: ${supportContact || "(não informado)"}`,
+      `Workspace: ${supportWorkspaceLabel}`,
+      "",
+      supportMessage || "(sem mensagem)",
+    ].join("\n");
+
+    const mailto = `mailto:${supportEmail}?subject=${encodeURIComponent(
+      subject,
+    )}&body=${encodeURIComponent(body)}`;
+
+    window.location.href = mailto;
+    setSupportSent(true);
+  };
 
   return (
     <div className="min-h-screen w-full bg-[var(--background)] text-[var(--foreground)]">
@@ -284,32 +325,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   ? Array.from({ length: 5 }).map((_, index) => (
                       <Skeleton key={index} className="h-9 w-full rounded-xl bg-white/20" />
                     ))
-                  : visibleModules.map((item) =>
-                      item.key === "hr" ? (
-                        <div
-                          key={item.key}
-                          className="flex items-center justify-between rounded-xl px-3 py-2 text-white/50"
-                        >
-                          <span>{t.modules[item.key as keyof typeof t.modules]}</span>
-                          <span className="rounded-full border border-white/30 px-2 py-0.5 text-[10px]">
-                            {t.layout.comingSoon}
-                          </span>
-                        </div>
-                      ) : (
-                        <Link
-                          key={item.key}
-                          href={item.href}
-                          onClick={() => setMobileOpen(false)}
-                          className={`rounded-xl px-3 py-2 transition hover:bg-white/20 ${
-                            pathname === item.href
-                              ? "bg-white/20 text-white"
-                              : "text-white/70"
-                          }`}
-                        >
-                          {t.modules[item.key as keyof typeof t.modules]}
-                        </Link>
-                      ),
-                    )}
+                  : visibleModules.map((item) => (
+                      <Link
+                        key={item.key}
+                        href={item.href}
+                        onClick={() => setMobileOpen(false)}
+                        className={`rounded-xl px-3 py-2 transition hover:bg-white/20 ${
+                          pathname === item.href
+                            ? "bg-white/20 text-white"
+                            : "text-white/70"
+                        }`}
+                      >
+                        {t.modules[item.key as keyof typeof t.modules]}
+                      </Link>
+                    ))}
               </nav>
             </div>
           </div>
@@ -353,31 +382,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   ? Array.from({ length: 5 }).map((_, index) => (
                       <Skeleton key={index} className="h-9 w-full rounded-xl bg-white/20" />
                     ))
-                  : visibleModules.map((item) =>
-                      item.key === "hr" ? (
-                        <div
-                          key={item.key}
-                          className="flex items-center justify-between rounded-xl px-3 py-2 text-white/50"
-                        >
-                          <span>{t.modules[item.key as keyof typeof t.modules]}</span>
-                          <span className="rounded-full border border-white/30 px-2 py-0.5 text-[10px]">
-                            {t.layout.comingSoon}
-                          </span>
-                        </div>
-                      ) : (
-                        <Link
-                          key={item.key}
-                          href={item.href}
-                          className={`rounded-xl px-3 py-2 transition hover:bg-white/20 ${
-                            pathname === item.href
-                              ? "bg-white/20 text-white"
-                              : "text-white/70"
-                          }`}
-                        >
-                          {t.modules[item.key as keyof typeof t.modules]}
-                        </Link>
-                      ),
-                    )}
+                  : visibleModules.map((item) => (
+                      <Link
+                        key={item.key}
+                        href={item.href}
+                        className={`rounded-xl px-3 py-2 transition hover:bg-white/20 ${
+                          pathname === item.href
+                            ? "bg-white/20 text-white"
+                            : "text-white/70"
+                        }`}
+                      >
+                        {t.modules[item.key as keyof typeof t.modules]}
+                      </Link>
+                    ))}
               </nav>
             </div>
 
@@ -539,6 +556,64 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </main>
         </div>
+      </div>
+
+      <div className="fixed bottom-6 right-6 z-50">
+        {supportOpen ? (
+          <div className="mb-3 w-80 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.18)]">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Suporte</p>
+                <p className="text-xs text-zinc-500">
+                  Vamos te responder o quanto antes 💙
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSupportOpen(false)}
+                className="text-sm text-zinc-500 hover:text-zinc-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form className="mt-4 space-y-3" onSubmit={handleSupportSubmit}>
+              <Input
+                placeholder="Seu nome"
+                value={supportName}
+                onChange={(event) => setSupportName(event.target.value)}
+              />
+              <Input
+                placeholder="Seu email ou WhatsApp"
+                value={supportContact}
+                onChange={(event) => setSupportContact(event.target.value)}
+              />
+              <textarea
+                className="h-28 w-full resize-none rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                placeholder="Como podemos ajudar?"
+                value={supportMessage}
+                onChange={(event) => setSupportMessage(event.target.value)}
+              />
+              <Button type="submit" className="w-full">
+                Enviar mensagem
+              </Button>
+              {supportSent ? (
+                <p className="text-center text-xs text-emerald-600">
+                  Abrimos seu email com a mensagem pronta.
+                </p>
+              ) : null}
+            </form>
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={() => setSupportOpen((prev) => !prev)}
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--primary)] text-white shadow-[0_12px_30px_rgba(79,70,229,0.35)] transition hover:translate-y-[-2px]"
+          aria-label="Abrir suporte"
+        >
+          💬
+        </button>
       </div>
     </div>
   );

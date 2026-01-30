@@ -9,6 +9,7 @@ import { useLanguage } from "@/lib/i18n/language-context";
 import { register } from "@/lib/api/auth";
 import { setWorkspaceId } from "@/lib/storage/workspace";
 import { ApiError } from "@/lib/api/client";
+import { isValidEmail } from "@/lib/validation";
 
 function RegisterForm() {
   const router = useRouter();
@@ -32,6 +33,10 @@ function RegisterForm() {
     setError(null);
     if (!email.trim()) {
       setError(t.auth.emailRequired);
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setError(t.auth.emailInvalid);
       return;
     }
     if (password.length < 8) {

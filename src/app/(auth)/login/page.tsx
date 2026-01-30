@@ -14,6 +14,7 @@ import { setWorkspaceId } from "@/lib/storage/workspace";
 import { ApiError } from "@/lib/api/client";
 import { resolveDefaultRoute } from "@/lib/navigation/default-route";
 import { useTheme } from "@/components/providers/ThemeProvider";
+import { isValidEmail } from "@/lib/validation";
 
 type GoogleIdPrompt = {
   prompt: () => void;
@@ -44,8 +45,16 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(true);
 
   const handleLogin = async () => {
-    setLoading(true);
     setError(null);
+    if (!email.trim()) {
+      setError(t.auth.emailRequired);
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setError(t.auth.emailInvalid);
+      return;
+    }
+    setLoading(true);
     try {
       const response = await login({ email, password });
       if (response.defaultWorkspaceId) {
