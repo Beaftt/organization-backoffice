@@ -1219,7 +1219,7 @@ export default function CalendarClient({
                         key={event.id}
                         type="button"
                         onClick={() => setSelectedEvent(event)}
-                        className="flex flex-col gap-1 rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-left text-sm font-semibold hover:bg-[var(--surface)]"
+                        className="list-item-animate flex flex-col gap-1 rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-left text-sm font-semibold hover:bg-[var(--surface)]"
                         style={textStyle}
                       >
                         <span className="text-xs text-zinc-500">
@@ -1281,7 +1281,7 @@ export default function CalendarClient({
                                   key={event.id}
                                   type="button"
                                   onClick={() => setSelectedEvent(event)}
-                                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-2 py-1 text-left text-[11px] font-semibold hover:bg-[var(--surface)]"
+                                  className="list-item-animate rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-2 py-1 text-left text-[11px] font-semibold hover:bg-[var(--surface)]"
                                   style={textStyle}
                                 >
                                   {event.title}
@@ -1407,7 +1407,7 @@ export default function CalendarClient({
                                     clickEvent.stopPropagation();
                                     setSelectedEvent(event);
                                   }}
-                                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-2 py-1 text-left text-[11px] font-semibold hover:bg-[var(--surface)] sm:text-xs"
+                                  className="list-item-animate rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-2 py-1 text-left text-[11px] font-semibold hover:bg-[var(--surface)] sm:text-xs"
                                   style={textStyle}
                                 >
                                   {event.title}
@@ -1436,13 +1436,13 @@ export default function CalendarClient({
       </div>
 
       {isFiltersOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
           <button
             type="button"
             className="absolute inset-0 bg-black/40"
             onClick={() => setIsFiltersOpen(false)}
           />
-          <Card className="relative z-10 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+          <Card className="modal-content relative z-10 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
             <div className="grid gap-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
@@ -2045,7 +2045,7 @@ export default function CalendarClient({
                   {selectedDayEvents.map((event) => (
                     <div
                       key={`${event.id}-${event.startAt}`}
-                      className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"
+                      className="list-item-animate rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>

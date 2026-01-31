@@ -10,7 +10,7 @@ export function Card({ children, className = "", id }: CardProps) {
   return (
     <div
       id={id}
-      className={`rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm ${className}`}
+      className={`soft-transition rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm ${className}`}
     >
       {children}
     </div>

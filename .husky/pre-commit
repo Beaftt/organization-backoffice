@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+yarn lint && yarn test
+
+if [ -e /dev/tty ]; then
+	node scripts/versioning/precommit-version.cjs < /dev/tty
+else
+	node scripts/versioning/precommit-version.cjs
+fi

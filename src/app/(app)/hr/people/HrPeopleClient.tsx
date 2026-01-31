@@ -26,8 +26,8 @@ type ModalProps = {
 const Modal = ({ open, title, closeLabel, onClose, children }: ModalProps) => {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-6">
-      <div className="w-full max-w-2xl rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+    <div className="modal-overlay fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-6">
+      <div className="modal-content w-full max-w-2xl rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
         <div className="flex items-center justify-between gap-4">
           <h3 className="text-lg font-semibold">{title}</h3>
           <Button variant="secondary" onClick={onClose}>
@@ -177,7 +177,7 @@ export default function HrPeopleClient() {
           people.map((person) => (
             <div
               key={person.id}
-              className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
+              className="list-item-animate flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
             >
               <div>
                 <p className="text-sm font-semibold">{person.fullName}</p>

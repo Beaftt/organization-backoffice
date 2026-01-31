@@ -595,7 +595,7 @@ export default function RemindersClient({
                   key={list.id}
                   type="button"
                   onClick={() => handleSelectList(list.id)}
-                  className={`flex w-full flex-col gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                  className={`list-item-animate flex w-full flex-col gap-3 rounded-2xl border px-4 py-3 text-left transition ${
                     selectedList?.id === list.id
                       ? "border-[var(--border-strong)] bg-[var(--surface-muted)]"
                       : "border-[var(--border)] hover:bg-[var(--surface-muted)]"
@@ -861,7 +861,7 @@ export default function RemindersClient({
               selectedItems.map((item) => (
                 <div
                   key={item.id}
-                  className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition ${
+                  className={`list-item-animate flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition ${
                     item.id === selectedItemId
                       ? "border-[var(--border-strong)] bg-[var(--surface-muted)]"
                       : "border-[var(--border)]"
@@ -897,11 +897,11 @@ export default function RemindersClient({
 
       {isCreatingList ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8"
+          className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8"
           onClick={() => setIsCreatingList(false)}
         >
           <div
-            className="w-full max-w-2xl rounded-3xl bg-[var(--surface)] p-6 shadow-xl"
+            className="modal-content w-full max-w-2xl rounded-3xl bg-[var(--surface)] p-6 shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -938,8 +938,6 @@ export default function RemindersClient({
                   }))
                 }
               />
-            </div>
-            <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-zinc-600">
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"

@@ -1,0 +1,40 @@
+name: Backoffice CI
+
+on:
+  pull_request:
+    paths:
+      - "organization-backoffice/**"
+      - ".github/workflows/**"
+  push:
+    paths:
+      - "organization-backoffice/**"
+      - ".github/workflows/**"
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: organization-backoffice
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: organization-backoffice/yarn.lock
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Test
+        run: yarn test:ci
+
+      - name: Build
+        run: yarn build

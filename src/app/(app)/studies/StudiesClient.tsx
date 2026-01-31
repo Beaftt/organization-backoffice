@@ -75,7 +75,11 @@ export default function StudiesClient() {
       setProfile(profileResponse);
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        if (err.statusCode === 404) {
+          setError(t.studies.emptyCourses);
+        } else {
+          setError(err.message);
+        }
       } else {
         setError(t.studies.loadError);
       }
@@ -282,7 +286,7 @@ export default function StudiesClient() {
                 {newCourses.map((course) => (
                   <div
                     key={course.id}
-                    className="rounded-2xl border border-transparent bg-gradient-to-br p-4 shadow-sm"
+                    className="list-item-animate rounded-2xl border border-transparent bg-gradient-to-br p-4 shadow-sm"
                     style={{
                       backgroundImage: `linear-gradient(135deg, var(--surface-muted), var(--surface))`,
                     }}
@@ -398,7 +402,10 @@ export default function StudiesClient() {
                   </thead>
                   <tbody className="text-zinc-700">
                     {filteredCourses.map((course) => (
-                      <tr key={course.id} className="border-t border-zinc-100">
+                      <tr
+                        key={course.id}
+                        className="list-item-animate border-t border-zinc-100"
+                      >
                         <td className="py-3">
                           <div className="flex items-center gap-3">
                             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-xs font-semibold text-zinc-500">
@@ -650,7 +657,7 @@ export default function StudiesClient() {
                   {tasks.slice(0, 5).map((task) => (
                     <div
                       key={task.id}
-                      className="flex items-center justify-between rounded-2xl border border-zinc-100 bg-zinc-50 px-4 py-3"
+                      className="list-item-animate flex items-center justify-between rounded-2xl border border-zinc-100 bg-zinc-50 px-4 py-3"
                     >
                       <div>
                         <p className="text-sm font-semibold text-zinc-700">

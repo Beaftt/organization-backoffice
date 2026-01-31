@@ -660,7 +660,7 @@ export default function DocumentsClient({
       }}
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => handleDropOnFolder(event, folder.id)}
-      className={`group flex cursor-pointer items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm transition hover:bg-[var(--surface-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] ${
+      className={`list-item-animate group flex cursor-pointer items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm transition hover:bg-[var(--surface-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] ${
         folderFilter === folder.id ? "ring-2 ring-[var(--primary)]" : ""
       }`}
     >
@@ -1014,7 +1014,7 @@ export default function DocumentsClient({
                     event.dataTransfer.setData("text/plain", item.id);
                     event.dataTransfer.effectAllowed = "move";
                   }}
-                  className="flex flex-col gap-3 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4"
+                  className="list-item-animate flex flex-col gap-3 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4"
                 >
                   <div className="flex items-center justify-between">
                     <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1f1f22] text-2xl text-white">
@@ -1171,8 +1171,8 @@ export default function DocumentsClient({
       </Card>
 
       {selectedDocument ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-2xl rounded-3xl bg-[var(--surface)] p-6 shadow-2xl">
+        <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="modal-content w-full max-w-2xl rounded-3xl bg-[var(--surface)] p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">{t.documents.historyTitle}</h3>
               <button
@@ -1329,8 +1329,8 @@ export default function DocumentsClient({
       ) : null}
 
       {isMoveModalOpen && moveDocument ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-3xl bg-[var(--surface)] p-6 shadow-2xl">
+        <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="modal-content w-full max-w-md rounded-3xl bg-[var(--surface)] p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">{t.documents.moveTitle}</h3>
               <button
@@ -2779,7 +2779,7 @@ export default function DocumentsClient({
       }}
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => handleDropOnFolder(event, folder.id)}
-      className={`group flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm transition hover:bg-[var(--surface-muted)] ${
+      className={`list-item-animate group flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm transition hover:bg-[var(--surface-muted)] ${
         folderFilter === folder.id ? "ring-2 ring-[var(--primary)]" : ""
       }`}
     >
@@ -2790,15 +2790,15 @@ export default function DocumentsClient({
         <p className="font-semibold text-[var(--foreground)]">{folder.name}</p>
         <p className="text-xs text-zinc-500">
           {folderPaths[folder.id] ?? folder.name}
-        </p>
-      </div>
-      <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-zinc-600">
-        {folder.totalFiles}
-      </span>
-      <div
-        className="relative"
-        onClick={(event) => event.stopPropagation()}
-      >
+                <div
+                  key={item.id}
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData("text/plain", item.id);
+                    event.dataTransfer.effectAllowed = "move";
+                  }}
+                  className="list-item-animate flex flex-col gap-3 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-4"
+                >
         <details className="group">
           <summary className="list-none rounded-full px-2 py-1 text-zinc-500 hover:bg-[var(--surface-muted)]">
             ⋯

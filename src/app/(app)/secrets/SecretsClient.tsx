@@ -416,7 +416,7 @@ export default function SecretsClient({
                 </tr>
               ) : (
                 records.map((item) => (
-                  <tr key={item.id} className="text-zinc-700">
+                  <tr key={item.id} className="list-item-animate text-zinc-700">
                     <td className="py-3 font-medium text-[var(--foreground)]">
                       {item.title}
                     </td>
@@ -465,8 +465,8 @@ export default function SecretsClient({
       </Card>
 
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-xl rounded-3xl bg-[var(--surface)] p-6 shadow-2xl">
+        <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="modal-content w-full max-w-xl rounded-3xl bg-[var(--surface)] p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">{t.secrets.modalTitle}</h3>
               <button
@@ -576,8 +576,8 @@ export default function SecretsClient({
       ) : null}
 
       {viewSecret || viewError || isViewing ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-xl rounded-3xl bg-[var(--surface)] p-6 shadow-2xl">
+        <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="modal-content w-full max-w-xl rounded-3xl bg-[var(--surface)] p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">{t.secrets.viewTitle}</h3>
               <button

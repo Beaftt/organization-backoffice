@@ -46,3 +46,104 @@ body {
 * {
   box-sizing: border-box;
 }
+
+.page-transition {
+  animation: page-fade 260ms ease both;
+}
+
+.modal-overlay {
+  animation: overlay-fade 200ms ease both;
+  z-index: 80;
+}
+
+.modal-content {
+  animation: modal-pop 220ms ease both;
+  z-index: 81;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.list-item-animate {
+  animation: list-in 220ms ease both;
+}
+
+.chart-bar {
+  transform-origin: bottom;
+  animation: chart-rise 420ms ease both;
+}
+
+.fixed.inset-0.z-50.flex.items-center.justify-center {
+  animation: overlay-fade 200ms ease both;
+  z-index: 80;
+}
+
+.fixed.inset-0.z-50.flex.items-center.justify-center > .w-full {
+  animation: modal-pop 220ms ease both;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.soft-transition {
+  transition: all 200ms ease;
+}
+
+@keyframes page-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overlay-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes list-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes chart-rise {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition,
+  .modal-overlay,
+  .modal-content,
+  .list-item-animate,
+  .chart-bar,
+  .fixed.inset-0.z-50.flex.items-center.justify-center,
+  .fixed.inset-0.z-50.flex.items-center.justify-center > .w-full {
+    animation: none;
+  }
+}

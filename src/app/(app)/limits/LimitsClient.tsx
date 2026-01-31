@@ -20,16 +20,19 @@ import { useLanguage } from "@/lib/i18n/language-context";
 
 const PLAN_LABELS: Record<string, string> = {
   FREE: "Free",
-  BASIC: "Basic",
-  INTERMEDIATE: "Intermediate",
-  ADVANCED: "Advanced",
-  ORG: "Organization",
+  PRO: "Pro",
+  BUSINESS: "Business",
 };
 
 const LIMIT_META: Record<string, { suffix?: string }> = {
   "storage.gb": {
     suffix: "GB",
   },
+  "documents.files.max": {},
+  "reminders.lists.max": {},
+  "secrets.records.max": {},
+  "finance.accounts.max": {},
+  "calendar.integrations.max": {},
 };
 
 export default function LimitsClient() {
@@ -120,7 +123,7 @@ export default function LimitsClient() {
               <div className="flex items-center justify-between text-sm text-zinc-600">
                 <span>{t.limits.members}</span>
                 <span>
-                  {membersLimit === null
+                  {membersLimit === null || membersLimit <= 0
                     ? t.limits.unlimited
                     : `${membersTotal} ${t.limits.usedOf} ${membersLimit}`}
                 </span>
@@ -136,7 +139,7 @@ export default function LimitsClient() {
               <div className="flex items-center justify-between text-sm text-zinc-600">
                 <span>{t.limits.workspaces}</span>
                 <span>
-                  {workspacesLimit === null
+                  {workspacesLimit === null || workspacesLimit <= 0
                     ? t.limits.unlimited
                     : `${workspacesTotal} ${t.limits.usedOf} ${workspacesLimit}`}
                 </span>
@@ -178,7 +181,17 @@ export default function LimitsClient() {
                     ? t.limits.workspaces
                     : limit.key === "storage.gb"
                       ? t.limits.storage
-                      : limit.key;
+                      : limit.key === "documents.files.max"
+                        ? t.limits.documentsFiles
+                        : limit.key === "reminders.lists.max"
+                          ? t.limits.remindersLists
+                          : limit.key === "secrets.records.max"
+                            ? t.limits.secretsRecords
+                            : limit.key === "finance.accounts.max"
+                              ? t.limits.financeAccounts
+                              : limit.key === "calendar.integrations.max"
+                                ? t.limits.calendarIntegrations
+                                : limit.key;
               const description =
                 limit.key === "members.max"
                   ? t.limits.membersDescription
@@ -186,14 +199,24 @@ export default function LimitsClient() {
                     ? t.limits.workspacesDescription
                     : limit.key === "storage.gb"
                       ? t.limits.storageDescription
-                      : "";
+                      : limit.key === "documents.files.max"
+                        ? t.limits.documentsFilesDescription
+                        : limit.key === "reminders.lists.max"
+                          ? t.limits.remindersListsDescription
+                          : limit.key === "secrets.records.max"
+                            ? t.limits.secretsRecordsDescription
+                            : limit.key === "finance.accounts.max"
+                              ? t.limits.financeAccountsDescription
+                              : limit.key === "calendar.integrations.max"
+                                ? t.limits.calendarIntegrationsDescription
+                                : "";
               return (
                 <div key={limit.id} className="rounded-xl border border-zinc-200 p-3">
                   <p className="text-xs uppercase tracking-wide text-zinc-500">
                     {label}
                   </p>
                   <p className="text-lg font-semibold text-zinc-900">
-                    {limit.value}
+                    {limit.value <= 0 ? t.limits.unlimited : limit.value}
                     {suffix}
                   </p>
                   <p className="mt-1 text-xs text-zinc-500">

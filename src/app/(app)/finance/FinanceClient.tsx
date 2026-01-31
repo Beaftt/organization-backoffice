@@ -955,7 +955,7 @@
                   return (
                     <div
                       key={item.id}
-                      className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--border)] px-4 py-3"
+                      className="list-item-animate flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--border)] px-4 py-3"
                     >
                       <div>
                         <p className="text-sm font-semibold text-[var(--foreground)]">
@@ -1036,7 +1036,7 @@
                     return (
                       <div
                         key={item.id}
-                        className="rounded-2xl border border-[var(--border)] px-4 py-3"
+                        className="list-item-animate rounded-2xl border border-[var(--border)] px-4 py-3"
                       >
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-semibold text-[var(--foreground)]">
@@ -1059,13 +1059,13 @@
           </div>
 
           {transactionModalOpen ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
               <button
                 type="button"
                 className="absolute inset-0 bg-black/40"
                 onClick={() => setTransactionModalOpen(false)}
               />
-              <Card className="relative z-10 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+              <Card className="modal-content relative z-10 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">
@@ -1365,13 +1365,13 @@
           ) : null}
 
           {recurringModalOpen ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
               <button
                 type="button"
                 className="absolute inset-0 bg-black/40"
                 onClick={() => setRecurringModalOpen(false)}
               />
-              <Card className="relative z-10 w-full max-w-xl">
+              <Card className="modal-content relative z-10 w-full max-w-xl">
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">{t.finance.recurringTitle}</h3>
@@ -1465,13 +1465,13 @@
           ) : null}
 
           {categoryModalOpen ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
               <button
                 type="button"
                 className="absolute inset-0 bg-black/40"
                 onClick={() => setCategoryModalOpen(false)}
               />
-              <Card className="relative z-10 w-full max-w-lg">
+              <Card className="modal-content relative z-10 w-full max-w-lg">
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">{t.finance.newType}</h3>
@@ -1520,13 +1520,13 @@
           ) : null}
 
           {accountModalOpen ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
               <button
                 type="button"
                 className="absolute inset-0 bg-black/40"
                 onClick={() => setAccountModalOpen(false)}
               />
-              <Card className="relative z-10 w-full max-w-lg">
+              <Card className="modal-content relative z-10 w-full max-w-lg">
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">{t.finance.newAccount ?? t.finance.accountLabel}</h3>

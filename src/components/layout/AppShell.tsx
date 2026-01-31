@@ -431,7 +431,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </aside>
 
         <main className="flex min-h-0 flex-1 flex-col">
-          <header className="grid grid-cols-[auto_1fr_auto] items-center gap-4 border-b border-[var(--border)] bg-[var(--surface)] px-6 py-4">
+          <header className="relative z-40 grid grid-cols-[auto_1fr_auto] items-center gap-4 border-b border-[var(--border)] bg-[var(--surface)] px-6 py-4">
             <div className="flex items-center gap-3">
               <button
                 className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-zinc-600 lg:hidden"
@@ -487,7 +487,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="text-xs text-zinc-500">▾</span>
                 </button>
                 {menuOpen ? (
-                  <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 text-sm text-[var(--foreground)] shadow-lg">
+                  <div className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 text-sm text-[var(--foreground)] shadow-lg">
                     <div className="flex flex-col gap-2">
                       <Link
                         href="/profile"
@@ -552,7 +552,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </header>
 
           <div className="flex-1 overflow-y-auto bg-[var(--surface-muted)] p-6 sm:p-8">
-            {children}
+            <div key={pathname} className="page-transition">
+              {children}
+            </div>
           </div>
         </main>
         </div>
