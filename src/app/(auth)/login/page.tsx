@@ -43,6 +43,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     setError(null);
@@ -151,12 +152,26 @@ export default function LoginPage() {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
         />
-        <Input
-          label={t.auth.password}
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
+        <label className="flex flex-col gap-2 text-sm text-[var(--foreground)]/70">
+          <span className="font-medium text-[var(--foreground)]/90">
+            {t.auth.password}
+          </span>
+          <div className="relative">
+            <input
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 pr-20 text-sm text-[var(--foreground)] outline-none transition focus:border-zinc-400"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-[var(--foreground)]/70 hover:text-[var(--foreground)]"
+              onClick={() => setShowPassword((prev) => !prev)}
+            >
+              {showPassword ? t.auth.hidePassword : t.auth.showPassword}
+            </button>
+          </div>
+        </label>
         <label className="flex items-center gap-2 text-sm text-[var(--foreground)]/70">
           <input
             type="checkbox"
@@ -166,6 +181,9 @@ export default function LoginPage() {
           />
           {t.auth.remember}
         </label>
+        <Link className="text-sm text-[var(--foreground)]/70" href="/forgot-password">
+          {t.auth.forgotPassword}
+        </Link>
       </div>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}

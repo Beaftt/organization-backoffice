@@ -9,6 +9,7 @@ import { clearWorkspaceId, getWorkspaceId, setWorkspaceId } from "@/lib/storage/
 import { getWorkspaces, type Workspace } from "@/lib/api/workspaces";
 import { getEntitlements, type Entitlement } from "@/lib/api/entitlements";
 import { getMyProfile } from "@/lib/api/user-profile";
+import { getMyUser } from "@/lib/api/users";
 import { logout } from "@/lib/api/auth";
 import { clearLastVisitedRoute, setLastVisitedRoute } from "@/lib/storage/navigation";
 import { Button } from "@/components/ui/Button";
@@ -60,7 +61,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [isWorkspacesLoading, setIsWorkspacesLoading] = useState(true);
   const [isEntitlementsLoading, setIsEntitlementsLoading] = useState(true);
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
-  const [profileName, setProfileName] = useState<string>("Lucas");
+  const [profileName, setProfileName] = useState<string>("");
+  const [profileEmail, setProfileEmail] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
@@ -108,20 +110,36 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuOpen]);
 
+  const getInitials = (value: string) =>
+    value
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase();
+
+  const getEmailInitial = (email?: string | null) =>
+    email?.trim()?.[0]?.toUpperCase() ?? null;
+
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const profile = await getMyProfile();
+        const [profile, user] = await Promise.all([
+          getMyProfile(),
+          getMyUser(),
+        ]);
         const name = [profile.firstName, profile.lastName]
           .filter(Boolean)
           .join(" ")
           .trim();
-        if (name) {
-          setProfileName(name);
-        }
+        setProfileEmail(user.email ?? null);
+        setProfileName(name || user.email || "");
         setProfilePhoto(profile.photoUrl ?? null);
       } catch {
         setProfilePhoto(null);
+        setProfileName("");
+        setProfileEmail(null);
       }
     };
 
@@ -479,11 +497,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                         className="h-full w-full object-cover"
                         unoptimized
                       />
+                    ) : profileName ? (
+                      getInitials(profileName)
+                    ) : profileEmail ? (
+                      getEmailInitial(profileEmail)
                     ) : (
-                      (profileName || "L").slice(0, 2).toUpperCase()
+                      "👤"
                     )}
                   </span>
-                  <span className="text-zinc-700">{profileName}</span>
+                  <span className="text-zinc-700">
+                    {profileName || profileEmail}
+                  </span>
                   <span className="text-xs text-zinc-500">▾</span>
                 </button>
                 {menuOpen ? (

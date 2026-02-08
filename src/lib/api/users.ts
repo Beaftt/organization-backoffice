@@ -20,6 +20,10 @@ export type PaginatedResponse<T> = {
 export const lookupUserByEmail = (email: string) =>
   apiFetch<UserLookup>(`/users/lookup?email=${encodeURIComponent(email)}`);
 
+export const getUserById = (id: string) => apiFetch<UserLookup>(`/users/${id}`);
+
+export const getMyUser = () => apiFetch<UserLookup>("/users/me");
+
 export const listUsers = (input?: {
   page?: number;
   pageSize?: number;

@@ -8,9 +8,12 @@ import { Input } from "@/components/ui/Input";
 import { ApiError } from "@/lib/api/client";
 import { getWorkspaceId } from "@/lib/storage/workspace";
 import { useLanguage } from "@/lib/i18n/language-context";
-import { listUsers } from "@/lib/api/users";
+import { getUserById, listUsers, lookupUserByEmail } from "@/lib/api/users";
 import { createWorkspaceInvite } from "@/lib/api/workspace-invites";
-import { getWorkspaceMemberships } from "@/lib/api/workspace-memberships";
+import {
+  createWorkspaceMembership,
+  getWorkspaceMemberships,
+} from "@/lib/api/workspace-memberships";
 import { getMyProfile, listUserProfiles } from "@/lib/api/user-profile";
 import { listWorkspaceRoles, type WorkspaceRole } from "@/lib/api/roles";
 import {
@@ -47,6 +50,10 @@ export default function UsersClient() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [inviteNotFound, setInviteNotFound] = useState(false);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [inviteSentOpen, setInviteSentOpen] = useState(false);
   const [permissionsOpen, setPermissionsOpen] = useState(false);
   const [permissionsTarget, setPermissionsTarget] = useState<MemberRow | null>(null);
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
@@ -64,8 +71,8 @@ export default function UsersClient() {
         await Promise.allSettled([
           getWorkspaceMemberships(workspaceId),
           listUserProfiles({ page: 1, pageSize: 200 }),
-          listUsers({ page: 1, pageSize: 200 }),
-          listWorkspaceRoles({ workspaceId, page: 1, pageSize: 200 }),
+          listUsers({ page: 1, pageSize: 1000, orderBy: "createdAt" }),
+          listWorkspaceRoles({ workspaceId, page: 1, pageSize: 100 }),
           getMyProfile(),
         ]);
 
@@ -89,6 +96,22 @@ export default function UsersClient() {
       const usersMap = new Map(
         (usersResponse?.items ?? []).map((user) => [user.id, user]),
       );
+
+      const missingUserIds = membershipItems
+        .map((membership) => membership.userId)
+        .filter((userId) => !usersMap.has(userId));
+
+      if (missingUserIds.length) {
+        const missingResults = await Promise.allSettled(
+          missingUserIds.map((userId) => getUserById(userId)),
+        );
+
+        missingResults.forEach((result) => {
+          if (result.status === "fulfilled") {
+            usersMap.set(result.value.id, result.value);
+          }
+        });
+      }
 
       const membershipRolesResults = await Promise.allSettled(
         membershipItems.map((membership) =>
@@ -117,19 +140,17 @@ export default function UsersClient() {
         const user = usersMap.get(membership.userId);
         const roleKeys = membershipRolesById.get(membership.id) ?? [];
         const roleIds = membershipRoleIdsById.get(membership.id) ?? [];
-        const name =
-          [profile?.firstName, profile?.lastName]
-            .filter(Boolean)
-            .join(" ")
-            .trim() ||
-          user?.name ||
-          `${membership.userId.slice(0, 8)}...`;
+        const nameFromProfile = [profile?.firstName, profile?.lastName]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+        const name = nameFromProfile || user?.name || user?.email || "-";
         return {
           id: `${membership.id}-${index}`,
           membershipId: membership.id,
           userId: membership.userId,
           name,
-          email: user?.email ?? "-",
+          email: user?.email ?? (name.includes("@") ? name : "-"),
           phone: profile?.phone ?? "-",
           photoUrl: profile?.photoUrl ?? user?.pictureUrl ?? null,
           status: membership.status,
@@ -178,11 +199,36 @@ export default function UsersClient() {
     });
   }, [rows, query, roleFilter]);
 
-  const openPermissions = (row: MemberRow) => {
+  const openPermissions = async (row: MemberRow) => {
     setPermissionsTarget(row);
     setSelectedRoleIds(row.roleIds);
     setPermissionsError(null);
     setPermissionsOpen(true);
+
+    if (roles.length > 0) {
+      return;
+    }
+
+    const workspaceId = getWorkspaceId();
+    if (!workspaceId) {
+      setPermissionsError(t.members.loadError);
+      return;
+    }
+
+    try {
+      const rolesResponse = await listWorkspaceRoles({
+        workspaceId,
+        page: 1,
+        pageSize: 100,
+      });
+      setRoles(rolesResponse.items ?? []);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setPermissionsError(err.message);
+      } else {
+        setPermissionsError(t.members.loadError);
+      }
+    }
   };
 
   const toggleRole = (roleId: string) => {
@@ -193,11 +239,6 @@ export default function UsersClient() {
 
   const handleSavePermissions = async () => {
     if (!permissionsTarget) return;
-    if (!canManage) {
-      setPermissionsError(t.members.permissionsBlocked);
-      return;
-    }
-
     setIsSavingPermissions(true);
     setPermissionsError(null);
 
@@ -230,7 +271,7 @@ export default function UsersClient() {
     }
   };
 
-  const handleInvite = async () => {
+  const handleInviteLookup = async () => {
     const workspaceId = getWorkspaceId();
     if (!workspaceId) return;
     if (!canManage) {
@@ -238,20 +279,88 @@ export default function UsersClient() {
       return;
     }
 
+    if (!inviteEmail.trim()) {
+      setInviteError(t.members.inviteError);
+      return;
+    }
+
+    setInviteLoading(true);
+    setInviteError(null);
+    setInviteSuccess(null);
+    setInviteNotFound(false);
+    setInviteLink(null);
+
+    try {
+      const user = await lookupUserByEmail(inviteEmail.trim().toLowerCase());
+      await createWorkspaceMembership({
+        workspaceId,
+        userId: user.id,
+        status: "ACTIVE",
+      });
+      setInviteSuccess("Usuário encontrado e compartilhamento enviado com sucesso.");
+      setInviteEmail("");
+      await loadMembers();
+    } catch (err) {
+      const apiError = err as ApiError;
+      if (apiError.statusCode === 404) {
+        setInviteNotFound(true);
+        setInviteError("Usuário não encontrado. Envie o convite abaixo.");
+      } else if (err instanceof ApiError) {
+        setInviteError(err.message);
+      } else {
+        setInviteError(t.members.inviteError);
+      }
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleInviteSend = async () => {
+    const workspaceId = getWorkspaceId();
+    if (!workspaceId) return;
+    if (!canManage) {
+      setInviteError(t.members.inviteBlocked);
+      return;
+    }
+
+    if (!inviteEmail.trim()) {
+      setInviteError(t.members.inviteError);
+      return;
+    }
+
+    setInviteLoading(true);
     setInviteError(null);
     setInviteSuccess(null);
 
     try {
-      await createWorkspaceInvite({ workspaceId, email: inviteEmail.trim() });
-      setInviteSuccess(t.members.inviteSuccess);
-      setInviteEmail("");
-      setInviteOpen(false);
+      const invite = await createWorkspaceInvite({
+        workspaceId,
+        email: inviteEmail.trim().toLowerCase(),
+      });
+      const origin = window.location.origin;
+      const link = `${origin}/register?invite=${invite.token}&email=${encodeURIComponent(invite.email)}`;
+      setInviteLink(link);
+      setInviteSuccess("Convite enviado por e-mail.");
+      setInviteSentOpen(true);
     } catch (err) {
       if (err instanceof ApiError) {
         setInviteError(err.message);
       } else {
         setInviteError(t.members.inviteError);
       }
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleCopyInviteLink = async () => {
+    if (!inviteLink) return;
+
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setInviteSuccess("Link do convite copiado.");
+    } catch {
+      setInviteError("Não foi possível copiar o link.");
     }
   };
 
@@ -264,7 +373,14 @@ export default function UsersClient() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button
-            onClick={() => setInviteOpen(true)}
+            onClick={() => {
+              setInviteOpen(true);
+              setInviteEmail("");
+              setInviteError(null);
+              setInviteSuccess(null);
+              setInviteNotFound(false);
+              setInviteLink(null);
+            }}
             disabled={!canManage}
           >
             {t.members.inviteAction}
@@ -307,19 +423,20 @@ export default function UsersClient() {
 
         {!isLoading && filteredRows.length > 0 ? (
           <div className="mt-6 overflow-x-auto">
-            <div className="min-w-[880px] divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)]">
-              <div className="grid grid-cols-[40px_1.4fr_1fr_1.2fr_1fr_120px] gap-4 bg-[var(--surface-muted)] px-4 py-3 text-xs font-semibold uppercase text-zinc-500">
+            <div className="min-w-[940px] divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)]">
+              <div className="grid grid-cols-[40px_1.4fr_1fr_1.2fr_1fr_120px_60px] gap-4 bg-[var(--surface-muted)] px-4 py-3 text-xs font-semibold uppercase text-zinc-500">
                 <span>#</span>
                 <span>{t.members.tableName}</span>
                 <span>{t.members.tableRole}</span>
                 <span>{t.members.tableEmail}</span>
                 <span>{t.members.tablePhone}</span>
                 <span>{t.members.tableStatus}</span>
+                <span />
               </div>
               {filteredRows.map((row, index) => (
                 <div
                   key={row.id}
-                  className="grid grid-cols-[40px_1.4fr_1fr_1.2fr_1fr_120px] items-center gap-4 px-4 py-3 text-sm"
+                  className="grid grid-cols-[40px_1.4fr_1fr_1.2fr_1fr_120px_60px] items-center gap-4 px-4 py-3 text-sm"
                 >
                   <span className="text-zinc-500">{index + 1}</span>
                   <div className="flex items-center gap-3">
@@ -333,25 +450,21 @@ export default function UsersClient() {
                           className="h-full w-full object-cover"
                           unoptimized
                         />
-                      ) : (
+                      ) : row.name !== "-" ? (
                         row.name.slice(0, 2).toUpperCase()
+                      ) : row.email !== "-" ? (
+                        row.email.slice(0, 2).toUpperCase()
+                      ) : (
+                        "👤"
                       )}
                     </span>
                     <div>
                       <p className="font-semibold text-[var(--foreground)]">
                         {row.name}
                       </p>
-                      <button
-                        type="button"
-                        className="text-xs text-zinc-500 hover:text-zinc-700"
-                        onClick={() => openPermissions(row)}
-                        disabled={!canManage}
-                      >
-                        {t.members.permissionsAction}
-                      </button>
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {row.roleKeys.length ? (
                       row.roleKeys.map((role) => (
                         <span
@@ -370,6 +483,15 @@ export default function UsersClient() {
                   <span className="text-zinc-600">{row.email}</span>
                   <span className="text-zinc-600">{row.phone}</span>
                   <span className="text-xs text-zinc-500">{row.status}</span>
+                  <div className="flex items-center justify-end">
+                    <Button
+                      variant="ghost"
+                      onClick={() => openPermissions(row)}
+                      className="h-8 w-8 p-0"
+                    >
+                      ✏️
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -401,16 +523,49 @@ export default function UsersClient() {
               {inviteSuccess ? (
                 <p className="text-sm text-emerald-600">{inviteSuccess}</p>
               ) : null}
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={handleInviteLookup}
+                  disabled={inviteLoading || !canManage}
+                  variant="secondary"
+                >
+                  {inviteLoading ? "Buscando..." : "Buscar"}
+                </Button>
                 <Button variant="secondary" onClick={() => setInviteOpen(false)}>
                   {t.members.cancelAction}
                 </Button>
-                <Button onClick={handleInvite} disabled={!inviteEmail.trim() || !canManage}>
-                  {t.members.inviteAction}
-                </Button>
               </div>
+              {inviteNotFound ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-[var(--surface-muted)] p-3 text-sm text-zinc-700">
+                  <span className="font-medium">
+                    {inviteEmail.trim().toLowerCase()}
+                  </span>
+                  <Button onClick={handleInviteSend} disabled={inviteLoading || !canManage}>
+                    {inviteLoading ? "Enviando..." : "Enviar e-mail"}
+                  </Button>
+                </div>
+              ) : null}
             </div>
           </Card>
+        </div>
+      ) : null}
+
+      {inviteSentOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-zinc-100">Convite enviado</h3>
+            <p className="mt-2 text-sm text-zinc-400">
+              O e-mail foi enviado para o destinatário com o convite para cadastro.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Button onClick={handleCopyInviteLink} disabled={!inviteLink}>
+                Copiar link do convite
+              </Button>
+              <Button variant="secondary" onClick={() => setInviteSentOpen(false)}>
+                Fechar
+              </Button>
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -428,34 +583,34 @@ export default function UsersClient() {
                 <p className="text-sm text-zinc-600">{permissionsTarget.name}</p>
               </div>
               <div className="grid gap-2">
-                {roles.map((role) => (
-                  <label
-                    key={role.id}
-                    className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedRoleIds.includes(role.id)}
-                      onChange={() => toggleRole(role.id)}
-                      disabled={!canManage}
-                    />
-                    {role.key}
-                  </label>
-                ))}
+                {roles.length ? (
+                  roles.map((role) => (
+                    <label
+                      key={role.id}
+                      className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedRoleIds.includes(role.id)}
+                        onChange={() => toggleRole(role.id)}
+                      />
+                      {role.key}
+                    </label>
+                  ))
+                ) : (
+                  <p className="text-sm text-zinc-500">
+                    {t.members.rolesEmpty}
+                  </p>
+                )}
               </div>
               {permissionsError ? (
                 <p className="text-sm text-red-600">{permissionsError}</p>
-              ) : null}
-              {!canManage ? (
-                <p className="text-xs text-zinc-500">
-                  {t.members.permissionsBlocked}
-                </p>
               ) : null}
               <div className="flex justify-end gap-2">
                 <Button variant="secondary" onClick={() => setPermissionsOpen(false)}>
                   {t.members.cancelAction}
                 </Button>
-                <Button onClick={handleSavePermissions} disabled={!canManage || isSavingPermissions}>
+                <Button onClick={handleSavePermissions} disabled={isSavingPermissions}>
                   {isSavingPermissions ? t.members.savingAction : t.members.saveAction}
                 </Button>
               </div>

@@ -1,130 +1,152 @@
 "use client";
 
-    import { useCallback, useEffect, useMemo, useState } from "react";
-    import { useRouter } from "next/navigation";
-    import { Card } from "@/components/ui/Card";
-    import { Input } from "@/components/ui/Input";
-    import { Button } from "@/components/ui/Button";
-    import { useLanguage } from "@/lib/i18n/language-context";
-    import { ApiError } from "@/lib/api/client";
-    import { createCalendarEvent } from "@/lib/api/calendar";
-    import {
-      createFinanceAccount,
-      createFinanceCategory,
-      createFinanceRecurring,
-      createFinanceTag,
-      createFinanceTransaction,
-      deleteFinanceRecurring,
-      deleteFinanceTransaction,
-      getFinanceSummary,
-      listFinanceAccounts,
-      listFinanceCategories,
-      listFinanceNotifications,
-      listFinanceRecurring,
-      listFinanceTags,
-      listFinanceTransactions,
-      updateFinanceRecurring,
-      updateFinanceNotification,
-      updateFinanceTransaction,
-      type FinanceAccount,
-      type FinanceCategory,
-      type FinanceNotification,
-      type FinanceRecurring,
-      type FinanceSummary,
-      type FinanceTag,
-      type FinanceTransaction,
-    } from "@/lib/api/finance";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Card } from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { useLanguage } from "@/lib/i18n/language-context";
+import { ApiError } from "@/lib/api/client";
+import { createCalendarEvent } from "@/lib/api/calendar";
+import {
+  createFinanceAccount,
+  createFinanceCategory,
+  createFinancePaymentMethod,
+  createFinanceRecurring,
+  createFinanceTag,
+  createFinanceTransaction,
+  deleteFinanceRecurring,
+  deleteFinanceTransaction,
+  deleteFinanceAccount,
+  deleteFinancePaymentMethod,
+  getFinanceCardBill,
+  listFinanceAccounts,
+  listFinanceCategories,
+  listFinancePaymentMethods,
+  listFinanceRecurring,
+  listFinanceTags,
+  listFinanceTransactions,
+  payFinanceCardBill,
+  toggleFinanceRecurring,
+  updateFinanceAccount,
+  updateFinancePaymentMethod,
+  updateFinanceRecurring,
+  updateFinanceTransaction,
+  type FinanceCardBill,
+  type FinanceAccount,
+  type FinanceCategory,
+  type FinancePaymentMethod,
+  type FinancePaymentMethodType,
+  type FinanceRecurring,
+  type FinanceTag,
+  type FinanceTransaction,
+} from "@/lib/api/finance";
 
-    const pageSize = 6;
-    const suggestedTags = ["Mercado", "Compras", "Eventos"];
+const pageSize = 6;
+const suggestedTags = ["Mercado", "Compras", "Eventos"];
 
-    type FinanceClientProps = {
-      initialQuery?: string;
-      initialGroup?: string;
-      initialType?: string;
-      initialStatus?: string;
-      initialSort?: string;
-      initialPage?: number;
-    };
+type FinanceClientProps = {
+  initialQuery?: string;
+  initialGroup?: string;
+  initialType?: string;
+  initialStatus?: string;
+  initialSort?: string;
+  initialPage?: number;
+};
 
-    export default function FinanceClient({
-      initialQuery = "",
-      initialGroup = "all",
-      initialType = "all",
-      initialStatus = "all",
-      initialSort = "date",
-      initialPage = 1,
-    }: FinanceClientProps) {
-      const router = useRouter();
-      const { t } = useLanguage();
-      const chartMonthRange = 12;
-      const [query, setQuery] = useState(initialQuery);
-      const [groupFilter, setGroupFilter] = useState(initialGroup);
-      const [typeFilter, setTypeFilter] = useState(initialType);
-      const [statusFilter, setStatusFilter] = useState(initialStatus);
-      const [sortBy, setSortBy] = useState(initialSort);
-      const [page, setPage] = useState(initialPage);
-      const [tags, setTags] = useState<FinanceTag[]>([]);
-      const [categories, setCategories] = useState<FinanceCategory[]>([]);
-      const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
-      const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
-      const [recurring, setRecurring] = useState<FinanceRecurring[]>([]);
-      const [notifications, setNotifications] = useState<FinanceNotification[]>([]);
-      const [summary, setSummary] = useState<FinanceSummary | null>(null);
-      const [isLoading, setIsLoading] = useState(true);
-      const [error, setError] = useState<string | null>(null);
-      const [transactionModalOpen, setTransactionModalOpen] = useState(false);
-      const [transactionTab, setTransactionTab] = useState<"details" | "recurrence">(
-        "details",
-      );
-      const [linkedRecurringId, setLinkedRecurringId] = useState<string | null>(null);
-      const [recurringModalOpen, setRecurringModalOpen] = useState(false);
-      const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-      const [accountModalOpen, setAccountModalOpen] = useState(false);
-      const [editingTransaction, setEditingTransaction] = useState<FinanceTransaction | null>(
-        null,
-      );
-      const [transactionForm, setTransactionForm] = useState({
-        title: "",
-        amount: "",
-        currency: "BRL" as "BRL" | "USD",
-        group: "INCOME" as "INCOME" | "EXPENSE",
-        status: "PAID" as "PAID" | "PENDING",
-        occurredAt: "",
-        accountId: "",
-        categoryId: "",
-        tagIds: [] as string[],
-        description: "",
-        isRecurring: false,
-        addToCalendar: false,
-        recurrenceFrequency: "MONTHLY" as "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY",
-      });
-      const [recurringForm, setRecurringForm] = useState({
-        title: "",
-        amount: "",
-        group: "INCOME" as "INCOME" | "EXPENSE",
-        frequency: "MONTHLY" as "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY",
-        interval: "1",
-        nextDue: "",
-        accountId: "",
-        categoryId: "",
-        tagIds: [] as string[],
-      });
-      const [categoryForm, setCategoryForm] = useState({
-        name: "",
-        group: "EXPENSE" as "INCOME" | "EXPENSE",
-      });
-      const [accountForm, setAccountForm] = useState({
-        name: "",
-        type: "BANK" as "CASH" | "BANK" | "CARD",
-        currency: "BRL",
-      });
-      const [tagDraft, setTagDraft] = useState("");
-      const [formError, setFormError] = useState<string | null>(null);
-      const [isSaving, setIsSaving] = useState(false);
-      const [monthIndex, setMonthIndex] = useState(() => chartMonthRange - 1);
+export default function FinanceClient({
+  initialQuery = "",
+  initialGroup = "all",
+  initialType = "all",
+  initialStatus = "all",
+  initialSort = "date",
+  initialPage = 1,
+}: FinanceClientProps) {
+  const router = useRouter();
+  const { t } = useLanguage();
+  const chartMonthRange = 6;
+  const [query, setQuery] = useState(initialQuery);
+  const [groupFilter, setGroupFilter] = useState(initialGroup);
+  const [typeFilter, setTypeFilter] = useState(initialType);
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const [sortBy, setSortBy] = useState(initialSort);
+  const [page, setPage] = useState(initialPage);
+  const [tags, setTags] = useState<FinanceTag[]>([]);
+  const [categories, setCategories] = useState<FinanceCategory[]>([]);
+  const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<FinancePaymentMethod[]>([]);
+  const [cardBills, setCardBills] = useState<Record<string, FinanceCardBill>>({});
+  const [transactions, setTransactions] = useState<FinanceTransaction[]>([]);
+  const [recurring, setRecurring] = useState<FinanceRecurring[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [transactionModalOpen, setTransactionModalOpen] = useState(false);
+  const [transactionTab, setTransactionTab] = useState<"details" | "recurrence">("details");
+  const [linkedRecurringId, setLinkedRecurringId] = useState<string | null>(null);
+  const [recurringModalOpen, setRecurringModalOpen] = useState(false);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<FinanceAccount | null>(null);
+  const [paymentMethodModalOpen, setPaymentMethodModalOpen] = useState(false);
+  const [editingPaymentMethod, setEditingPaymentMethod] = useState<FinancePaymentMethod | null>(null);
+  const [billModalOpen, setBillModalOpen] = useState(false);
+  const [billTarget, setBillTarget] = useState<FinancePaymentMethod | null>(null);
+  const [billAmount, setBillAmount] = useState("");
+  const [cardDetailOpen, setCardDetailOpen] = useState(false);
+  const [selectedCard, setSelectedCard] = useState<FinancePaymentMethod | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<FinanceTransaction | null>(null);
+  const [transactionForm, setTransactionForm] = useState({
+    title: "",
+    amount: "",
+    currency: "BRL" as "BRL" | "USD",
+    group: "INCOME" as "INCOME" | "EXPENSE",
+    status: "PAID" as "PAID" | "PENDING",
+    occurredAt: "",
+    accountId: "",
+    paymentMethodId: "",
+    categoryId: "",
+    tagIds: [] as string[],
+    description: "",
+    isRecurring: false,
+    addToCalendar: false,
+    recurrenceFrequency: "MONTHLY" as "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY",
+  });
+  const [recurringForm, setRecurringForm] = useState({
+    title: "",
+    amount: "",
+    group: "INCOME" as "INCOME" | "EXPENSE",
+    frequency: "MONTHLY" as "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY",
+    interval: "1",
+    nextDue: "",
+    accountId: "",
+    categoryId: "",
+    tagIds: [] as string[],
+  });
+  const [categoryForm, setCategoryForm] = useState({
+    name: "",
+    group: "EXPENSE" as "INCOME" | "EXPENSE",
+  });
+  const [accountForm, setAccountForm] = useState({
+    name: "",
+    type: "BANK" as "CASH" | "BANK" | "CARD",
+    currency: "BRL",
+  });
+  const [paymentMethodForm, setPaymentMethodForm] = useState({
+    name: "",
+    type: "CREDIT" as FinancePaymentMethodType,
+    accountId: "",
+    currency: "BRL",
+    limit: "",
+    closingDay: "",
+    dueDay: "",
+    balance: "",
+  });
+  const [tagDraft, setTagDraft] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [cardMonthIndex, setCardMonthIndex] = useState(() => chartMonthRange - 1);
 
-      useEffect(() => {
+  useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         if (query) {
           params.set("q", query);
@@ -161,6 +183,26 @@
         router.replace(`/finance${queryString ? `?${queryString}` : ""}`);
       }, [query, groupFilter, typeFilter, statusFilter, sortBy, page, router]);
 
+      const loadCardBills = useCallback(async (methods: FinancePaymentMethod[]) => {
+        const creditMethods = methods.filter((method) => method.type === "CREDIT");
+        if (creditMethods.length === 0) {
+          setCardBills({});
+          return;
+        }
+        const results = await Promise.allSettled(
+          creditMethods.map((method) =>
+            getFinanceCardBill({ paymentMethodId: method.id }),
+          ),
+        );
+        const map: Record<string, FinanceCardBill> = {};
+        results.forEach((result, index) => {
+          if (result.status === "fulfilled") {
+            map[creditMethods[index].id] = result.value;
+          }
+        });
+        setCardBills(map);
+      }, []);
+
       const loadBase = useCallback(async () => {
         setIsLoading(true);
         setError(null);
@@ -169,24 +211,22 @@
             tagsResult,
             categoriesResult,
             accountsResult,
+            paymentMethodsResult,
             recurringResult,
-            notificationsResult,
-            summaryResult,
           ] = await Promise.all([
             listFinanceTags(),
             listFinanceCategories(),
             listFinanceAccounts(),
+            listFinancePaymentMethods(),
             listFinanceRecurring(),
-            listFinanceNotifications(),
-            getFinanceSummary(),
           ]);
 
           setTags(tagsResult);
           setCategories(categoriesResult);
           setAccounts(accountsResult);
+          setPaymentMethods(paymentMethodsResult);
           setRecurring(recurringResult);
-          setNotifications(notificationsResult);
-          setSummary(summaryResult);
+          void loadCardBills(paymentMethodsResult);
         } catch (err) {
           if (err instanceof ApiError) {
             setError(err.message);
@@ -196,7 +236,11 @@
         } finally {
           setIsLoading(false);
         }
-      }, [t]);
+      }, [loadCardBills, t]);
+
+      useEffect(() => {
+        void loadCardBills(paymentMethods);
+      }, [loadCardBills, paymentMethods]);
 
       const loadTransactions = useCallback(async () => {
         try {
@@ -234,10 +278,16 @@
         return items;
       }, [transactions, sortBy]);
 
-      const pageCount = Math.max(1, Math.ceil(sortedTransactions.length / pageSize));
-      const paged = sortedTransactions.slice((page - 1) * pageSize, page * pageSize);
+      const visibleCount = page * pageSize;
+      const paged = sortedTransactions.slice(0, visibleCount);
+      const hasMoreTransactions = visibleCount < sortedTransactions.length;
 
-      const monthKeys = useMemo(() => {
+      const cardMethods = useMemo(
+        () => paymentMethods.filter((method) => method.type !== "INVEST"),
+        [paymentMethods],
+      );
+
+      const cardMonthKeys = useMemo(() => {
         const now = new Date();
         return Array.from({ length: chartMonthRange }, (_, index) => {
           const monthDate = new Date(
@@ -250,92 +300,64 @@
       }, [chartMonthRange]);
 
       useEffect(() => {
-        setMonthIndex((current) => {
+        setCardMonthIndex((current) => {
           if (current < 0) return 0;
-          if (current > monthKeys.length - 1) return monthKeys.length - 1;
+          if (current > cardMonthKeys.length - 1) return cardMonthKeys.length - 1;
           return current;
         });
-      }, [monthKeys.length]);
+      }, [cardMonthKeys.length]);
 
-      const monthlyAccountTotals = useMemo(() => {
-        const accountMap = new Map(accounts.map((account) => [account.id, account]));
+      const selectedCardTransactions = useMemo(() => {
+        if (!selectedCard) return [];
+        return transactions.filter((transaction) => transaction.paymentMethodId === selectedCard.id);
+      }, [selectedCard, transactions]);
+
+      const cardMonthlyTotals = useMemo(() => {
         const monthMap = new Map(
-          monthKeys.map((key) => [key, new Map<string, { income: number; expense: number; currency: string }>()]),
+          cardMonthKeys.map((key) => [key, { income: 0, expense: 0 }]),
         );
-        let hasUnknownAccount = false;
 
-        transactions.forEach((transaction) => {
+        selectedCardTransactions.forEach((transaction) => {
           const monthKey = transaction.occurredAt.slice(0, 7);
           const monthBucket = monthMap.get(monthKey);
           if (!monthBucket) return;
 
-          const accountId = transaction.accountId ?? "__unknown__";
-          if (!transaction.accountId) {
-            hasUnknownAccount = true;
-          }
-
-          const accountCurrency = transaction.accountId
-            ? accountMap.get(transaction.accountId)?.currency ?? transaction.currency ?? "BRL"
-            : transaction.currency ?? "BRL";
-
-          const existing = monthBucket.get(accountId) ?? {
-            income: 0,
-            expense: 0,
-            currency: accountCurrency,
-          };
-
           if (transaction.group === "INCOME") {
-            existing.income += transaction.amount;
+            monthBucket.income += transaction.amount;
           } else {
-            existing.expense += transaction.amount;
+            monthBucket.expense += transaction.amount;
           }
-
-          monthBucket.set(accountId, existing);
         });
 
-        const accountEntries = accounts.map((account) => ({
-          id: account.id,
-          name: account.name,
-          currency: account.currency,
-        }));
-
-        if (hasUnknownAccount) {
-          accountEntries.push({
-            id: "__unknown__",
-            name: t.finance.accountUnknown,
-            currency: "BRL",
-          });
-        }
-
-        return monthKeys.map((key) => {
+        return cardMonthKeys.map((key) => {
           const monthDate = new Date(`${key}-01T00:00:00`);
           const label = monthDate.toLocaleDateString("pt-BR", {
             month: "short",
             year: "2-digit",
           });
-          const totals = monthMap.get(key) ?? new Map();
-          const accountsData = accountEntries.map((account) => {
-            const data = totals.get(account.id) ?? { income: 0, expense: 0, currency: account.currency };
-            return {
-              ...account,
-              income: data.income,
-              expense: data.expense,
-            };
-          });
-          return { key, label, accounts: accountsData };
+          const totals = monthMap.get(key) ?? { income: 0, expense: 0 };
+          return { key, label, ...totals };
         });
-      }, [accounts, monthKeys, t.finance.accountUnknown, transactions]);
+      }, [cardMonthKeys, selectedCardTransactions]);
 
-      const activeMonth = monthlyAccountTotals[monthIndex];
+      const activeCardMonth = cardMonthlyTotals[cardMonthIndex];
 
-      const maxBarValue = useMemo(() => {
-        if (!activeMonth) return 1;
+      const activeCardTransactions = useMemo(() => {
+        if (!selectedCard) return [];
+        const activeKey = cardMonthKeys[cardMonthIndex];
+        if (!activeKey) return [];
+        return selectedCardTransactions.filter((transaction) =>
+          transaction.occurredAt.startsWith(activeKey),
+        );
+      }, [cardMonthIndex, cardMonthKeys, selectedCard, selectedCardTransactions]);
+
+      const cardMaxValue = useMemo(() => {
         let max = 0;
-        activeMonth.accounts.forEach((account) => {
-          max = Math.max(max, account.income, account.expense);
+        cardMonthlyTotals.forEach((month) => {
+          max = Math.max(max, month.income, month.expense);
         });
         return max || 1;
-      }, [activeMonth]);
+      }, [cardMonthlyTotals]);
 
       const resolveNowForInput = () => {
         const now = new Date();
@@ -360,6 +382,48 @@
         return digits ? Number(digits) / 100 : 0;
       };
 
+      const dateFromDay = (day?: number | null) => {
+        if (!day) return "";
+        const now = new Date();
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const year = String(now.getFullYear());
+        const dayValue = String(day).padStart(2, "0");
+        return `${year}-${month}-${dayValue}`;
+      };
+
+      const dayFromDateString = (value: string) => {
+        if (!value) return null;
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return null;
+        return parsed.getDate();
+      };
+
+      const shiftRecurringDate = (
+        value: string,
+        frequency: FinanceRecurring["frequency"],
+        interval: number,
+      ) => {
+        const [year, month, day] = value.split("-").map(Number);
+        const date = new Date(Date.UTC(year, month - 1, day));
+        switch (frequency) {
+          case "DAILY":
+            date.setUTCDate(date.getUTCDate() + interval);
+            break;
+          case "WEEKLY":
+            date.setUTCDate(date.getUTCDate() + interval * 7);
+            break;
+          case "MONTHLY":
+            date.setUTCMonth(date.getUTCMonth() + interval);
+            break;
+          case "YEARLY":
+            date.setUTCFullYear(date.getUTCFullYear() + interval);
+            break;
+          default:
+            break;
+        }
+        return date.toISOString().slice(0, 10);
+      };
+
       const findRecurringById = (recurringId?: string | null) =>
         recurringId ? recurring.find((item) => item.id === recurringId) ?? null : null;
 
@@ -377,6 +441,7 @@
           status: item?.status ?? "PAID",
           occurredAt: item?.occurredAt ?? resolveNowForInput(),
           accountId: item?.accountId ?? "",
+          paymentMethodId: item?.paymentMethodId ?? "",
           categoryId: item?.categoryId ?? "",
           tagIds: item?.tagIds ?? [],
           description: item?.description ?? "",
@@ -385,6 +450,44 @@
           recurrenceFrequency: matchedRecurring?.frequency ?? "MONTHLY",
         });
         setTransactionModalOpen(true);
+      };
+
+      const handleOpenBill = (method: FinancePaymentMethod) => {
+        setBillTarget(method);
+        setBillAmount("");
+        setBillModalOpen(true);
+      };
+
+      const handleOpenCardDetails = (method: FinancePaymentMethod) => {
+        setSelectedCard(method);
+        setCardMonthIndex(cardMonthKeys.length - 1);
+        setCardDetailOpen(true);
+      };
+
+      const handleCloseCardDetails = () => {
+        setCardDetailOpen(false);
+        setSelectedCard(null);
+      };
+
+      const handlePayBill = async () => {
+        if (!billTarget) return;
+        const amount = billAmount ? parseCurrencyInput(billAmount) : undefined;
+        try {
+          const updated = await payFinanceCardBill({
+            paymentMethodId: billTarget.id,
+            amount,
+            paidAt: new Date().toISOString().slice(0, 10),
+          });
+          setCardBills((prev) => ({ ...prev, [billTarget.id]: updated }));
+          setBillModalOpen(false);
+          await loadBase();
+        } catch (err) {
+          if (err instanceof ApiError) {
+            setFormError(err.message);
+          } else {
+            setFormError(t.finance.saveError);
+          }
+        }
       };
 
       const handleSaveTransaction = async () => {
@@ -413,6 +516,7 @@
             status: transactionForm.status,
             occurredAt: transactionForm.occurredAt,
             accountId: transactionForm.accountId || null,
+            paymentMethodId: transactionForm.paymentMethodId || null,
             categoryId: transactionForm.categoryId || null,
             tagIds: transactionForm.tagIds,
             description: transactionForm.description.trim() || null,
@@ -511,8 +615,6 @@
           await loadTransactions();
           const updatedRecurring = await listFinanceRecurring();
           setRecurring(updatedRecurring);
-          const summary = await getFinanceSummary();
-          setSummary(summary);
         } catch (err) {
           if (err instanceof ApiError) {
             setFormError(err.message);
@@ -533,8 +635,6 @@
             await deleteFinanceRecurring({ id: item.recurringId });
           }
           await loadTransactions();
-          const summary = await getFinanceSummary();
-          setSummary(summary);
         } catch (err) {
           if (err instanceof ApiError) {
             setFormError(err.message);
@@ -661,7 +761,23 @@
         }
       };
 
-      const handleCreateAccount = async () => {
+      const handleOpenAccount = (account?: FinanceAccount) => {
+        setFormError(null);
+        if (account) {
+          setEditingAccount(account);
+          setAccountForm({
+            name: account.name,
+            type: account.type,
+            currency: account.currency ?? "BRL",
+          });
+        } else {
+          setEditingAccount(null);
+          setAccountForm({ name: "", type: "BANK", currency: "BRL" });
+        }
+        setAccountModalOpen(true);
+      };
+
+      const handleSaveAccount = async () => {
         if (!accountForm.name.trim()) {
           setFormError(t.finance.accountRequired ?? t.finance.accountLabel);
           return;
@@ -669,13 +785,24 @@
         setIsSaving(true);
         setFormError(null);
         try {
-          const created = await createFinanceAccount({
-            name: accountForm.name.trim(),
-            type: accountForm.type,
-            currency: accountForm.currency,
-          });
-          setAccounts((prev) => [...prev, created]);
+          if (editingAccount) {
+            const updated = await updateFinanceAccount({
+              id: editingAccount.id,
+              name: accountForm.name.trim(),
+              type: accountForm.type,
+              currency: accountForm.currency,
+            });
+            setAccounts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+          } else {
+            const created = await createFinanceAccount({
+              name: accountForm.name.trim(),
+              type: accountForm.type,
+              currency: accountForm.currency,
+            });
+            setAccounts((prev) => [...prev, created]);
+          }
           setAccountModalOpen(false);
+          setEditingAccount(null);
           setAccountForm({ name: "", type: "BANK", currency: "BRL" });
         } catch (err) {
           if (err instanceof ApiError) {
@@ -688,10 +815,159 @@
         }
       };
 
-      const handleToggleNotification = async (item: FinanceNotification) => {
-        const nextReadAt = item.readAt ? null : new Date().toISOString();
-        const updated = await updateFinanceNotification({ id: item.id, readAt: nextReadAt });
-        setNotifications((prev) => prev.map((entry) => (entry.id === item.id ? updated : entry)));
+      const handleDeleteAccount = async (account: FinanceAccount) => {
+        const confirmed = window.confirm(
+          t.finance.deleteAccountConfirm ?? "Deseja excluir esta conta?",
+        );
+        if (!confirmed) return;
+        setIsSaving(true);
+        setFormError(null);
+        try {
+          await deleteFinanceAccount({ id: account.id });
+          setAccounts((prev) => prev.filter((item) => item.id !== account.id));
+        } catch (err) {
+          if (err instanceof ApiError) {
+            setFormError(err.message);
+          } else {
+            setFormError(t.finance.deleteError ?? t.finance.loadError);
+          }
+        } finally {
+          setIsSaving(false);
+        }
+      };
+
+      const handleOpenPaymentMethod = (method?: FinancePaymentMethod) => {
+        setFormError(null);
+        if (method) {
+          setEditingPaymentMethod(method);
+          setPaymentMethodForm({
+            name: method.name,
+            type: method.type,
+            accountId: method.accountId ?? "",
+            currency: method.currency ?? "BRL",
+            limit: method.limit
+              ? formatCurrencyInput(String(Math.round(method.limit * 100)), method.currency ?? "BRL")
+              : "",
+            closingDay: dateFromDay(method.closingDay),
+            dueDay: dateFromDay(method.dueDay),
+            balance: method.balance != null ? String(method.balance) : "",
+          });
+        } else {
+          setEditingPaymentMethod(null);
+          setPaymentMethodForm({
+            name: "",
+            type: "CREDIT",
+            accountId: "",
+            currency: "BRL",
+            limit: "",
+            closingDay: "",
+            dueDay: "",
+            balance: "",
+          });
+        }
+        setPaymentMethodModalOpen(true);
+      };
+
+      const handleSavePaymentMethod = async () => {
+        if (!paymentMethodForm.name.trim()) {
+          setFormError(t.finance.paymentMethodNameRequired ?? t.finance.paymentMethodNameLabel ?? t.finance.titleLabel);
+          return;
+        }
+        setIsSaving(true);
+        setFormError(null);
+        const parsedLimit = paymentMethodForm.limit ? parseCurrencyInput(paymentMethodForm.limit) : null;
+        const parsedClosing = dayFromDateString(paymentMethodForm.closingDay);
+        const parsedDue = dayFromDateString(paymentMethodForm.dueDay);
+        const parsedBalance = paymentMethodForm.balance ? Number(paymentMethodForm.balance) : null;
+        try {
+          if (editingPaymentMethod) {
+            const updated = await updateFinancePaymentMethod({
+              id: editingPaymentMethod.id,
+              name: paymentMethodForm.name.trim(),
+              type: paymentMethodForm.type,
+              accountId: paymentMethodForm.accountId || null,
+              currency: paymentMethodForm.currency,
+              limit: parsedLimit,
+              closingDay: parsedClosing,
+              dueDay: parsedDue,
+              balance: parsedBalance,
+            });
+            setPaymentMethods((prev) =>
+              prev.map((item) => (item.id === updated.id ? updated : item)),
+            );
+          } else {
+            const created = await createFinancePaymentMethod({
+              name: paymentMethodForm.name.trim(),
+              type: paymentMethodForm.type,
+              accountId: paymentMethodForm.accountId || null,
+              currency: paymentMethodForm.currency,
+              limit: parsedLimit,
+              closingDay: parsedClosing,
+              dueDay: parsedDue,
+              balance: parsedBalance,
+            });
+            setPaymentMethods((prev) => [...prev, created]);
+          }
+          setPaymentMethodModalOpen(false);
+          setEditingPaymentMethod(null);
+          setPaymentMethodForm({
+            name: "",
+            type: "CREDIT",
+            accountId: "",
+            currency: "BRL",
+            limit: "",
+            closingDay: "",
+            dueDay: "",
+            balance: "",
+          });
+        } catch (err) {
+          if (err instanceof ApiError) {
+            setFormError(err.message);
+          } else {
+            setFormError(t.finance.saveError ?? t.finance.loadError);
+          }
+        } finally {
+          setIsSaving(false);
+        }
+      };
+
+      const handleDeletePaymentMethod = async (method: FinancePaymentMethod) => {
+        const confirmed = window.confirm(
+          t.finance.deletePaymentMethodConfirm ?? "Deseja excluir este cartão?",
+        );
+        if (!confirmed) return;
+        setIsSaving(true);
+        setFormError(null);
+        try {
+          await deleteFinancePaymentMethod({ id: method.id });
+          setPaymentMethods((prev) => prev.filter((item) => item.id !== method.id));
+        } catch (err) {
+          if (err instanceof ApiError) {
+            setFormError(err.message);
+          } else {
+            setFormError(t.finance.deleteError ?? t.finance.loadError);
+          }
+        } finally {
+          setIsSaving(false);
+        }
+      };
+
+      const handleToggleRecurringPayment = async (item: FinanceRecurring, paid: boolean) => {
+        setIsSaving(true);
+        setFormError(null);
+        try {
+          await toggleFinanceRecurring({ id: item.id, paid });
+          await loadBase();
+          await loadTransactions();
+        } catch (err) {
+          if (err instanceof ApiError) {
+            setFormError(err.message);
+          } else {
+            setFormError(t.finance.saveError ?? t.finance.loadError);
+          }
+        } finally {
+          setIsSaving(false);
+        }
       };
 
       const formatCurrency = (value: number, currency: string = "BRL") =>
@@ -712,8 +988,11 @@
               <Button variant="secondary" onClick={() => setCategoryModalOpen(true)}>
                 {t.finance.newType}
               </Button>
-              <Button variant="secondary" onClick={() => setAccountModalOpen(true)}>
+              <Button variant="secondary" onClick={() => handleOpenAccount()}>
                 {t.finance.newAccount ?? t.finance.typeLabel}
+              </Button>
+              <Button variant="secondary" onClick={() => handleOpenPaymentMethod()}>
+                {t.finance.paymentMethodAdd ?? t.finance.paymentMethodsTitle ?? "Novo cartão"}
               </Button>
               <Button variant="secondary" onClick={() => setRecurringModalOpen(true)}>
                 {t.finance.recurringTitle}
@@ -724,103 +1003,53 @@
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-          <div className="grid gap-4 lg:grid-cols-4">
+          <div className="grid gap-6 lg:grid-cols-2">
             <Card>
-              <p className="text-xs text-zinc-500">{t.finance.summaryIncome}</p>
-              <p className="text-2xl font-semibold">
-                {summary ? formatCurrency(summary.totalIncome) : "-"}
-              </p>
-            </Card>
-            <Card>
-              <p className="text-xs text-zinc-500">{t.finance.summaryExpense}</p>
-              <p className="text-2xl font-semibold">
-                {summary ? formatCurrency(summary.totalExpense) : "-"}
-              </p>
-            </Card>
-            <Card>
-              <p className="text-xs text-zinc-500">{t.finance.summaryNet}</p>
-              <p className="text-2xl font-semibold">
-                {summary ? formatCurrency(summary.net) : "-"}
-              </p>
-            </Card>
-            <Card>
-              <p className="text-xs text-zinc-500">{t.finance.summaryAccounts}</p>
-              <p className="text-2xl font-semibold">{summary?.accounts.length ?? 0}</p>
-            </Card>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-            <Card>
-              <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-                    {t.finance.monthTitle}
+                    {t.finance.accountsTitle ?? t.finance.accountLabel ?? "Contas"}
                   </h3>
-                  <p className="text-lg font-semibold text-[var(--foreground)]">
-                    {t.finance.monthSummary}
+                  <p className="text-sm text-zinc-600">
+                    {t.finance.accountsSubtitle ?? "Total"}: {accounts.length}
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                  <button
-                    type="button"
-                    onClick={() => setMonthIndex((current) => Math.max(0, current - 1))}
-                    disabled={monthIndex <= 0}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] text-sm text-zinc-600 disabled:opacity-40"
-                    aria-label="Previous month"
-                  >
-                    ←
-                  </button>
-                  <span className="rounded-full border border-[var(--border)] px-3 py-1">
-                    {activeMonth?.label ?? "-"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setMonthIndex((current) => Math.min(monthKeys.length - 1, current + 1))}
-                    disabled={monthIndex >= monthKeys.length - 1}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] text-sm text-zinc-600 disabled:opacity-40"
-                    aria-label="Next month"
-                  >
-                    →
-                  </button>
-                </div>
+                <Button variant="secondary" onClick={() => handleOpenAccount()}>
+                  {t.finance.newAccount ?? t.finance.accountLabel}
+                </Button>
               </div>
-              <div className="mt-4">
-                <div className="rounded-2xl border border-[var(--border)] p-4">
-                  {activeMonth ? (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {activeMonth.accounts.map((account) => (
-                        <div key={`${activeMonth.key}-${account.id}`} className="rounded-xl border border-[var(--border)] p-3">
-                          <p className="text-xs font-semibold text-zinc-600">{account.name}</p>
-                          <div className="mt-3 flex items-end gap-3">
-                            <div className="flex flex-col items-center gap-2">
-                              <div
-                                className="w-6 rounded-lg bg-emerald-500"
-                                style={{
-                                  height: Math.max(10, (account.income / maxBarValue) * 80),
-                                }}
-                              />
-                              <span className="text-[10px] text-zinc-500">{t.finance.groupIncome}</span>
-                            </div>
-                            <div className="flex flex-col items-center gap-2">
-                              <div
-                                className="w-6 rounded-lg bg-red-400"
-                                style={{
-                                  height: Math.max(10, (account.expense / maxBarValue) * 80),
-                                }}
-                              />
-                              <span className="text-[10px] text-zinc-500">{t.finance.groupExpense}</span>
-                            </div>
-                          </div>
-                          <div className="mt-3 text-[10px] text-zinc-500">
-                            {formatCurrency(account.income, account.currency)} · {formatCurrency(account.expense, account.currency)}
-                          </div>
-                        </div>
-                      ))}
+              <div className="mt-4 grid gap-3">
+                {accounts.length === 0 ? (
+                  <p className="text-sm text-zinc-500">{t.finance.empty}</p>
+                ) : (
+                  accounts.map((account) => (
+                    <div
+                      key={account.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--border)] px-4 py-3"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-[var(--foreground)]">
+                          {account.name}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          {account.type} · {account.currency ?? "BRL"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="secondary" onClick={() => handleOpenAccount(account)}>
+                          {t.finance.editAction ?? t.calendar.editAction}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          onClick={() => handleDeleteAccount(account)}
+                          disabled={isSaving}
+                        >
+                          {t.finance.deleteAction ?? t.calendar.deleteAction}
+                        </Button>
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-sm text-zinc-500">{t.finance.empty}</p>
-                  )}
-                </div>
+                  ))
+                )}
               </div>
             </Card>
 
@@ -828,32 +1057,171 @@
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-                    {t.finance.notificationsTitle}
+                    {t.finance.paymentMethodsTitle ?? "Cartões"}
                   </h3>
-                  <p className="text-sm text-zinc-600">{t.finance.notificationsSubtitle}</p>
+                  <p className="text-sm text-zinc-600">
+                    {t.finance.cardsSubtitle ?? "Total"}: {paymentMethods.length}
+                  </p>
                 </div>
+                <Button variant="secondary" onClick={() => handleOpenPaymentMethod()}>
+                  {t.finance.paymentMethodAdd ?? "Adicionar"}
+                </Button>
               </div>
               <div className="mt-4 grid gap-3">
-                {notifications.length === 0 ? (
-                  <p className="text-sm text-zinc-500">{t.finance.notificationsEmpty}</p>
+                {paymentMethods.length === 0 ? (
+                  <p className="text-sm text-zinc-500">{t.finance.paymentMethodEmpty ?? t.finance.empty}</p>
                 ) : (
-                  notifications.slice(0, 4).map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => handleToggleNotification(item)}
-                      className={`rounded-2xl border px-4 py-3 text-left ${
-                        item.readAt ? "border-[var(--border)]" : "border-emerald-400"
-                      }`}
+                  paymentMethods.map((method) => (
+                    <div
+                      key={method.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--border)] px-4 py-3"
                     >
-                      <p className="text-sm font-semibold">{item.title}</p>
-                      <p className="text-xs text-zinc-500">{item.message}</p>
-                    </button>
+                      <div>
+                        <p className="text-sm font-semibold text-[var(--foreground)]">
+                          {method.name}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          {method.type} · {method.currency ?? "BRL"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="secondary" onClick={() => handleOpenPaymentMethod(method)}>
+                          {t.finance.editAction ?? t.calendar.editAction}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          onClick={() => handleDeletePaymentMethod(method)}
+                          disabled={isSaving}
+                        >
+                          {t.finance.deleteAction ?? t.calendar.deleteAction}
+                        </Button>
+                      </div>
+                    </div>
                   ))
                 )}
               </div>
             </Card>
           </div>
+
+          <Card>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+                  {t.finance.cardsTitle ?? "Cartões"}
+                </h3>
+                <p className="text-sm text-zinc-600">
+                  {t.finance.cardsSubtitle ?? "Selecione um cartão para ver detalhes"}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex gap-4 overflow-x-auto pb-2">
+              {cardMethods.length === 0 ? (
+                <p className="text-sm text-zinc-500">{t.finance.empty}</p>
+              ) : (
+                cardMethods.map((method) => {
+                  const bill = cardBills[method.id];
+                  const typeLabel =
+                    method.type === "CREDIT"
+                      ? t.finance.paymentMethodCredit ?? "Crédito"
+                      : method.type === "DEBIT"
+                        ? t.finance.paymentMethodDebit ?? "Débito"
+                        : method.type === "PIX"
+                          ? t.finance.paymentMethodPix ?? "Pix"
+                          : t.finance.paymentMethodCard ?? "Cartão";
+
+                  return (
+                    <button
+                      key={method.id}
+                      type="button"
+                      onClick={() => handleOpenCardDetails(method)}
+                      className="min-w-[240px] rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left transition hover:border-zinc-400"
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-[var(--foreground)]">
+                          {method.name}
+                        </p>
+                        <span className="rounded-full border border-[var(--border)] px-2 py-1 text-[10px] text-zinc-500">
+                          {typeLabel}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-xs text-zinc-500">
+                        {t.finance.balanceLabel ?? "Saldo"}: {" "}
+                        {formatCurrency(method.balance ?? 0, method.currency)}
+                      </p>
+                      {method.type === "CREDIT" ? (
+                        <p className="mt-1 text-xs text-zinc-500">
+                          {t.finance.billRemaining ?? "Saldo da fatura"}: {" "}
+                          {bill ? formatCurrency(bill.remainingAmount, method.currency) : "-"}
+                        </p>
+                      ) : null}
+                      {method.type === "CREDIT" && bill?.bill.dueDate ? (
+                        <p className="mt-1 text-xs text-zinc-500">
+                          {t.finance.billDue ?? "Vencimento"}: {bill.bill.dueDate}
+                        </p>
+                      ) : null}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </Card>
+
+          <Card>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+                  {t.finance.recurringTitle}
+                </h3>
+                <p className="text-sm text-zinc-600">{t.finance.nextDueLabel}</p>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3">
+              {recurring.length === 0 ? (
+                <p className="text-sm text-zinc-500">{t.finance.empty}</p>
+              ) : (
+                recurring.map((item) => {
+                  const category = categories.find((type) => type.id === item.categoryId);
+                  const interval = item.interval ?? 1;
+                  const previousDue = shiftRecurringDate(item.nextDue, item.frequency, -interval);
+                  const isPaid = transactions.some(
+                    (entry) => entry.recurringId === item.id && entry.occurredAt === previousDue,
+                  );
+                  const displayDue = isPaid ? previousDue : item.nextDue;
+                  return (
+                    <div
+                      key={item.id}
+                      className="list-item-animate rounded-2xl border border-[var(--border)] px-4 py-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={isPaid}
+                              onChange={(event) =>
+                                handleToggleRecurringPayment(item, event.target.checked)
+                              }
+                              disabled={isSaving}
+                            />
+                          </label>
+                          <p className="text-sm font-semibold text-[var(--foreground)]">
+                            {item.title}
+                          </p>
+                        </div>
+                        <span className="text-xs text-zinc-500">{item.frequency}</span>
+                      </div>
+                      <p className="text-xs text-zinc-500">
+                        {category?.name ?? t.finance.tagsEmpty} · {displayDue}
+                      </p>
+                      <p className="mt-2 text-sm font-semibold text-[var(--foreground)]">
+                        {formatCurrency(item.amount, item.currency ?? "BRL")}
+                      </p>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </Card>
 
           <Card>
             <div className="flex flex-wrap items-center gap-4">
@@ -930,8 +1298,7 @@
             </div>
           </Card>
 
-          <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
-            <Card>
+          <Card>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
@@ -997,66 +1364,15 @@
 
               <div className="mt-4 flex items-center justify-between text-xs text-zinc-500">
                 <span>
-                  {t.finance.page} {page} {t.finance.pageOf} {pageCount}
+                  {t.finance.showing ?? "Exibindo"} {paged.length} {t.finance.of ?? "de"} {sortedTransactions.length}
                 </span>
-                <div className="flex gap-2">
-                  <Button
-                    variant="secondary"
-                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                    disabled={page === 1}
-                  >
-                    {t.finance.prev}
+                {hasMoreTransactions ? (
+                  <Button variant="secondary" onClick={() => setPage((prev) => prev + 1)}>
+                    {t.finance.loadMore ?? "Carregar mais"}
                   </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setPage((prev) => Math.min(pageCount, prev + 1))}
-                    disabled={page === pageCount}
-                  >
-                    {t.finance.next}
-                  </Button>
-                </div>
+                ) : null}
               </div>
             </Card>
-
-            <Card>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-                    {t.finance.recurringTitle}
-                  </h3>
-                  <p className="text-sm text-zinc-600">{t.finance.nextDueLabel}</p>
-                </div>
-              </div>
-              <div className="mt-4 grid gap-3">
-                {recurring.length === 0 ? (
-                  <p className="text-sm text-zinc-500">{t.finance.empty}</p>
-                ) : (
-                  recurring.map((item) => {
-                    const category = categories.find((type) => type.id === item.categoryId);
-                    return (
-                      <div
-                        key={item.id}
-                        className="list-item-animate rounded-2xl border border-[var(--border)] px-4 py-3"
-                      >
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-[var(--foreground)]">
-                            {item.title}
-                          </p>
-                          <span className="text-xs text-zinc-500">{item.frequency}</span>
-                        </div>
-                        <p className="text-xs text-zinc-500">
-                          {category?.name ?? t.finance.tagsEmpty} · {item.nextDue}
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-[var(--foreground)]">
-                          {formatCurrency(item.amount, item.currency ?? "BRL")}
-                        </p>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </Card>
-          </div>
 
           {transactionModalOpen ? (
             <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -1200,6 +1516,33 @@
                                 {account.name}
                               </option>
                             ))}
+                          </select>
+                        </label>
+                        <label className="flex flex-col gap-2 text-sm text-zinc-600">
+                          {t.finance.methodLabel}
+                          <select
+                            value={transactionForm.paymentMethodId}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              const selected = paymentMethods.find(
+                                (method) => method.id === value,
+                              );
+                              setTransactionForm((prev) => ({
+                                ...prev,
+                                paymentMethodId: value,
+                                accountId: selected?.accountId ?? prev.accountId,
+                              }));
+                            }}
+                            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                          >
+                            <option value="">{t.finance.none}</option>
+                            {paymentMethods
+                              .filter((method) => method.type !== "INVEST")
+                              .map((method) => (
+                                <option key={method.id} value={method.id}>
+                                  {method.name}
+                                </option>
+                              ))}
                           </select>
                         </label>
                         <label className="flex flex-col gap-2 text-sm text-zinc-600">
@@ -1358,6 +1701,163 @@
                     <Button onClick={handleSaveTransaction} disabled={isSaving}>
                       {isSaving ? t.finance.saving : t.finance.save}
                     </Button>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          ) : null}
+
+          {cardDetailOpen && selectedCard ? (
+            <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
+              <button
+                type="button"
+                className="absolute inset-0 bg-black/40"
+                onClick={handleCloseCardDetails}
+              />
+              <Card className="modal-content relative z-10 w-full max-w-3xl max-h-[85vh] overflow-y-auto">
+                <div className="grid gap-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold">{selectedCard.name}</h3>
+                      <p className="text-sm text-zinc-600">
+                        {t.finance.cardDetailsTitle ?? "Detalhes do cartão"}
+                      </p>
+                    </div>
+                    <Button variant="secondary" onClick={handleCloseCardDetails}>
+                      {t.finance.close ?? t.calendar.closeAction}
+                    </Button>
+                  </div>
+
+                  {selectedCard.type === "CREDIT" ? (
+                    <div className="rounded-2xl border border-[var(--border)] p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs text-zinc-500">
+                            {t.finance.billRemaining ?? "Saldo da fatura"}
+                          </p>
+                          <p className="text-lg font-semibold">
+                            {formatCurrency(
+                              cardBills[selectedCard.id]?.remainingAmount ?? 0,
+                              selectedCard.currency,
+                            )}
+                          </p>
+                          {cardBills[selectedCard.id]?.bill.dueDate ? (
+                            <p className="text-xs text-zinc-500">
+                              {t.finance.billDue ?? "Vencimento"}: {" "}
+                              {cardBills[selectedCard.id]?.bill.dueDate}
+                            </p>
+                          ) : null}
+                        </div>
+                        <Button variant="secondary" onClick={() => handleOpenBill(selectedCard)}>
+                          {t.finance.billPay ?? "Pagar"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="rounded-2xl border border-[var(--border)] p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                          {t.finance.monthTitle ?? "Mês"}
+                        </p>
+                        <p className="text-sm text-zinc-600">
+                          {t.finance.cardTransactionsTitle ?? "Movimentações"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-zinc-500">
+                        <button
+                          type="button"
+                          onClick={() => setCardMonthIndex((current) => Math.max(0, current - 1))}
+                          disabled={cardMonthIndex <= 0}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] text-sm text-zinc-600 disabled:opacity-40"
+                          aria-label="Previous month"
+                        >
+                          ←
+                        </button>
+                        <span className="rounded-full border border-[var(--border)] px-3 py-1">
+                          {activeCardMonth?.label ?? "-"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCardMonthIndex((current) =>
+                              Math.min(cardMonthKeys.length - 1, current + 1),
+                            )
+                          }
+                          disabled={cardMonthIndex >= cardMonthKeys.length - 1}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] text-sm text-zinc-600 disabled:opacity-40"
+                          aria-label="Next month"
+                        >
+                          →
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex items-end gap-4 overflow-x-auto pb-2">
+                      {cardMonthlyTotals.map((month) => (
+                        <div key={month.key} className="flex min-w-[72px] flex-col items-center gap-2">
+                          <div className="flex items-end gap-1">
+                            <div
+                              className="w-3 rounded-full bg-emerald-500"
+                              style={{
+                                height: Math.max(8, (month.income / cardMaxValue) * 80),
+                              }}
+                            />
+                            <div
+                              className="w-3 rounded-full bg-red-400"
+                              style={{
+                                height: Math.max(8, (month.expense / cardMaxValue) * 80),
+                              }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-zinc-500">{month.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 text-xs text-zinc-500">
+                      {t.finance.groupIncome}: {" "}
+                      {formatCurrency(activeCardMonth?.income ?? 0, selectedCard.currency)} · {" "}
+                      {t.finance.groupExpense}: {" "}
+                      {formatCurrency(activeCardMonth?.expense ?? 0, selectedCard.currency)}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3">
+                    <div>
+                      <h4 className="text-sm font-semibold">
+                        {t.finance.cardTransactionsTitle ?? "Transações do mês"}
+                      </h4>
+                      <p className="text-xs text-zinc-500">
+                        {t.finance.cardTransactionsSubtitle ?? "Detalhes do período selecionado"}
+                      </p>
+                    </div>
+                    {activeCardTransactions.length === 0 ? (
+                      <p className="text-sm text-zinc-500">
+                        {t.finance.cardTransactionsEmpty ?? t.finance.empty}
+                      </p>
+                    ) : (
+                      activeCardTransactions.map((item) => {
+                        const category = categories.find((type) => type.id === item.categoryId);
+                        return (
+                          <div
+                            key={item.id}
+                            className="flex items-center justify-between rounded-2xl border border-[var(--border)] px-4 py-3"
+                          >
+                            <div>
+                              <p className="text-sm font-semibold text-[var(--foreground)]">
+                                {item.title}
+                              </p>
+                              <p className="text-xs text-zinc-500">
+                                {category?.name ?? t.finance.tagsEmpty} · {item.occurredAt}
+                              </p>
+                            </div>
+                            <p className="text-sm font-semibold text-[var(--foreground)]">
+                              {formatCurrency(item.amount, item.currency ?? selectedCard.currency)}
+                            </p>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               </Card>
@@ -1529,7 +2029,9 @@
               <Card className="modal-content relative z-10 w-full max-w-lg">
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">{t.finance.newAccount ?? t.finance.accountLabel}</h3>
+                    <h3 className="text-lg font-semibold">
+                      {editingAccount ? t.finance.editAction ?? t.calendar.editAction : t.finance.newAccount ?? t.finance.accountLabel}
+                    </h3>
                     <Button variant="secondary" onClick={() => setAccountModalOpen(false)}>
                       {t.finance.close ?? t.calendar.closeAction}
                     </Button>
@@ -1561,12 +2063,37 @@
                       <option value="CARD">Card</option>
                     </select>
                   </label>
+                  <label className="flex flex-col gap-2 text-sm text-zinc-600">
+                    {t.finance.currencyLabel ?? "Moeda"}
+                    <select
+                      value={accountForm.currency}
+                      onChange={(event) =>
+                        setAccountForm((prev) => ({
+                          ...prev,
+                          currency: event.target.value,
+                        }))
+                      }
+                      className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                    >
+                      <option value="BRL">BRL</option>
+                      <option value="USD">USD</option>
+                    </select>
+                  </label>
                   {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
-                  <div className="flex justify-end gap-2">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {editingAccount ? (
+                      <Button
+                        variant="secondary"
+                        onClick={() => handleDeleteAccount(editingAccount)}
+                        disabled={isSaving}
+                      >
+                        {t.finance.deleteAction ?? t.calendar.deleteAction}
+                      </Button>
+                    ) : null}
                     <Button variant="secondary" onClick={() => setAccountModalOpen(false)}>
                       {t.finance.cancel}
                     </Button>
-                    <Button onClick={handleCreateAccount} disabled={isSaving}>
+                    <Button onClick={handleSaveAccount} disabled={isSaving}>
                       {isSaving ? t.finance.saving : t.finance.save}
                     </Button>
                   </div>
@@ -1574,6 +2101,216 @@
               </Card>
             </div>
           ) : null}
+
+          {paymentMethodModalOpen ? (
+            <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
+              <button
+                type="button"
+                className="absolute inset-0 bg-black/40"
+                onClick={() => setPaymentMethodModalOpen(false)}
+              />
+              <Card className="modal-content relative z-10 w-full max-w-2xl">
+                <div className="grid gap-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">
+                      {editingPaymentMethod
+                        ? t.finance.editAction ?? t.calendar.editAction
+                        : t.finance.paymentMethodTitle ?? t.finance.paymentMethodsTitle ?? "Novo cartão"}
+                    </h3>
+                    <Button variant="secondary" onClick={() => setPaymentMethodModalOpen(false)}>
+                      {t.finance.close ?? t.calendar.closeAction}
+                    </Button>
+                  </div>
+                  <Input
+                    label={t.finance.paymentMethodNameLabel ?? t.finance.titleLabel}
+                    value={paymentMethodForm.name}
+                    onChange={(event) =>
+                      setPaymentMethodForm((prev) => ({
+                        ...prev,
+                        name: event.target.value,
+                      }))
+                    }
+                  />
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="flex flex-col gap-2 text-sm text-zinc-600">
+                      {t.finance.paymentMethodTypeLabel ?? t.finance.typeLabel}
+                      <select
+                        value={paymentMethodForm.type}
+                        onChange={(event) =>
+                          setPaymentMethodForm((prev) => ({
+                            ...prev,
+                            type: event.target.value as FinancePaymentMethodType,
+                          }))
+                        }
+                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                      >
+                        <option value="CREDIT">{t.finance.paymentMethodCredit ?? "Crédito"}</option>
+                        <option value="DEBIT">{t.finance.paymentMethodDebit ?? "Débito"}</option>
+                        <option value="PIX">{t.finance.paymentMethodPix ?? "Pix"}</option>
+                        <option value="INVEST">{t.finance.paymentMethodInvest ?? "Investimento"}</option>
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 text-sm text-zinc-600">
+                      {t.finance.paymentMethodAccountLabel ?? t.finance.accountLabel}
+                      <select
+                        value={paymentMethodForm.accountId}
+                        onChange={(event) =>
+                          setPaymentMethodForm((prev) => ({
+                            ...prev,
+                            accountId: event.target.value,
+                          }))
+                        }
+                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                      >
+                        <option value="">{t.finance.none}</option>
+                        {accounts.map((account) => (
+                          <option key={account.id} value={account.id}>
+                            {account.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-2 text-sm text-zinc-600">
+                      {t.finance.currencyLabel ?? "Moeda"}
+                      <select
+                        value={paymentMethodForm.currency}
+                        onChange={(event) =>
+                          setPaymentMethodForm((prev) => ({
+                            ...prev,
+                            currency: event.target.value,
+                          }))
+                        }
+                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                      >
+                        <option value="BRL">BRL</option>
+                        <option value="USD">USD</option>
+                      </select>
+                    </label>
+                    <Input
+                      label={t.finance.balanceLabel ?? "Saldo"}
+                      value={paymentMethodForm.balance}
+                      onChange={(event) =>
+                        setPaymentMethodForm((prev) => ({
+                          ...prev,
+                          balance: event.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  {paymentMethodForm.type === "CREDIT" ? (
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <Input
+                        label={t.finance.paymentMethodLimitLabel ?? "Limite"}
+                        value={paymentMethodForm.limit}
+                        onChange={(event) => {
+                          const digits = event.target.value.replace(/\D/g, "");
+                          setPaymentMethodForm((prev) => ({
+                            ...prev,
+                            limit: formatCurrencyInput(digits, prev.currency),
+                          }));
+                        }}
+                      />
+                      <Input
+                        label={t.finance.paymentMethodClosingDayLabel ?? "Fechamento"}
+                        type="date"
+                        value={paymentMethodForm.closingDay}
+                        onChange={(event) =>
+                          setPaymentMethodForm((prev) => ({
+                            ...prev,
+                            closingDay: event.target.value,
+                          }))
+                        }
+                      />
+                      <Input
+                        label={t.finance.paymentMethodDueDayLabel ?? "Vencimento"}
+                        type="date"
+                        value={paymentMethodForm.dueDay}
+                        onChange={(event) =>
+                          setPaymentMethodForm((prev) => ({
+                            ...prev,
+                            dueDay: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  ) : null}
+
+                  {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {editingPaymentMethod ? (
+                      <Button
+                        variant="secondary"
+                        onClick={() => handleDeletePaymentMethod(editingPaymentMethod)}
+                        disabled={isSaving}
+                      >
+                        {t.finance.deleteAction ?? t.calendar.deleteAction}
+                      </Button>
+                    ) : null}
+                    <Button variant="secondary" onClick={() => setPaymentMethodModalOpen(false)}>
+                      {t.finance.cancel}
+                    </Button>
+                    <Button onClick={handleSavePaymentMethod} disabled={isSaving}>
+                      {isSaving ? t.finance.saving : t.finance.save}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          ) : null}
+
+          {billModalOpen ? (
+            <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
+              <button
+                type="button"
+                className="absolute inset-0 bg-black/40"
+                onClick={() => setBillModalOpen(false)}
+              />
+              <Card className="modal-content relative z-10 w-full max-w-lg">
+                <div className="grid gap-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">
+                      {t.finance.billTitle ?? "Pagamento de fatura"}
+                    </h3>
+                    <Button variant="secondary" onClick={() => setBillModalOpen(false)}>
+                      {t.finance.close ?? t.calendar.closeAction}
+                    </Button>
+                  </div>
+                  {billTarget ? (
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--foreground)]">
+                        {billTarget.name}
+                      </p>
+                      {cardBills[billTarget.id] ? (
+                        <p className="text-xs text-zinc-500">
+                          {t.finance.billRemaining ?? "Saldo"}: {" "}
+                          {formatCurrency(
+                            cardBills[billTarget.id].remainingAmount,
+                            billTarget.currency,
+                          )}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <Input
+                    label={t.finance.billAmountLabel ?? t.finance.amountLabel}
+                    value={billAmount}
+                    onChange={(event) => setBillAmount(event.target.value)}
+                  />
+                  {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
+                  <div className="flex justify-end gap-2">
+                    <Button variant="secondary" onClick={() => setBillModalOpen(false)}>
+                      {t.finance.cancel}
+                    </Button>
+                    <Button onClick={handlePayBill} disabled={isSaving}>
+                      {t.finance.billPay ?? t.finance.save}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          ) : null}
+
         </div>
       );
     }

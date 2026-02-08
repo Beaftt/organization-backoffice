@@ -14,7 +14,13 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const token = request.cookies.get(AUTH_COOKIE)?.value;
-  if (pathname === "/login" || pathname === "/register") {
+  if (
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/verify-email" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password"
+  ) {
     if (token) {
       logServerEvent("info", "auth_redirect", "Redirected authenticated user", {
         pathname,

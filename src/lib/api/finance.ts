@@ -29,6 +29,40 @@ export type FinanceAccount = {
   updatedAt: string;
 };
 
+export type FinancePaymentMethodType = "CREDIT" | "DEBIT" | "PIX" | "INVEST";
+
+export type FinancePaymentMethod = {
+  id: string;
+  workspaceId: string;
+  accountId: string | null;
+  name: string;
+  type: FinancePaymentMethodType;
+  currency: string;
+  limit: number | null;
+  closingDay: number | null;
+  dueDay: number | null;
+  balance: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FinanceCardBill = {
+  bill: {
+    id: string;
+    workspaceId: string;
+    paymentMethodId: string;
+    periodStart: string;
+    periodEnd: string;
+    closingDate: string;
+    dueDate: string;
+  };
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  status: "OPEN" | "PAID";
+  paymentMethod: FinancePaymentMethod;
+};
+
 export type FinanceTransaction = {
   id: string;
   workspaceId: string;
@@ -45,6 +79,8 @@ export type FinanceTransaction = {
   recurringId: string | null;
   createdAt: string;
   updatedAt: string;
+  settledAt: string | null;
+  paymentMethodId: string | null;
 };
 
 export type FinanceRecurring = {
@@ -248,6 +284,7 @@ export const listFinanceTransactions = (input?: {
   group?: "INCOME" | "EXPENSE";
   status?: "PAID" | "PENDING";
   accountId?: string;
+  paymentMethodId?: string;
   categoryId?: string;
   tagId?: string;
   q?: string;
@@ -259,6 +296,8 @@ export const listFinanceTransactions = (input?: {
   if (input?.group) params.set("group", input.group);
   if (input?.status) params.set("status", input.status);
   if (input?.accountId) params.set("accountId", input.accountId);
+  if (input?.paymentMethodId)
+    params.set("paymentMethodId", input.paymentMethodId);
   if (input?.categoryId) params.set("categoryId", input.categoryId);
   if (input?.tagId) params.set("tagId", input.tagId);
   if (input?.q) params.set("q", input.q);
@@ -280,6 +319,7 @@ export const createFinanceTransaction = (input: {
   occurredAt: string;
   description?: string | null;
   accountId?: string | null;
+  paymentMethodId?: string | null;
   categoryId?: string | null;
   tagIds?: string[] | null;
   recurringId?: string | null;
@@ -299,6 +339,7 @@ export const createFinanceTransaction = (input: {
         occurredAt: input.occurredAt,
         description: input.description ?? null,
         accountId: input.accountId ?? null,
+        paymentMethodId: input.paymentMethodId ?? null,
         categoryId: input.categoryId ?? null,
         tagIds: input.tagIds ?? null,
         recurringId: input.recurringId ?? null,
@@ -318,6 +359,7 @@ export const updateFinanceTransaction = (input: {
   occurredAt?: string;
   description?: string | null;
   accountId?: string | null;
+  paymentMethodId?: string | null;
   categoryId?: string | null;
   tagIds?: string[] | null;
   recurringId?: string | null;
@@ -337,6 +379,7 @@ export const updateFinanceTransaction = (input: {
         occurredAt: input.occurredAt,
         description: input.description ?? null,
         accountId: input.accountId ?? null,
+        paymentMethodId: input.paymentMethodId ?? null,
         categoryId: input.categoryId ?? null,
         tagIds: input.tagIds ?? null,
         recurringId: input.recurringId ?? null,
@@ -352,6 +395,137 @@ export const deleteFinanceTransaction = (input: { workspaceId?: string; id: stri
     {
       method: "DELETE",
       workspaceId: resolved,
+    },
+  );
+};
+
+export const listFinancePaymentMethods = (workspaceId?: string) => {
+  const resolved = workspacePath(workspaceId);
+  return apiFetch<FinancePaymentMethod[]>(
+    `/workspaces/${resolved}/finance/payment-methods`,
+    { workspaceId: resolved },
+  );
+};
+
+export const createFinancePaymentMethod = (input: {
+  workspaceId?: string;
+  name: string;
+  type: FinancePaymentMethodType;
+  accountId?: string | null;
+  currency?: string;
+  limit?: number | null;
+  closingDay?: number | null;
+  dueDay?: number | null;
+  balance?: number | null;
+}) => {
+  const resolved = workspacePath(input.workspaceId);
+  return apiFetch<FinancePaymentMethod>(
+    `/workspaces/${resolved}/finance/payment-methods`,
+    {
+      method: "POST",
+      workspaceId: resolved,
+      body: JSON.stringify({
+        name: input.name,
+        type: input.type,
+        accountId: input.accountId ?? null,
+        currency: input.currency ?? "BRL",
+        limit: input.limit ?? null,
+        closingDay: input.closingDay ?? null,
+        dueDay: input.dueDay ?? null,
+        balance: input.balance ?? null,
+      }),
+    },
+  );
+};
+
+export const updateFinancePaymentMethod = (input: {
+  workspaceId?: string;
+  id: string;
+  name?: string;
+  type?: FinancePaymentMethodType;
+  accountId?: string | null;
+  currency?: string;
+  limit?: number | null;
+  closingDay?: number | null;
+  dueDay?: number | null;
+  balance?: number | null;
+}) => {
+  const resolved = workspacePath(input.workspaceId);
+  return apiFetch<FinancePaymentMethod>(
+    `/workspaces/${resolved}/finance/payment-methods/${input.id}`,
+    {
+      method: "PUT",
+      workspaceId: resolved,
+      body: JSON.stringify({
+        name: input.name,
+        type: input.type,
+        accountId: input.accountId ?? null,
+        currency: input.currency,
+        limit: input.limit ?? null,
+        closingDay: input.closingDay ?? null,
+        dueDay: input.dueDay ?? null,
+        balance: input.balance ?? null,
+      }),
+    },
+  );
+};
+
+export const deleteFinancePaymentMethod = (input: {
+  workspaceId?: string;
+  id: string;
+}) => {
+  const resolved = workspacePath(input.workspaceId);
+  return apiFetch<void>(
+    `/workspaces/${resolved}/finance/payment-methods/${input.id}`,
+    { method: "DELETE", workspaceId: resolved },
+  );
+};
+
+export const getFinanceCardBill = (input: {
+  workspaceId?: string;
+  paymentMethodId: string;
+}) => {
+  const resolved = workspacePath(input.workspaceId);
+  return apiFetch<FinanceCardBill>(
+    `/workspaces/${resolved}/finance/payment-methods/${input.paymentMethodId}/bill`,
+    { workspaceId: resolved },
+  );
+};
+
+export const payFinanceCardBill = (input: {
+  workspaceId?: string;
+  paymentMethodId: string;
+  amount?: number;
+  paidAt: string;
+}) => {
+  const resolved = workspacePath(input.workspaceId);
+  return apiFetch<FinanceCardBill>(
+    `/workspaces/${resolved}/finance/payment-methods/${input.paymentMethodId}/bill/pay`,
+    {
+      method: "POST",
+      workspaceId: resolved,
+      body: JSON.stringify({ amount: input.amount, paidAt: input.paidAt }),
+    },
+  );
+};
+
+export const transferFinanceInvestments = (input: {
+  workspaceId?: string;
+  fromInvestmentId: string;
+  toInvestmentId: string;
+  amount: number;
+}) => {
+  const resolved = workspacePath(input.workspaceId);
+  return apiFetch<{ from: FinancePaymentMethod; to: FinancePaymentMethod }>(
+    `/workspaces/${resolved}/finance/investments/transfer`,
+    {
+      method: "POST",
+      workspaceId: resolved,
+      body: JSON.stringify({
+        fromInvestmentId: input.fromInvestmentId,
+        toInvestmentId: input.toInvestmentId,
+        amount: input.amount,
+      }),
     },
   );
 };
@@ -431,6 +605,22 @@ export const updateFinanceRecurring = (input: {
         categoryId: input.categoryId ?? null,
         tagIds: input.tagIds ?? null,
       }),
+    },
+  );
+};
+
+export const toggleFinanceRecurring = (input: {
+  workspaceId?: string;
+  id: string;
+  paid: boolean;
+}) => {
+  const resolved = workspacePath(input.workspaceId);
+  return apiFetch<FinanceRecurring>(
+    `/workspaces/${resolved}/finance/recurring/${input.id}/toggle`,
+    {
+      method: 'PUT',
+      workspaceId: resolved,
+      body: JSON.stringify({ paid: input.paid }),
     },
   );
 };

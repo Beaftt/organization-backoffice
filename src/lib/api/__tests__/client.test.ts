@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { apiFetch, ApiError } from "@/lib/api/client";
 
 vi.mock("@/lib/storage/workspace", () => ({
@@ -6,6 +6,16 @@ vi.mock("@/lib/storage/workspace", () => ({
 }));
 
 describe("apiFetch", () => {
+  const originalBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  beforeAll(() => {
+    process.env.NEXT_PUBLIC_API_BASE_URL = "http://localhost:3000";
+  });
+
+  afterAll(() => {
+    process.env.NEXT_PUBLIC_API_BASE_URL = originalBaseUrl;
+  });
+
   it("sends workspace header and includes credentials", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

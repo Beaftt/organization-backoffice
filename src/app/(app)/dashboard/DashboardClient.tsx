@@ -311,22 +311,29 @@ export default function DashboardClient() {
         {isEnabled("module.finance") ? (
           <Link href="/finance" className="block">
             <Card className="group h-full cursor-pointer transition hover:border-[var(--sidebar)]">
-              <div className="flex flex-col gap-2">
-                <p className="text-xs uppercase tracking-wide text-zinc-400">
-                  {t.dashboard.financeBoardLabel}
-                </p>
-                <h3 className="text-2xl font-semibold">{t.dashboard.financeBoardTitle}</h3>
-                <p className="text-sm text-zinc-500">
-                  {t.dashboard.financeBoardSubtitle}
-                </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-zinc-400">
+                    {t.dashboard.financeBoardLabel}
+                  </p>
+                  <h3 className="text-2xl font-semibold">
+                    {t.dashboard.financeBoardTitle}
+                  </h3>
+                  <p className="text-sm text-zinc-500">
+                    {t.dashboard.financeBoardSubtitle}
+                  </p>
+                </div>
+                <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs text-zinc-500">
+                  {t.dashboard.monthlyTransactions}: {financeSummary.count}
+                </span>
               </div>
 
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div className="mt-6 grid gap-4 sm:grid-cols-3">
                 <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
                   <p className="text-xs uppercase tracking-wide text-zinc-400">
                     {t.dashboard.monthlyIncome}
                   </p>
-                  <p className="mt-2 text-2xl font-semibold">
+                  <p className="mt-2 text-xl font-semibold">
                     {isLoading
                       ? "—"
                       : formatCurrency(financeSummary.income, currencyLocale)}
@@ -336,10 +343,23 @@ export default function DashboardClient() {
                   <p className="text-xs uppercase tracking-wide text-zinc-400">
                     {t.dashboard.monthlyExpense}
                   </p>
-                  <p className="mt-2 text-2xl font-semibold">
+                  <p className="mt-2 text-xl font-semibold">
                     {isLoading
                       ? "—"
                       : formatCurrency(financeSummary.expense, currencyLocale)}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                  <p className="text-xs uppercase tracking-wide text-zinc-400">
+                    {t.dashboard.monthlyNet ?? "Saldo do mês"}
+                  </p>
+                  <p className="mt-2 text-xl font-semibold">
+                    {isLoading
+                      ? "—"
+                      : formatCurrency(
+                          financeSummary.income - financeSummary.expense,
+                          currencyLocale,
+                        )}
                   </p>
                 </div>
               </div>
@@ -348,7 +368,7 @@ export default function DashboardClient() {
                 <p className="text-xs uppercase tracking-wide text-zinc-400">
                   {t.dashboard.financeChartLabel}
                 </p>
-                <div className="mt-3 flex h-28 items-end gap-2">
+                <div className="mt-3 flex h-24 items-end gap-2">
                   {financeChart.length ? (
                     financeChart.map((bar, index) => (
                       <div key={bar.id} className="flex-1">
@@ -372,9 +392,30 @@ export default function DashboardClient() {
                     </p>
                   )}
                 </div>
-                <p className="mt-3 text-xs text-zinc-500">
-                  {t.dashboard.monthlyTransactions}: {financeSummary.count}
-                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {financeSummary.recent.length ? (
+                    financeSummary.recent.slice(0, 4).map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
+                      >
+                        <div>
+                          <p className="text-sm font-semibold">{item.title}</p>
+                          <p className="text-xs text-zinc-500">
+                            {formatDate(item.occurredAt, currencyLocale)}
+                          </p>
+                        </div>
+                        <p className="text-sm font-semibold">
+                          {formatCurrency(item.amount, currencyLocale)}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-zinc-400">
+                      {t.dashboard.financeChartEmpty}
+                    </p>
+                  )}
+                </div>
               </div>
             </Card>
           </Link>

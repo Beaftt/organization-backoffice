@@ -27,10 +27,10 @@ export default function ShareWorkspaceClient() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
-  const [foundUserId, setFoundUserId] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(false);
   const [workspaceId, setWorkspaceIdState] = useState<string | null>(null);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
   useEffect(() => {
     const activeWorkspaceId = getWorkspaceId();
@@ -105,55 +105,33 @@ export default function ShareWorkspaceClient() {
     setError(null);
     setSuccess(null);
     setInviteLink(null);
-    setFoundUserId(null);
     setNotFound(false);
 
     try {
+      if (!canShareMore) {
+        setError("Seu plano atual não permite compartilhar com mais pessoas.");
+        return;
+      }
+
       const user = await lookupUserByEmail(email.trim().toLowerCase());
-      setFoundUserId(user.id);
-      setSuccess("Usuário encontrado. Você já pode compartilhar.");
+      await createWorkspaceMembership({
+        workspaceId,
+        userId: user.id,
+        status: "ACTIVE",
+      });
+      setSuccess("Usuário encontrado e compartilhamento enviado com sucesso.");
+      setEmail("");
+      const membershipsResponse = await getWorkspaceMemberships(workspaceId);
+      setMemberships(membershipsResponse.items);
+      setMembersTotal(membershipsResponse.total);
     } catch (error) {
       const apiError = error as ApiError;
       if (apiError.statusCode === 404) {
         setNotFound(true);
-        setError("Usuário não encontrado. Você pode enviar um convite.");
+        setError("Usuário não encontrado. Envie o convite abaixo.");
       } else {
         setError("Não foi possível buscar o usuário.");
       }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleShare = async () => {
-    if (!workspaceId || !foundUserId) {
-      setError("Busque um usuário válido para compartilhar.");
-      return;
-    }
-
-    if (!canShareMore) {
-      setError("Seu plano atual não permite compartilhar com mais pessoas.");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      await createWorkspaceMembership({
-        workspaceId,
-        userId: foundUserId,
-        status: "ACTIVE",
-      });
-      setSuccess("Compartilhamento enviado com sucesso.");
-      setEmail("");
-      setFoundUserId(null);
-      const membershipsResponse = await getWorkspaceMemberships(workspaceId);
-      setMemberships(membershipsResponse.items);
-      setMembersTotal(membershipsResponse.total);
-    } catch {
-      setError("Não foi possível compartilhar o workspace.");
     } finally {
       setLoading(false);
     }
@@ -187,11 +165,25 @@ export default function ShareWorkspaceClient() {
       const origin = window.location.origin;
       const link = `${origin}/register?invite=${invite.token}&email=${encodeURIComponent(invite.email)}`;
       setInviteLink(link);
-      setSuccess("Convite criado. Envie o link por e-mail.");
+      setSuccess("Convite enviado por e-mail.");
+      setIsInviteModalOpen(true);
     } catch {
       setError("Não foi possível criar o convite.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCopyInviteLink = async () => {
+    if (!inviteLink) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setSuccess("Link do convite copiado.");
+    } catch {
+      setError("Não foi possível copiar o link.");
     }
   };
 
@@ -234,31 +226,36 @@ export default function ShareWorkspaceClient() {
             <Button onClick={handleLookup} disabled={loading} variant="secondary">
               {loading ? "Buscando..." : "Buscar"}
             </Button>
-            <Button onClick={handleShare} disabled={loading || !canShareMore || !foundUserId}>
-              {loading ? "Compartilhando..." : "Compartilhar"}
-            </Button>
-            {notFound ? (
-              <Button onClick={handleInvite} disabled={loading || !canShareMore}>
-                {loading ? "Enviando..." : "Enviar convite"}
-              </Button>
-            ) : null}
           </div>
-          {inviteLink ? (
-            <div className="rounded-xl border border-zinc-200 bg-[var(--surface-muted)] p-3 text-sm text-zinc-600">
-              <p className="font-semibold text-zinc-700">Link do convite</p>
-              <a className="mt-1 block break-all text-blue-600" href={inviteLink}>
-                {inviteLink}
-              </a>
-              <a
-                className="mt-2 inline-flex text-blue-600"
-                href={`mailto:${email}?subject=Convite%20para%20workspace&body=${encodeURIComponent(inviteLink)}`}
-              >
-                Enviar por e-mail
-              </a>
+          {notFound ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-[var(--surface-muted)] p-3 text-sm text-zinc-700">
+              <span className="font-medium">{email.trim().toLowerCase()}</span>
+              <Button onClick={handleInvite} disabled={loading || !canShareMore}>
+                {loading ? "Enviando..." : "Enviar e-mail"}
+              </Button>
             </div>
           ) : null}
         </div>
       </Card>
+
+      {isInviteModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-zinc-100">Convite enviado</h3>
+            <p className="mt-2 text-sm text-zinc-400">
+              O e-mail foi enviado para o destinatário com o convite para cadastro.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Button onClick={handleCopyInviteLink} disabled={!inviteLink}>
+                Copiar link do convite
+              </Button>
+              <Button variant="secondary" onClick={() => setIsInviteModalOpen(false)}>
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {!canShareMore ? (
         <Card>
@@ -275,7 +272,12 @@ export default function ShareWorkspaceClient() {
       ) : null}
 
       <Card>
-        <h3 className="text-base font-semibold">Membros atuais</h3>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-base font-semibold">Membros atuais</h3>
+          <Link href="/settings/users">
+            <Button variant="secondary">Editar permissões</Button>
+          </Link>
+        </div>
         <p className="mt-2 text-sm text-zinc-600">
           Total de membros: {membersTotal}
         </p>
