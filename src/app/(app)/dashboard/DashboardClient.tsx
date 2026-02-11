@@ -110,6 +110,7 @@ export default function DashboardClient() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadSummary();
   }, [loadSummary]);
 
