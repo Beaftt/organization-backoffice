@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -48,6 +48,7 @@ export default function RemindersClient({
   initialError,
 }: RemindersClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useLanguage();
   const [lists, setLists] = useState<ReminderList[]>(initialLists);
   const [itemsByList, setItemsByList] = useState<Record<string, ReminderItem[]>>(
@@ -84,6 +85,27 @@ export default function RemindersClient({
     assigneeIds: [] as string[],
   });
   const [members, setMembers] = useState<MemberOption[]>([]);
+  const [isPresetModalOpen, setIsPresetModalOpen] = useState(false);
+  const [presetItems, setPresetItems] = useState<string[]>([]);
+  const [presetSaving, setPresetSaving] = useState(false);
+  const [presetError, setPresetError] = useState<string | null>(null);
+  const presetOpenRef = useRef(false);
+  const lastPresetIdRef = useRef<string | null>(null);
+  const presetFlag = useMemo(() => searchParams.get("preset"), [searchParams]);
+  const presetLabel = useMemo(
+    () => searchParams.get("presetLabel"),
+    [searchParams],
+  );
+  const presetListId = useMemo(() => {
+    const listParam = searchParams.get("listId");
+    return presetFlag ? listParam : null;
+  }, [presetFlag, searchParams]);
+  const newListParam = useMemo(
+    () => searchParams.get("newList"),
+    [searchParams],
+  );
+  const presetCleanupRef = useRef(false);
+  const presetHasItemsRef = useRef(false);
 
   const membersById = useMemo(
     () => new Map(members.map((member) => [member.userId, member])),
@@ -104,8 +126,12 @@ export default function RemindersClient({
   );
 
   const selectedItems = selectedList ? itemsByList[selectedList.id] ?? [] : [];
+  const isPresetFlow = Boolean(presetFlag);
+  const presetItemCount = 3;
   const selectedItem =
     selectedItems.find((item) => item.id === selectedItemId) ?? null;
+  const presetModalTitle =
+    selectedList?.title ?? presetLabel ?? t.reminders.presetListFallback;
 
   const loadItems = useCallback(async (listId: string) => {
     try {
@@ -222,6 +248,42 @@ export default function RemindersClient({
     }
   }, [lists, selectedId]);
 
+  const presetKey = useMemo(() => {
+    if (!presetFlag) return null;
+    return `${presetListId ?? "new"}::${presetLabel ?? ""}`;
+  }, [presetFlag, presetLabel, presetListId]);
+
+  useEffect(() => {
+    if (!presetKey) {
+      lastPresetIdRef.current = null;
+      return;
+    }
+    if (presetKey === lastPresetIdRef.current) return;
+    lastPresetIdRef.current = presetKey;
+    presetOpenRef.current = false;
+    presetCleanupRef.current = false;
+    presetHasItemsRef.current = false;
+  }, [presetKey]);
+
+  useEffect(() => {
+    if (!presetListId) return;
+    const hasPresetList = lists.some((list) => list.id === presetListId);
+    if (!hasPresetList) return;
+    if (selectedId !== presetListId) {
+      setSelectedId(presetListId);
+    }
+  }, [lists, presetListId, selectedId]);
+
+  useEffect(() => {
+    if (!newListParam) return;
+    setIsCreatingList(true);
+    if (selectedList) {
+      router.replace(`/reminders?listId=${selectedList.id}`);
+    } else {
+      router.replace("/reminders");
+    }
+  }, [newListParam, router, selectedList]);
+
   useEffect(() => {
     if (!selectedId) return;
     if (itemsByList[selectedId]) return;
@@ -233,6 +295,138 @@ export default function RemindersClient({
     setSelectedItemId(null);
     setIsSettingsOpen(false);
   }, [selectedList]);
+
+  useEffect(() => {
+    if (!isPresetFlow) return;
+    if (presetOpenRef.current) return;
+    presetOpenRef.current = true;
+    setPresetItems(Array.from({ length: presetItemCount }, () => ""));
+    setPresetError(null);
+    setIsPresetModalOpen(true);
+  }, [isPresetFlow]);
+
+  useEffect(() => {
+    if (!presetListId) return;
+    const items = itemsByList[presetListId] ?? [];
+    if (items.length) {
+      presetHasItemsRef.current = true;
+    }
+  }, [itemsByList, presetListId]);
+
+  const cleanupPresetList = useCallback(async () => {
+    if (!presetListId) return;
+    if (presetCleanupRef.current) return;
+    if (presetHasItemsRef.current) return;
+    presetCleanupRef.current = true;
+    try {
+      await deleteReminderList({ id: presetListId });
+      setLists((prev) => {
+        const next = prev.filter((list) => list.id !== presetListId);
+        if (selectedId === presetListId) {
+          setSelectedId(next[0]?.id ?? "");
+        }
+        return next;
+      });
+      setItemsByList((prev) => {
+        const next = { ...prev };
+        delete next[presetListId];
+        return next;
+      });
+    } catch {
+      presetCleanupRef.current = false;
+    }
+  }, [presetListId, selectedId]);
+
+  const handleClosePreset = useCallback(async () => {
+    if (isPresetFlow && presetListId) {
+      await cleanupPresetList();
+    }
+    setIsPresetModalOpen(false);
+    if (selectedList) {
+      router.replace(`/reminders?listId=${selectedList.id}`);
+    } else {
+      router.replace("/reminders");
+    }
+  }, [cleanupPresetList, isPresetFlow, presetListId, router, selectedList]);
+
+  const handleSavePreset = useCallback(async () => {
+    const values = presetItems.map((value) => value.trim()).filter(Boolean);
+    if (!values.length) {
+      setPresetError(t.reminders.presetError);
+      return;
+    }
+    setPresetSaving(true);
+    setPresetError(null);
+    try {
+      if (presetListId && selectedList) {
+        const created = await Promise.all(
+          values.map((value) =>
+            createReminderItem({ listId: selectedList.id, title: value }),
+          ),
+        );
+        setItemsByList((prev) => ({
+          ...prev,
+          [selectedList.id]: [...(prev[selectedList.id] ?? []), ...created],
+        }));
+        presetHasItemsRef.current = true;
+        setPresetItems([]);
+        setIsPresetModalOpen(false);
+        router.replace(`/reminders?listId=${selectedList.id}`);
+        return;
+      }
+
+      const listTitle = presetLabel?.trim() || t.reminders.presetListFallback;
+      const newList = await createReminderList({ title: listTitle });
+      const created = await Promise.all(
+        values.map((value) =>
+          createReminderItem({ listId: newList.id, title: value }),
+        ),
+      );
+      setLists((prev) => [newList, ...prev]);
+      setItemsByList((prev) => ({
+        ...prev,
+        [newList.id]: created,
+      }));
+      setSelectedId(newList.id);
+      setPresetItems([]);
+      setIsPresetModalOpen(false);
+      router.replace(`/reminders?listId=${newList.id}`);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setPresetError(err.message);
+      } else {
+        setPresetError(t.reminders.saveError);
+      }
+    } finally {
+      setPresetSaving(false);
+    }
+  }, [
+    presetItems,
+    presetLabel,
+    presetListId,
+    router,
+    selectedList,
+    t.reminders.presetError,
+    t.reminders.presetListFallback,
+    t.reminders.saveError,
+  ]);
+
+  const handleAddPresetField = useCallback(() => {
+    setPresetItems((prev) => [...prev, ""]);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      void cleanupPresetList();
+    };
+  }, [cleanupPresetList]);
+
+  useEffect(() => {
+    if (!presetListId) return;
+    if (selectedId && selectedId !== presetListId) {
+      void cleanupPresetList();
+    }
+  }, [cleanupPresetList, presetListId, selectedId]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -842,17 +1036,23 @@ export default function RemindersClient({
             </div>
           ) : null}
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className="mt-6 flex flex-wrap items-end gap-3">
             <div className="min-w-[220px] flex-1">
               <Input
                 label={t.reminders.addItem}
                 placeholder={t.reminders.itemPlaceholder}
                 value={newItemTitle}
                 onChange={(event) => setNewItemTitle(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void addItem();
+                  }
+                }}
               />
             </div>
             <Button onClick={addItem} disabled={!selectedList || isUpdatingItem}>
-              {t.reminders.addItem}
+              {isPresetFlow ? "+" : t.reminders.addItem}
             </Button>
           </div>
 
@@ -1193,6 +1393,74 @@ export default function RemindersClient({
                 disabled={isUpdatingItem}
               >
                 {t.reminders.deleteItem}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isPresetModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8"
+          onClick={() => void handleClosePreset()}
+        >
+          <div
+            className="w-full max-w-2xl rounded-3xl bg-[var(--surface)] p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+                  {t.reminders.presetTitle}
+                </h4>
+                <p className="text-sm text-zinc-600">{presetModalTitle}</p>
+              </div>
+              <Button variant="secondary" onClick={() => void handleClosePreset()}>
+                {t.reminders.cancel}
+              </Button>
+            </div>
+
+            <div className="mt-4 grid gap-4">
+              {presetItems.map((value, index) => (
+                <Input
+                  key={`preset-${index}`}
+                  placeholder={t.reminders.itemPlaceholder}
+                  value={value}
+                  onChange={(event) =>
+                    setPresetItems((prev) =>
+                      prev.map((current, currentIndex) =>
+                        currentIndex === index
+                          ? event.target.value
+                          : current,
+                      ),
+                    )
+                  }
+                />
+              ))}
+            </div>
+            {presetError ? (
+              <p className="mt-3 text-sm text-red-500">{presetError}</p>
+            ) : null}
+            <div>
+              <button
+                type="button"
+                onClick={handleAddPresetField}
+                className="mt-3 inline-flex h-11 w-11 items-center justify-center rounded-full border-2 border-[var(--primary)] bg-[var(--surface)] text-lg font-semibold text-[var(--primary)] shadow-sm transition hover:bg-[var(--surface-muted)]"
+                aria-label={t.reminders.addItem}
+              >
+                +
+              </button>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Button onClick={handleSavePreset} disabled={presetSaving}>
+                {presetSaving ? t.reminders.creating : t.reminders.presetSave}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => void handleClosePreset()}
+                disabled={presetSaving}
+              >
+                {t.reminders.cancel}
               </Button>
             </div>
           </div>

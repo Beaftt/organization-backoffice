@@ -1,648 +1,437 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { useLanguage } from "@/lib/i18n/language-context";
-import { getWorkspaceId } from "@/lib/storage/workspace";
-import { getEntitlements } from "@/lib/api/entitlements";
-import { listReminderLists, type ReminderList } from "@/lib/api/reminders";
 import { listDocuments, type DocumentSummary } from "@/lib/api/documents";
-import { listCalendarEvents, type CalendarEvent } from "@/lib/api/calendar";
-import {
-  listFinanceTransactions,
-  type FinanceTransaction,
-} from "@/lib/api/finance";
-import { listStudyCourses, listStudyTasks } from "@/lib/api/studies";
-import { listHrJobs } from "@/lib/api/hr";
-import { listJobs } from "@/lib/api/jobs";
-import { ApiError } from "@/lib/api/client";
+import { listFinanceTransactions } from "@/lib/api/finance";
+import { listReminderLists } from "@/lib/api/reminders";
+import { listSecrets } from "@/lib/api/secrets";
 
-type FinanceSummary = {
-  count: number;
-  income: number;
-  expense: number;
-  recent: FinanceTransaction[];
-};
-
-type StudiesSummary = {
-  activeCount: number;
-  avgProgress: number;
-  dueCount: number;
-};
-
-type RecentSummary = {
-  recentCount: number;
-  latestTitle: string | null;
-};
-
-const formatCurrency = (value: number, locale: string) =>
-  new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency: "BRL",
-    maximumFractionDigits: 2,
-  }).format(value);
-
-const formatDate = (value: string, locale: string) =>
-  new Intl.DateTimeFormat(locale, {
-    day: "2-digit",
-    month: "short",
-  }).format(new Date(value));
-
-const formatTime = (value: string, locale: string) =>
-  new Intl.DateTimeFormat(locale, {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-
-const isWithinDays = (value: string, days: number) => {
-  const since = new Date();
-  since.setDate(since.getDate() - days);
-  return new Date(value).getTime() >= since.getTime();
+type ModuleCard = {
+  key: string;
+  label: string;
+  description: string;
+  href?: string;
+  tone: string;
+  badge?: string;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 };
 
 export default function DashboardClient() {
-  const { t, language } = useLanguage();
-  const currencyLocale = language === "pt" ? "pt-BR" : "en-US";
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [financeSummary, setFinanceSummary] = useState<FinanceSummary>({
-    count: 0,
+  const { t } = useLanguage();
+  const router = useRouter();
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [remindersTotal, setRemindersTotal] = useState(0);
+  const [secretsTotal, setSecretsTotal] = useState(0);
+  const [documentsRecent, setDocumentsRecent] = useState<DocumentSummary[]>(
+    [],
+  );
+  const [financeSummary, setFinanceSummary] = useState({
     income: 0,
     expense: 0,
-    recent: [],
-  });
-  const [entitlements, setEntitlements] = useState<Record<string, string>>({});
-  const [calendarToday, setCalendarToday] = useState<CalendarEvent[]>([]);
-  const [documentsTop, setDocumentsTop] = useState<DocumentSummary[]>([]);
-  const [latestReminder, setLatestReminder] = useState<ReminderList | null>(null);
-  const [studiesSummary, setStudiesSummary] = useState<StudiesSummary>({
-    activeCount: 0,
-    avgProgress: 0,
-    dueCount: 0,
-  });
-  const [hrSummary, setHrSummary] = useState<RecentSummary>({
-    recentCount: 0,
-    latestTitle: null,
-  });
-  const [jobsSummary, setJobsSummary] = useState<RecentSummary>({
-    recentCount: 0,
-    latestTitle: null,
   });
 
-  const isEnabled = useCallback(
-    (key: string) => {
-      if (!key) return true;
-      const value = entitlements[key];
-      if (value === undefined) return true;
-      return value === "true";
-    },
-    [entitlements],
+  const formatCurrency = useCallback(
+    (value: number) =>
+      new Intl.NumberFormat("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+        maximumFractionDigits: 2,
+      }).format(value),
+    [],
   );
 
-  const loadData = useCallback(async () => {
-    const workspaceId = getWorkspaceId();
-    setIsLoading(true);
-    setError(null);
-    if (!workspaceId) {
-      setError(t.dashboard.loadError);
-      setIsLoading(false);
-      return;
+  const loadSummary = useCallback(async () => {
+    setSummaryLoading(true);
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const endOfMonth = new Date(startOfMonth);
+    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+    endOfMonth.setDate(0);
+    endOfMonth.setHours(23, 59, 59, 999);
+
+    const [remindersResult, secretsResult, documentsResult, financeResult] =
+      await Promise.allSettled([
+        listReminderLists({ pageSize: 1 }),
+        listSecrets({ pageSize: 1 }),
+        listDocuments({
+          pageSize: 3,
+          orderBy: "updatedAt",
+          orderDirection: "desc",
+        }),
+        listFinanceTransactions({
+          from: startOfMonth.toISOString(),
+          to: endOfMonth.toISOString(),
+        }),
+      ]);
+
+    if (remindersResult.status === "fulfilled") {
+      const reminders = remindersResult.value;
+      setRemindersTotal(reminders.total ?? reminders.items.length);
+    } else {
+      setRemindersTotal(0);
     }
 
-    try {
-      const entitlementsResponse = await getEntitlements(workspaceId);
-      const map = entitlementsResponse.items.reduce<Record<string, string>>(
-        (acc, item) => {
-          acc[item.key] = item.value;
-          return acc;
-        },
-        {},
-      );
-      setEntitlements(map);
-
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-      const endOfMonth = new Date(startOfMonth);
-      endOfMonth.setMonth(endOfMonth.getMonth() + 1);
-      endOfMonth.setDate(0);
-      endOfMonth.setHours(23, 59, 59, 999);
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date();
-      todayEnd.setHours(23, 59, 59, 999);
-      const dueEnd = new Date();
-      dueEnd.setDate(dueEnd.getDate() + 7);
-      dueEnd.setHours(23, 59, 59, 999);
-
-      const isModuleEnabled = (key: string) => {
-        if (!key) return true;
-        const value = map[key];
-        if (value === undefined) return true;
-        return value === "true";
-      };
-
-      const requests: Array<Promise<void>> = [];
-
-      if (isModuleEnabled("module.organization")) {
-        requests.push(
-          listReminderLists({
-            workspaceId,
-            pageSize: 1,
-            orderBy: "updatedAt",
-            orderDirection: "desc",
-          }).then((res) => {
-            setLatestReminder(res.items[0] ?? null);
-          }),
-        );
-        requests.push(
-          listDocuments({
-            workspaceId,
-            pageSize: 3,
-            orderBy: "updatedAt",
-            orderDirection: "desc",
-          }).then((res) => {
-            setDocumentsTop(res.items ?? []);
-          }),
-        );
-        requests.push(
-          listCalendarEvents({
-            workspaceId,
-            from: todayStart.toISOString(),
-            to: todayEnd.toISOString(),
-          }).then((res) => {
-            setCalendarToday(res);
-          }),
-        );
-      }
-
-      if (isModuleEnabled("module.finance")) {
-        requests.push(
-          listFinanceTransactions({
-            workspaceId,
-            from: startOfMonth.toISOString(),
-            to: endOfMonth.toISOString(),
-          }).then((items) => {
-            const sorted = [...items].sort(
-              (a, b) =>
-                new Date(b.occurredAt).getTime() -
-                new Date(a.occurredAt).getTime(),
-            );
-            const summary = items.reduce(
-              (acc, item) => {
-                if (item.group === "INCOME") acc.income += item.amount;
-                if (item.group === "EXPENSE") acc.expense += item.amount;
-                acc.count += 1;
-                return acc;
-              },
-              { count: 0, income: 0, expense: 0 },
-            );
-            setFinanceSummary({
-              ...summary,
-              recent: sorted.slice(0, 6),
-            });
-          }),
-        );
-      }
-
-      if (isModuleEnabled("module.studies")) {
-        requests.push(
-          listStudyCourses({ workspaceId, status: "ACTIVE" }).then((items) => {
-            const total = items.reduce((acc, course) => acc + course.progress, 0);
-            const avg = items.length ? total / items.length : 0;
-            setStudiesSummary((prev) => ({
-              ...prev,
-              activeCount: items.length,
-              avgProgress: avg,
-            }));
-          }),
-        );
-        requests.push(
-          listStudyTasks({
-            workspaceId,
-            status: "OPEN",
-            from: todayStart.toISOString(),
-            to: dueEnd.toISOString(),
-          }).then((items) => {
-            setStudiesSummary((prev) => ({
-              ...prev,
-              dueCount: items.length,
-            }));
-          }),
-        );
-      }
-
-      if (isModuleEnabled("module.hr")) {
-        requests.push(
-          listHrJobs({ workspaceId, pageSize: 1 }).then((res) => {
-            const sorted = [...res.items].sort(
-              (a, b) =>
-                new Date(b.createdAt).getTime() -
-                new Date(a.createdAt).getTime(),
-            );
-            const recent = sorted.filter((job) =>
-              isWithinDays(job.createdAt, 30),
-            );
-            setHrSummary({
-              recentCount: recent.length,
-              latestTitle: sorted[0]?.title ?? null,
-            });
-          }),
-        );
-      }
-
-      if (isModuleEnabled("module.jobs")) {
-        requests.push(
-          listJobs({ workspaceId, pageSize: 1 }).then((res) => {
-            const sorted = [...res.items].sort(
-              (a, b) =>
-                new Date(b.createdAt).getTime() -
-                new Date(a.createdAt).getTime(),
-            );
-            const recent = sorted.filter((job) =>
-              isWithinDays(job.createdAt, 30),
-            );
-            setJobsSummary({
-              recentCount: recent.length,
-              latestTitle: sorted[0]?.title ?? null,
-            });
-          }),
-        );
-      }
-
-      await Promise.allSettled(requests);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError(t.dashboard.loadError);
-      }
-    } finally {
-      setIsLoading(false);
+    if (secretsResult.status === "fulfilled") {
+      const secrets = secretsResult.value;
+      setSecretsTotal(secrets.total ?? secrets.items.length);
+    } else {
+      setSecretsTotal(0);
     }
-  }, [t.dashboard.loadError]);
+
+    if (documentsResult.status === "fulfilled") {
+      const documents = documentsResult.value;
+      setDocumentsRecent(documents.items ?? []);
+    } else {
+      setDocumentsRecent([]);
+    }
+
+    if (financeResult.status === "fulfilled") {
+      const financeTransactions = financeResult.value;
+      const income = financeTransactions
+        .filter((item) => item.group === "INCOME")
+        .reduce((acc, item) => acc + item.amount, 0);
+      const expense = financeTransactions
+        .filter((item) => item.group === "EXPENSE")
+        .reduce((acc, item) => acc + item.amount, 0);
+      setFinanceSummary({ income, expense });
+    } else {
+      setFinanceSummary({ income: 0, expense: 0 });
+    }
+
+    setSummaryLoading(false);
+  }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadSummary();
+  }, [loadSummary]);
 
-  const financeChart = useMemo(() => {
-    if (!financeSummary.recent.length) return [];
-    const values = financeSummary.recent.map((item) => Math.abs(item.amount));
-    const max = Math.max(...values, 1);
-    return financeSummary.recent.map((item) => ({
-      id: item.id,
-      height: Math.round((Math.abs(item.amount) / max) * 100),
-      positive: item.group === "INCOME",
-      label: formatDate(item.occurredAt, currencyLocale),
-    }));
-  }, [financeSummary.recent, currencyLocale]);
+  const handleOpenPreset = useCallback(
+    (label: string) => {
+      const encoded = encodeURIComponent(label);
+      router.push(`/reminders?preset=1&presetLabel=${encoded}`);
+    },
+    [router],
+  );
+
+  const summaryCards = useMemo(
+    () => [
+      {
+        key: "finance",
+        title: t.dashboard.summaryFinanceTitle,
+        subtitle: t.dashboard.summaryFinanceSubtitle,
+        body: (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-white/70">
+                {t.dashboard.summaryFinanceIncome}
+              </p>
+              <p className="text-lg font-semibold text-white">
+                {summaryLoading ? "—" : formatCurrency(financeSummary.income)}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-white/70">
+                {t.dashboard.summaryFinanceExpense}
+              </p>
+              <p className="text-lg font-semibold text-white">
+                {summaryLoading ? "—" : formatCurrency(financeSummary.expense)}
+              </p>
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: "lists",
+        title: t.dashboard.summaryListsTitle,
+        subtitle: t.dashboard.summaryListsSubtitle,
+        body: (
+          <div>
+            <p className="text-lg font-semibold text-white">
+              {summaryLoading ? "—" : remindersTotal}
+            </p>
+            <p className="text-xs text-white/70">
+              {t.dashboard.summaryListsMeta}
+            </p>
+          </div>
+        ),
+      },
+      {
+        key: "secrets",
+        title: t.dashboard.summarySecretsTitle,
+        subtitle: t.dashboard.summarySecretsSubtitle,
+        body: (
+          <div>
+            <p className="text-lg font-semibold text-white">
+              {summaryLoading ? "—" : secretsTotal}
+            </p>
+            <p className="text-xs text-white/70">
+              {t.dashboard.summarySecretsMeta}
+            </p>
+          </div>
+        ),
+      },
+      {
+        key: "documents",
+        title: t.dashboard.summaryDocumentsTitle,
+        subtitle: t.dashboard.summaryDocumentsSubtitle,
+        body: (
+          <div className="space-y-1 text-xs text-white/80">
+            {documentsRecent.length ? (
+              documentsRecent.map((doc) => (
+                <p key={doc.id} className="truncate">
+                  {doc.name}
+                </p>
+              ))
+            ) : (
+              <p>{t.dashboard.summaryEmpty}</p>
+            )}
+          </div>
+        ),
+      },
+    ],
+    [
+      documentsRecent,
+      financeSummary.expense,
+      financeSummary.income,
+      formatCurrency,
+      remindersTotal,
+      secretsTotal,
+      summaryLoading,
+      t.dashboard.summaryDocumentsSubtitle,
+      t.dashboard.summaryDocumentsTitle,
+      t.dashboard.summaryEmpty,
+      t.dashboard.summaryFinanceExpense,
+      t.dashboard.summaryFinanceIncome,
+      t.dashboard.summaryFinanceSubtitle,
+      t.dashboard.summaryFinanceTitle,
+      t.dashboard.summaryListsMeta,
+      t.dashboard.summaryListsSubtitle,
+      t.dashboard.summaryListsTitle,
+      t.dashboard.summarySecretsMeta,
+      t.dashboard.summarySecretsSubtitle,
+      t.dashboard.summarySecretsTitle,
+    ],
+  );
+
+  const modules: ModuleCard[] = [
+    {
+      key: "reminders",
+      label: t.modules.reminders,
+      description: t.dashboard.centralModuleHint,
+      href: "/reminders",
+      tone: "from-sky-500/20 via-cyan-300/10 to-transparent",
+      action: {
+        label: t.reminders.newList,
+        onClick: () => handleOpenPreset(t.reminders.presetListFallback),
+      },
+    },
+    {
+      key: "calendar",
+      label: t.modules.calendar,
+      description: t.dashboard.centralModuleHint,
+      href: "/calendar",
+      tone: "from-emerald-500/20 via-lime-300/10 to-transparent",
+    },
+    {
+      key: "documents",
+      label: t.modules.documents,
+      description: t.dashboard.centralModuleHint,
+      href: "/documents",
+      tone: "from-indigo-500/20 via-blue-400/10 to-transparent",
+    },
+    {
+      key: "finance",
+      label: t.modules.finance,
+      description: t.dashboard.centralModuleHint,
+      href: "/finance",
+      tone: "from-amber-500/20 via-orange-300/10 to-transparent",
+    },
+    {
+      key: "secrets",
+      label: t.modules.secrets,
+      description: t.dashboard.centralModuleHint,
+      href: "/secrets",
+      tone: "from-violet-500/20 via-fuchsia-300/10 to-transparent",
+    },
+    {
+      key: "studies",
+      label: t.modules.studies,
+      description: t.dashboard.centralModuleHint,
+      href: "/studies",
+      tone: "from-rose-500/20 via-pink-300/10 to-transparent",
+    },
+    {
+      key: "hr",
+      label: t.modules.hr,
+      description: t.dashboard.centralModuleHint,
+      href: "/hr",
+      tone: "from-slate-500/20 via-slate-300/10 to-transparent",
+    },
+    {
+      key: "chat",
+      label: t.dashboard.centralChatTitle,
+      description: t.dashboard.centralChatSubtitle,
+      tone: "from-blue-500/20 via-indigo-300/10 to-transparent",
+      badge: t.layout.comingSoon,
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-2xl font-semibold">{t.dashboard.title}</h2>
-        <p className="text-sm text-zinc-500">{t.dashboard.subtitle}</p>
-        {error ? <p className="text-sm text-red-500">{error}</p> : null}
+    <div className="space-y-8">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold text-[var(--foreground)]">
+            {t.dashboard.centralModulesTitle}
+          </h3>
+        </div>
+        <span className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+          {t.dashboard.centralModuleAction}
+        </span>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
-        {isEnabled("module.finance") ? (
-          <Link href="/finance" className="block">
-            <Card className="group h-full cursor-pointer transition hover:border-[var(--sidebar)]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-zinc-400">
-                    {t.dashboard.financeBoardLabel}
-                  </p>
-                  <h3 className="text-2xl font-semibold">
-                    {t.dashboard.financeBoardTitle}
-                  </h3>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {summaryCards.map((card) => (
+          <Card
+            key={card.key}
+            className="relative overflow-hidden border-none bg-gradient-to-br from-blue-600 via-blue-500 to-sky-400 p-5 text-white shadow-lg"
+          >
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/70">
+                {card.title}
+              </p>
+              <p className="text-sm text-white/80">{card.subtitle}</p>
+              {card.body}
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {modules.map((module) => {
+          const content = (
+            <Card className="group relative h-full overflow-hidden border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:-translate-y-0.5 hover:shadow-lg">
+              <div
+                className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${module.tone}`}
+              />
+              <div className="relative z-10 flex h-full flex-col justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-base font-semibold text-[var(--foreground)]">
+                      {module.label}
+                    </h4>
+                    {module.badge ? (
+                      <span className="rounded-full border border-[var(--border)] bg-white/80 px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500">
+                        {module.badge}
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="text-sm text-zinc-500">
-                    {t.dashboard.financeBoardSubtitle}
+                    {module.description}
                   </p>
                 </div>
-                <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs text-zinc-500">
-                  {t.dashboard.monthlyTransactions}: {financeSummary.count}
-                </span>
-              </div>
-
-              <div className="mt-6 grid gap-4 sm:grid-cols-3">
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
-                  <p className="text-xs uppercase tracking-wide text-zinc-400">
-                    {t.dashboard.monthlyIncome}
-                  </p>
-                  <p className="mt-2 text-xl font-semibold">
-                    {isLoading
-                      ? "—"
-                      : formatCurrency(financeSummary.income, currencyLocale)}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
-                  <p className="text-xs uppercase tracking-wide text-zinc-400">
-                    {t.dashboard.monthlyExpense}
-                  </p>
-                  <p className="mt-2 text-xl font-semibold">
-                    {isLoading
-                      ? "—"
-                      : formatCurrency(financeSummary.expense, currencyLocale)}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
-                  <p className="text-xs uppercase tracking-wide text-zinc-400">
-                    {t.dashboard.monthlyNet ?? "Saldo do mês"}
-                  </p>
-                  <p className="mt-2 text-xl font-semibold">
-                    {isLoading
-                      ? "—"
-                      : formatCurrency(
-                          financeSummary.income - financeSummary.expense,
-                          currencyLocale,
-                        )}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <p className="text-xs uppercase tracking-wide text-zinc-400">
-                  {t.dashboard.financeChartLabel}
-                </p>
-                <div className="mt-3 flex h-24 items-end gap-2">
-                  {financeChart.length ? (
-                    financeChart.map((bar, index) => (
-                      <div key={bar.id} className="flex-1">
-                        <div
-                          className={`chart-bar w-full rounded-full ${
-                            bar.positive
-                              ? "bg-emerald-500/70"
-                              : "bg-rose-500/70"
-                          }`}
-                          style={{
-                            height: `${Math.max(bar.height, 12)}%`,
-                            animationDelay: `${index * 40}ms`,
-                          }}
-                          title={bar.label}
-                        />
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-zinc-400">
-                      {t.dashboard.financeChartEmpty}
-                    </p>
-                  )}
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {financeSummary.recent.length ? (
-                    financeSummary.recent.slice(0, 4).map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
-                      >
-                        <div>
-                          <p className="text-sm font-semibold">{item.title}</p>
-                          <p className="text-xs text-zinc-500">
-                            {formatDate(item.occurredAt, currencyLocale)}
-                          </p>
-                        </div>
-                        <p className="text-sm font-semibold">
-                          {formatCurrency(item.amount, currencyLocale)}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-zinc-400">
-                      {t.dashboard.financeChartEmpty}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </Card>
-          </Link>
-        ) : null}
-
-        {isEnabled("module.organization") ? (
-          <Link href="/calendar" className="block">
-            <Card className="h-full cursor-pointer transition hover:border-[var(--sidebar)]">
-              <div className="flex flex-col gap-2">
-                <p className="text-xs uppercase tracking-wide text-zinc-400">
-                  {t.dashboard.calendarBoardLabel}
-                </p>
-                <h3 className="text-lg font-semibold">
-                  {t.dashboard.calendarTodayTitle}
-                </h3>
-                <p className="text-sm text-zinc-500">
-                  {t.dashboard.calendarTodaySubtitle}
-                </p>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {calendarToday.length ? (
-                  calendarToday.slice(0, 3).map((event) => (
-                    <div
-                      key={event.id}
-                      className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3"
+                <div className="flex items-center justify-between text-xs font-semibold text-zinc-600">
+                  <span>
+                    {module.href
+                      ? t.dashboard.centralModuleAction
+                      : t.layout.comingSoon}
+                  </span>
+                  {module.action ? (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        module.action?.onClick();
+                      }}
+                      className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-[11px] font-semibold text-[var(--foreground)] transition hover:border-[var(--border-strong)]"
                     >
-                      <p className="text-sm font-semibold">{event.title}</p>
-                      <p className="text-xs text-zinc-500">
-                        {formatTime(event.startAt, currencyLocale)}
-                        {event.endAt
-                          ? ` - ${formatTime(event.endAt, currencyLocale)}`
-                          : ""}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-zinc-400">
-                    {t.dashboard.calendarTodayEmpty}
-                  </p>
-                )}
+                      {module.action.label}
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </Card>
-          </Link>
-        ) : null}
+          );
+
+          if (!module.href) {
+            return <div key={module.key}>{content}</div>;
+          }
+
+          return (
+            <Link key={module.key} href={module.href} className="block">
+              {content}
+            </Link>
+          );
+        })}
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">{t.dashboard.reportsTitle}</h3>
-          <p className="text-sm text-zinc-500">{t.dashboard.reportsSubtitle}</p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {isEnabled("module.organization") ? (
-            <Link href="/documents" className="block">
-              <Card className="h-full cursor-pointer transition hover:border-[var(--sidebar)]">
-                <h4 className="text-base font-semibold">
-                  {t.dashboard.documentsTopTitle}
-                </h4>
-                <p className="mt-1 text-sm text-zinc-500">
-                  {t.dashboard.documentsTopSubtitle}
-                </p>
-                <div className="mt-4 space-y-3">
-                  {documentsTop.length ? (
-                    documentsTop.map((doc) => (
-                      <div key={doc.id} className="flex flex-col">
-                        <p className="text-sm font-semibold">{doc.name}</p>
-                        <p className="text-xs text-zinc-500">
-                          {t.dashboard.lastUpdatedLabel} {formatDate(doc.updatedAt, currencyLocale)}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-zinc-400">
-                      {t.dashboard.documentsTopEmpty}
-                    </p>
-                  )}
+      <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <Card className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-[var(--foreground)]">
+              {t.dashboard.centralListsTitle}
+            </h3>
+            <p className="text-sm text-zinc-500">
+              {t.dashboard.centralListsSubtitle}
+            </p>
+          </div>
+          <div className="grid gap-3">
+            {[
+              { key: "daily", label: t.dashboard.centralListDaily },
+              { key: "monthly", label: t.dashboard.centralListMonthly },
+              { key: "pharmacy", label: t.dashboard.centralListPharmacy },
+            ].map((preset) => (
+              <button
+                key={preset.key}
+                type="button"
+                onClick={() => handleOpenPreset(preset.label)}
+                className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-left transition hover:border-[var(--border-strong)]"
+              >
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-[var(--foreground)]">
+                    {preset.label}
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    {t.dashboard.centralListsCarryover}
+                  </p>
                 </div>
-              </Card>
-            </Link>
-          ) : null}
+                <span className="rounded-full border border-[var(--border)] px-3 py-1 text-[11px] text-zinc-500">
+                  {t.dashboard.centralListAction}
+                </span>
+              </button>
+            ))}
+          </div>
+        </Card>
 
-          {isEnabled("module.organization") ? (
-            <Link href="/reminders" className="block">
-              <Card className="h-full cursor-pointer transition hover:border-[var(--sidebar)]">
-                <h4 className="text-base font-semibold">
-                  {t.dashboard.remindersLatestTitle}
-                </h4>
-                <p className="mt-1 text-sm text-zinc-500">
-                  {t.dashboard.remindersLatestSubtitle}
-                </p>
-                <div className="mt-4">
-                  {latestReminder ? (
-                    <div>
-                      <p className="text-sm font-semibold">
-                        {latestReminder.title}
-                      </p>
-                      <p className="text-xs text-zinc-500">
-                        {t.dashboard.lastUpdatedLabel} {formatDate(latestReminder.updatedAt, currencyLocale)}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-zinc-400">
-                      {t.dashboard.remindersLatestEmpty}
-                    </p>
-                  )}
-                </div>
-              </Card>
-            </Link>
-          ) : null}
-
-          {isEnabled("module.studies") ? (
-            <Link href="/studies" className="block">
-              <Card className="h-full cursor-pointer transition hover:border-[var(--sidebar)]">
-                <h4 className="text-base font-semibold">
-                  {t.dashboard.studiesTitle}
-                </h4>
-                <p className="mt-1 text-sm text-zinc-500">
-                  {t.dashboard.studiesSubtitle}
-                </p>
-                <div className="mt-4 space-y-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-zinc-400">
-                      {t.dashboard.studiesProgressLabel}
-                    </p>
-                    <p className="mt-1 text-lg font-semibold">
-                      {studiesSummary.activeCount
-                        ? `${Math.round(studiesSummary.avgProgress)}%`
-                        : "—"}
-                    </p>
-                    <div className="mt-2 h-2 w-full rounded-full bg-[var(--surface-muted)]">
-                      <div
-                        className="h-2 rounded-full bg-emerald-500/80"
-                        style={{
-                          width: `${Math.min(
-                            Math.round(studiesSummary.avgProgress),
-                            100,
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-500">
-                      {t.dashboard.studiesActiveLabel}
-                    </span>
-                    <span className="font-semibold">
-                      {studiesSummary.activeCount}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-500">
-                      {t.dashboard.studiesDueLabel}
-                    </span>
-                    <span className="font-semibold">
-                      {studiesSummary.dueCount}
-                    </span>
-                  </div>
-                </div>
-              </Card>
-            </Link>
-          ) : null}
-
-          {isEnabled("module.hr") ? (
-            <Link href="/hr/jobs" className="block">
-              <Card className="h-full cursor-pointer transition hover:border-[var(--sidebar)]">
-                <h4 className="text-base font-semibold">
-                  {t.dashboard.hrRecentTitle}
-                </h4>
-                <p className="mt-1 text-sm text-zinc-500">
-                  {t.dashboard.hrRecentSubtitle}
-                </p>
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-500">
-                      {t.dashboard.recentSinceLabel}
-                    </span>
-                    <span className="font-semibold">
-                      {hrSummary.recentCount}
-                    </span>
-                  </div>
-                  {hrSummary.latestTitle ? (
-                    <p className="text-sm font-semibold">
-                      {hrSummary.latestTitle}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-zinc-400">
-                      {t.dashboard.hrRecentEmpty}
-                    </p>
-                  )}
-                </div>
-              </Card>
-            </Link>
-          ) : null}
-
-          {isEnabled("module.jobs") ? (
-            <Link href="/vagas" className="block">
-              <Card className="h-full cursor-pointer transition hover:border-[var(--sidebar)]">
-                <h4 className="text-base font-semibold">
-                  {t.dashboard.jobsRecentTitle}
-                </h4>
-                <p className="mt-1 text-sm text-zinc-500">
-                  {t.dashboard.jobsRecentSubtitle}
-                </p>
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-500">
-                      {t.dashboard.recentSinceLabel}
-                    </span>
-                    <span className="font-semibold">
-                      {jobsSummary.recentCount}
-                    </span>
-                  </div>
-                  {jobsSummary.latestTitle ? (
-                    <p className="text-sm font-semibold">
-                      {jobsSummary.latestTitle}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-zinc-400">
-                      {t.dashboard.jobsRecentEmpty}
-                    </p>
-                  )}
-                </div>
-              </Card>
-            </Link>
-          ) : null}
-        </div>
+        <Card className="space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-[var(--foreground)]">
+              {t.dashboard.centralChatTitle}
+            </h3>
+            <p className="text-sm text-zinc-500">
+              {t.dashboard.centralChatSubtitle}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-zinc-600">
+            <p className="whitespace-pre-line">{t.dashboard.centralChatExample}</p>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-zinc-500">
+              {t.dashboard.centralChatHint}
+            </span>
+            <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs text-zinc-500">
+              {t.layout.comingSoon}
+            </span>
+          </div>
+        </Card>
       </div>
     </div>
   );
