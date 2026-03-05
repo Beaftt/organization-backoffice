@@ -65,6 +65,7 @@ export default function FinanceClient({
   const router = useRouter();
   const { t } = useLanguage();
   const chartMonthRange = 6;
+  const chartFutureRange = 6;
   const [query, setQuery] = useState(initialQuery);
   const [groupFilter, setGroupFilter] = useState(initialGroup);
   const [typeFilter, setTypeFilter] = useState(initialType);
@@ -110,6 +111,8 @@ export default function FinanceClient({
     isRecurring: false,
     addToCalendar: false,
     recurrenceFrequency: "MONTHLY" as "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY",
+    installments: 1,
+    isInstallmentValue: false,
   });
   const [recurringForm, setRecurringForm] = useState({
     title: "",
@@ -130,6 +133,7 @@ export default function FinanceClient({
     name: "",
     type: "BANK" as "CASH" | "BANK" | "CARD",
     currency: "BRL",
+    isPrimary: false,
   });
   const [paymentMethodForm, setPaymentMethodForm] = useState({
     name: "",
@@ -140,6 +144,7 @@ export default function FinanceClient({
     closingDay: "",
     dueDay: "",
     balance: "",
+    isPrimary: false,
   });
   const [tagDraft, setTagDraft] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -289,7 +294,7 @@ export default function FinanceClient({
 
       const cardMonthKeys = useMemo(() => {
         const now = new Date();
-        return Array.from({ length: chartMonthRange }, (_, index) => {
+        return Array.from({ length: chartMonthRange + chartFutureRange }, (_, index) => {
           const monthDate = new Date(
             now.getFullYear(),
             now.getMonth() - (chartMonthRange - 1 - index),
@@ -297,7 +302,7 @@ export default function FinanceClient({
           );
           return monthDate.toISOString().slice(0, 7);
         });
-      }, [chartMonthRange]);
+      }, [chartMonthRange, chartFutureRange]);
 
       useEffect(() => {
         setCardMonthIndex((current) => {
@@ -435,7 +440,12 @@ export default function FinanceClient({
         setLinkedRecurringId(matchedRecurring?.id ?? item?.recurringId ?? null);
         setTransactionForm({
           title: item?.title ?? "",
-          amount: item ? formatCurrencyInput(String(Math.round(item.amount * 100)), item.currency ?? "BRL") : "",
+          amount: item
+            ? formatCurrencyInput(
+                String(Math.round(item.amount * (item.installmentTotal && item.installmentTotal > 1 ? item.installmentTotal : 1) * 100)),
+                item.currency ?? "BRL",
+              )
+            : "",
           currency: (item?.currency ?? "BRL") as "BRL" | "USD",
           group: item?.group ?? "INCOME",
           status: item?.status ?? "PAID",
@@ -448,6 +458,9 @@ export default function FinanceClient({
           isRecurring: Boolean(matchedRecurring ?? item?.recurringId),
           addToCalendar: false,
           recurrenceFrequency: matchedRecurring?.frequency ?? "MONTHLY",
+          // Installment fields
+          installments: item?.installmentTotal ?? 1,
+          isInstallmentValue: false,
         });
         setTransactionModalOpen(true);
       };
@@ -460,7 +473,7 @@ export default function FinanceClient({
 
       const handleOpenCardDetails = (method: FinancePaymentMethod) => {
         setSelectedCard(method);
-        setCardMonthIndex(cardMonthKeys.length - 1);
+        setCardMonthIndex(chartMonthRange - 1);
         setCardDetailOpen(true);
       };
 
@@ -569,10 +582,26 @@ export default function FinanceClient({
               id: editingTransaction.id,
               ...payload,
               recurringId: nextRecurringId,
+              installmentTotal:
+                editingTransaction.installmentTotal && editingTransaction.installmentTotal > 1
+                  ? transactionForm.installments
+                  : undefined,
+              isInstallmentValue:
+                editingTransaction.installmentTotal && editingTransaction.installmentTotal > 1
+                  ? transactionForm.isInstallmentValue
+                  : undefined,
             });
           } else {
+            const selectedMethod = paymentMethods.find(
+              (m) => m.id === transactionForm.paymentMethodId,
+            );
+            const isCreditInstallment =
+              selectedMethod?.type === "CREDIT" &&
+              transactionForm.group === "EXPENSE" &&
+              transactionForm.installments > 1;
+
             let recurringId: string | null = null;
-            if (transactionForm.isRecurring) {
+            if (!isCreditInstallment && transactionForm.isRecurring) {
               const created = await createFinanceRecurring({
                 title: payload.title,
                 amount: payload.amount,
@@ -591,9 +620,15 @@ export default function FinanceClient({
             await createFinanceTransaction({
               ...payload,
               recurringId,
+              ...(isCreditInstallment
+                ? {
+                    installments: transactionForm.installments,
+                    isInstallmentValue: transactionForm.isInstallmentValue,
+                  }
+                : {}),
             });
 
-            if (transactionForm.isRecurring && transactionForm.addToCalendar) {
+            if (!isCreditInstallment && transactionForm.isRecurring && transactionForm.addToCalendar) {
               const startAt = new Date(transactionForm.occurredAt);
               const endAt = new Date(startAt.getTime() + 60 * 60 * 1000);
               await createCalendarEvent({
@@ -769,10 +804,11 @@ export default function FinanceClient({
             name: account.name,
             type: account.type,
             currency: account.currency ?? "BRL",
+            isPrimary: account.isPrimary ?? false,
           });
         } else {
           setEditingAccount(null);
-          setAccountForm({ name: "", type: "BANK", currency: "BRL" });
+          setAccountForm({ name: "", type: "BANK", currency: "BRL", isPrimary: false });
         }
         setAccountModalOpen(true);
       };
@@ -791,19 +827,35 @@ export default function FinanceClient({
               name: accountForm.name.trim(),
               type: accountForm.type,
               currency: accountForm.currency,
+              isPrimary: accountForm.isPrimary,
             });
-            setAccounts((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+            setAccounts((prev) => {
+              const list = prev.map((item) =>
+                item.id === updated.id
+                  ? updated
+                  : updated.isPrimary
+                    ? { ...item, isPrimary: false }
+                    : item,
+              );
+              return list.sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
+            });
           } else {
             const created = await createFinanceAccount({
               name: accountForm.name.trim(),
               type: accountForm.type,
               currency: accountForm.currency,
+              isPrimary: accountForm.isPrimary,
             });
-            setAccounts((prev) => [...prev, created]);
+            setAccounts((prev) => {
+              const list = accountForm.isPrimary
+                ? prev.map((item) => ({ ...item, isPrimary: false }))
+                : [...prev];
+              return [...list, created].sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
+            });
           }
           setAccountModalOpen(false);
           setEditingAccount(null);
-          setAccountForm({ name: "", type: "BANK", currency: "BRL" });
+          setAccountForm({ name: "", type: "BANK", currency: "BRL", isPrimary: false });
         } catch (err) {
           if (err instanceof ApiError) {
             setFormError(err.message);
@@ -851,6 +903,7 @@ export default function FinanceClient({
             closingDay: dateFromDay(method.closingDay),
             dueDay: dateFromDay(method.dueDay),
             balance: method.balance != null ? String(method.balance) : "",
+            isPrimary: method.isPrimary ?? false,
           });
         } else {
           setEditingPaymentMethod(null);
@@ -863,6 +916,7 @@ export default function FinanceClient({
             closingDay: "",
             dueDay: "",
             balance: "",
+            isPrimary: false,
           });
         }
         setPaymentMethodModalOpen(true);
@@ -891,10 +945,18 @@ export default function FinanceClient({
               closingDay: parsedClosing,
               dueDay: parsedDue,
               balance: parsedBalance,
+              isPrimary: paymentMethodForm.isPrimary,
             });
-            setPaymentMethods((prev) =>
-              prev.map((item) => (item.id === updated.id ? updated : item)),
-            );
+            setPaymentMethods((prev) => {
+              const list = prev.map((item) =>
+                item.id === updated.id
+                  ? updated
+                  : updated.isPrimary
+                    ? { ...item, isPrimary: false }
+                    : item,
+              );
+              return list.sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
+            });
           } else {
             const created = await createFinancePaymentMethod({
               name: paymentMethodForm.name.trim(),
@@ -905,8 +967,14 @@ export default function FinanceClient({
               closingDay: parsedClosing,
               dueDay: parsedDue,
               balance: parsedBalance,
+              isPrimary: paymentMethodForm.isPrimary,
             });
-            setPaymentMethods((prev) => [...prev, created]);
+            setPaymentMethods((prev) => {
+              const list = paymentMethodForm.isPrimary
+                ? prev.map((item) => ({ ...item, isPrimary: false }))
+                : [...prev];
+              return [...list, created].sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
+            });
           }
           setPaymentMethodModalOpen(false);
           setEditingPaymentMethod(null);
@@ -919,6 +987,7 @@ export default function FinanceClient({
             closingDay: "",
             dueDay: "",
             balance: "",
+            isPrimary: false,
           });
         } catch (err) {
           if (err instanceof ApiError) {
@@ -1375,13 +1444,14 @@ export default function FinanceClient({
             </Card>
 
           {transactionModalOpen ? (
-            <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="modal-overlay fixed inset-0 z-50 overflow-y-auto">
               <button
                 type="button"
-                className="absolute inset-0 bg-black/40"
+                className="fixed inset-0 bg-black/40"
                 onClick={() => setTransactionModalOpen(false)}
               />
-              <Card className="modal-content relative z-10 w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+              <div className="flex min-h-full items-center justify-center px-4 py-4">
+              <Card className="modal-content relative z-10 w-full max-w-2xl">
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">
@@ -1423,7 +1493,15 @@ export default function FinanceClient({
                       />
                       <div className="grid gap-3 md:grid-cols-2">
                         <div className="flex flex-col gap-2 text-sm text-zinc-600">
-                          <span className="font-medium text-zinc-700">{t.finance.amountLabel}</span>
+                          <span className="font-medium text-zinc-700">
+                            {(() => {
+                              const selMethod = paymentMethods.find((m) => m.id === transactionForm.paymentMethodId);
+                              const isCreditExpenseNew = !editingTransaction && selMethod?.type === "CREDIT" && transactionForm.group === "EXPENSE" && transactionForm.installments > 1;
+                              const isCreditExpenseEdit = Boolean(editingTransaction?.installmentTotal && editingTransaction.installmentTotal > 1);
+                              if (!isCreditExpenseNew && !isCreditExpenseEdit) return t.finance.amountLabel;
+                              return transactionForm.isInstallmentValue ? (t.finance.installmentsPerAmount ?? t.finance.amountLabel) : (t.finance.installmentsTotalAmount ?? t.finance.amountLabel);
+                            })()}
+                          </span>
                           <div className="flex items-center gap-2">
                             <input
                               inputMode="numeric"
@@ -1545,6 +1623,125 @@ export default function FinanceClient({
                               ))}
                           </select>
                         </label>
+                        {/* Credit installment selector — only available when creating a CREDIT EXPENSE */}
+                        {!editingTransaction &&
+                        paymentMethods.find((m) => m.id === transactionForm.paymentMethodId)?.type === "CREDIT" &&
+                        transactionForm.group === "EXPENSE" ? (
+                          <div className="md:col-span-2 grid gap-3 rounded-2xl border border-[var(--border)] px-4 py-3 text-sm text-zinc-600">
+                            <label className="flex flex-col gap-2">
+                              {t.finance.installmentsLabel ?? "Parcelas"}
+                              <select
+                                value={transactionForm.installments}
+                                onChange={(event) => {
+                                  const val = Number(event.target.value);
+                                  setTransactionForm((prev) => ({
+                                    ...prev,
+                                    installments: val,
+                                    isInstallmentValue: val > 1 ? prev.isInstallmentValue : false,
+                                  }));
+                                }}
+                                className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                              >
+                                <option value={1}>{t.finance.installmentsCash ?? "À vista (1x)"}</option>
+                                {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
+                                  <option key={n} value={n}>{n}x</option>
+                                ))}
+                              </select>
+                            </label>
+                            {transactionForm.installments > 1 ? (
+                              <>
+                                <label className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={transactionForm.isInstallmentValue}
+                                    onChange={(event) =>
+                                      setTransactionForm((prev) => ({
+                                        ...prev,
+                                        isInstallmentValue: event.target.checked,
+                                      }))
+                                    }
+                                  />
+                                  {t.finance.installmentsIsPerValueLabel ?? "O valor informado é o da parcela (não o total)"}
+                                </label>
+                                {!transactionForm.isInstallmentValue && transactionForm.amount ? (
+                                  <p className="text-xs text-zinc-500">
+                                    {t.finance.installmentsPreview ?? "Valor por parcela"}:{" "}
+                                    {formatCurrencyInput(
+                                      String(
+                                        Math.round(
+                                          (parseCurrencyInput(transactionForm.amount) / transactionForm.installments) * 100,
+                                        ),
+                                      ),
+                                      transactionForm.currency,
+                                    )}
+                                  </p>
+                                ) : null}
+                              </>
+                            ) : null}
+                          </div>
+                        ) : null}
+                        {/* Installment total editor — visible when editing an installment transaction */}
+                        {editingTransaction?.installmentTotal && editingTransaction.installmentTotal > 1 ? (
+                          <div className="md:col-span-2 grid gap-3 rounded-2xl border border-[var(--border)] px-4 py-3 text-sm text-zinc-600">
+                            <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-zinc-400">
+                              {t.finance.installmentsLabel}
+                              <span className="normal-case tracking-normal font-normal text-zinc-500">
+                                {(t.finance.installmentsInfo ?? "Parcela {index} de {total}")
+                                  .replace("{index}", String(editingTransaction.installmentIndex ?? ""))
+                                  .replace("{total}", String(transactionForm.installments))}
+                              </span>
+                            </span>
+                            <div className="flex flex-wrap gap-2">
+                              {Array.from(
+                                { length: 12 - (editingTransaction.installmentIndex ?? 1) + 1 },
+                                (_, k) => (editingTransaction.installmentIndex ?? 1) + k,
+                              ).map((n) => (
+                                <button
+                                  key={n}
+                                  type="button"
+                                  onClick={() =>
+                                    setTransactionForm((prev) => ({ ...prev, installments: n }))
+                                  }
+                                  className={`rounded-full px-3 py-0.5 text-xs font-semibold ring-1 transition-colors ${
+                                    transactionForm.installments === n
+                                      ? "bg-zinc-800 text-white ring-zinc-800"
+                                      : "bg-transparent text-zinc-600 ring-[var(--border)] hover:ring-zinc-400"
+                                  }`}
+                                >
+                                  {n}x
+                                </button>
+                              ))}
+                            </div>
+                            <label className="flex items-center gap-2 text-xs text-zinc-600">
+                              <input
+                                type="checkbox"
+                                checked={transactionForm.isInstallmentValue}
+                                onChange={(event) =>
+                                  setTransactionForm((prev) => ({
+                                    ...prev,
+                                    isInstallmentValue: event.target.checked,
+                                  }))
+                                }
+                              />
+                              {t.finance.installmentsIsPerValueLabel}
+                            </label>
+                            {!transactionForm.isInstallmentValue && parseCurrencyInput(transactionForm.amount) ? (
+                              <p className="text-xs text-zinc-500">
+                                {t.finance.installmentsPreview ?? "Valor por parcela"}:{" "}
+                                {formatCurrencyInput(
+                                  String(
+                                    Math.round(
+                                      (parseCurrencyInput(transactionForm.amount) /
+                                        transactionForm.installments) *
+                                        100,
+                                    ),
+                                  ),
+                                  transactionForm.currency,
+                                )}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
                         <label className="flex flex-col gap-2 text-sm text-zinc-600">
                           {t.finance.typeLabel}
                           <select
@@ -1631,6 +1828,13 @@ export default function FinanceClient({
                         </div>
                       </div>
                       <div className="grid gap-2 rounded-2xl border border-[var(--border)] px-4 py-3 text-sm text-zinc-600">
+                        {/* Hide recurring toggle when credit installment flow is active */}
+                        {!(
+                          !editingTransaction &&
+                          paymentMethods.find((m) => m.id === transactionForm.paymentMethodId)?.type === "CREDIT" &&
+                          transactionForm.group === "EXPENSE" &&
+                          transactionForm.installments > 1
+                        ) ? (
                         <label className="flex items-center gap-2">
                           <input
                             type="checkbox"
@@ -1651,6 +1855,7 @@ export default function FinanceClient({
                           />
                           {t.finance.recurringLabel}
                         </label>
+                        ) : null}
                       </div>
                     </>
                   ) : null}
@@ -1704,17 +1909,19 @@ export default function FinanceClient({
                   </div>
                 </div>
               </Card>
+              </div>
             </div>
           ) : null}
 
           {cardDetailOpen && selectedCard ? (
-            <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="modal-overlay fixed inset-0 z-50 overflow-y-auto">
               <button
                 type="button"
-                className="absolute inset-0 bg-black/40"
+                className="fixed inset-0 bg-black/40"
                 onClick={handleCloseCardDetails}
               />
-              <Card className="modal-content relative z-10 w-full max-w-3xl max-h-[85vh] overflow-y-auto">
+              <div className="flex min-h-full items-center justify-center px-4 py-4">
+              <Card className="modal-content relative z-10 w-full max-w-3xl">
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -1861,16 +2068,18 @@ export default function FinanceClient({
                   </div>
                 </div>
               </Card>
+              </div>
             </div>
           ) : null}
 
           {recurringModalOpen ? (
-            <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="modal-overlay fixed inset-0 z-50 overflow-y-auto">
               <button
                 type="button"
-                className="absolute inset-0 bg-black/40"
+                className="fixed inset-0 bg-black/40"
                 onClick={() => setRecurringModalOpen(false)}
               />
+              <div className="flex min-h-full items-center justify-center px-4 py-4">
               <Card className="modal-content relative z-10 w-full max-w-xl">
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">
@@ -1961,16 +2170,18 @@ export default function FinanceClient({
                   </div>
                 </div>
               </Card>
+              </div>
             </div>
           ) : null}
 
           {categoryModalOpen ? (
-            <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="modal-overlay fixed inset-0 z-50 overflow-y-auto">
               <button
                 type="button"
-                className="absolute inset-0 bg-black/40"
+                className="fixed inset-0 bg-black/40"
                 onClick={() => setCategoryModalOpen(false)}
               />
+              <div className="flex min-h-full items-center justify-center px-4 py-4">
               <Card className="modal-content relative z-10 w-full max-w-lg">
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">
@@ -2016,16 +2227,18 @@ export default function FinanceClient({
                   </div>
                 </div>
               </Card>
+              </div>
             </div>
           ) : null}
 
           {accountModalOpen ? (
-            <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="modal-overlay fixed inset-0 z-50 overflow-y-auto">
               <button
                 type="button"
-                className="absolute inset-0 bg-black/40"
+                className="fixed inset-0 bg-black/40"
                 onClick={() => setAccountModalOpen(false)}
               />
+              <div className="flex min-h-full items-center justify-center px-4 py-4">
               <Card className="modal-content relative z-10 w-full max-w-lg">
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">
@@ -2079,6 +2292,17 @@ export default function FinanceClient({
                       <option value="USD">USD</option>
                     </select>
                   </label>
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-600">
+                    <input
+                      type="checkbox"
+                      checked={accountForm.isPrimary}
+                      onChange={(e) =>
+                        setAccountForm((prev) => ({ ...prev, isPrimary: e.target.checked }))
+                      }
+                      className="h-4 w-4 rounded border-[var(--border)]"
+                    />
+                    {t.finance.setPrimary ?? "Definir como principal"}
+                  </label>
                   {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
                   <div className="flex flex-wrap justify-end gap-2">
                     {editingAccount ? (
@@ -2099,16 +2323,18 @@ export default function FinanceClient({
                   </div>
                 </div>
               </Card>
+              </div>
             </div>
           ) : null}
 
           {paymentMethodModalOpen ? (
-            <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="modal-overlay fixed inset-0 z-50 overflow-y-auto">
               <button
                 type="button"
-                className="absolute inset-0 bg-black/40"
+                className="fixed inset-0 bg-black/40"
                 onClick={() => setPaymentMethodModalOpen(false)}
               />
+              <div className="flex min-h-full items-center justify-center px-4 py-4">
               <Card className="modal-content relative z-10 w-full max-w-2xl">
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">
@@ -2236,6 +2462,18 @@ export default function FinanceClient({
                     </div>
                   ) : null}
 
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-600">
+                    <input
+                      type="checkbox"
+                      checked={paymentMethodForm.isPrimary}
+                      onChange={(e) =>
+                        setPaymentMethodForm((prev) => ({ ...prev, isPrimary: e.target.checked }))
+                      }
+                      className="h-4 w-4 rounded border-[var(--border)]"
+                    />
+                    {t.finance.setPrimary ?? "Definir como principal"}
+                  </label>
+
                   {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
                   <div className="flex flex-wrap justify-end gap-2">
                     {editingPaymentMethod ? (
@@ -2256,16 +2494,18 @@ export default function FinanceClient({
                   </div>
                 </div>
               </Card>
+              </div>
             </div>
           ) : null}
 
           {billModalOpen ? (
-            <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="modal-overlay fixed inset-0 z-50 overflow-y-auto">
               <button
                 type="button"
-                className="absolute inset-0 bg-black/40"
+                className="fixed inset-0 bg-black/40"
                 onClick={() => setBillModalOpen(false)}
               />
+              <div className="flex min-h-full items-center justify-center px-4 py-4">
               <Card className="modal-content relative z-10 w-full max-w-lg">
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">
@@ -2308,6 +2548,7 @@ export default function FinanceClient({
                   </div>
                 </div>
               </Card>
+              </div>
             </div>
           ) : null}
 

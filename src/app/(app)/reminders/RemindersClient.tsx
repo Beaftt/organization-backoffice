@@ -71,6 +71,10 @@ export default function RemindersClient({
     allowedUserIds: [] as string[],
   });
   const [isUpdatingList, setIsUpdatingList] = useState(false);
+  const [editingList, setEditingList] = useState<ReminderList | null>(null);
+  const [editListTitle, setEditListTitle] = useState("");
+  const [isRenamingList, setIsRenamingList] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
   const [isUpdatingItem, setIsUpdatingItem] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMemberPickerOpen, setIsMemberPickerOpen] = useState(false);
@@ -683,6 +687,63 @@ export default function RemindersClient({
     }
   };
 
+  const handleDeleteListById = async (listToDelete: ReminderList) => {
+    const confirmed = window.confirm(t.reminders.confirmDeleteList);
+    if (!confirmed) return;
+    setIsUpdatingList(true);
+    setError(null);
+
+    try {
+      await deleteReminderList({ id: listToDelete.id });
+      const nextLists = lists.filter((l) => l.id !== listToDelete.id);
+      setLists(nextLists);
+      setItemsByList((prev) => {
+        const next = { ...prev };
+        delete next[listToDelete.id];
+        return next;
+      });
+      const nextId = nextLists[0]?.id ?? "";
+      if (listToDelete.id === selectedId) setSelectedId(nextId);
+      const params = new URLSearchParams(window.location.search);
+      if (nextId) {
+        params.set("listId", nextId);
+      } else {
+        params.delete("listId");
+      }
+      router.replace(`/reminders?${params.toString()}`);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError(t.reminders.updateError);
+      }
+    } finally {
+      setIsUpdatingList(false);
+    }
+  };
+
+  const handleRenameList = async () => {
+    if (!editingList || !editListTitle.trim()) return;
+    setIsRenamingList(true);
+    setRenameError(null);
+    try {
+      const updated = await updateReminderList({
+        id: editingList.id,
+        title: editListTitle.trim(),
+      });
+      setLists((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+      setEditingList(null);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setRenameError(err.message);
+      } else {
+        setRenameError(t.reminders.updateError);
+      }
+    } finally {
+      setIsRenamingList(false);
+    }
+  };
+
   const handleDeleteItem = async (itemId: string) => {
     if (!selectedList) return;
     const confirmed = window.confirm(t.reminders.confirmDeleteItem);
@@ -785,25 +846,61 @@ export default function RemindersClient({
                 .filter((member): member is MemberOption => Boolean(member));
 
               return (
-                <button
+                <div
                   key={list.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleSelectList(list.id)}
-                  className={`list-item-animate flex w-full flex-col gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                  onKeyDown={(e) => e.key === "Enter" && handleSelectList(list.id)}
+                  className={`list-item-animate flex w-full cursor-pointer flex-col gap-3 rounded-2xl border px-4 py-3 text-left transition ${
                     selectedList?.id === list.id
                       ? "border-[var(--border-strong)] bg-[var(--surface-muted)]"
                       : "border-[var(--border)] hover:bg-[var(--surface-muted)]"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold text-[var(--foreground)]">
                       {list.title}
                     </span>
-                    <span className="text-xs text-zinc-500">
-                      {itemsByList[list.id]?.filter((item) => item.status === "DONE")
-                        .length ?? 0}
-                      /{itemsByList[list.id]?.length ?? 0}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-zinc-500">
+                        {itemsByList[list.id]?.filter((item) => item.status === "DONE")
+                          .length ?? 0}
+                        /{itemsByList[list.id]?.length ?? 0}
+                      </span>
+                      <button
+                        type="button"
+                        title={t.reminders.editList}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingList(list);
+                          setEditListTitle(list.title);
+                          setRenameError(null);
+                        }}
+                        className="rounded-lg p-1 text-zinc-400 hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        title={t.reminders.deleteList}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteListById(list);
+                        }}
+                        className="rounded-lg p-1 text-zinc-400 hover:bg-rose-50 hover:text-rose-600"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6l-.867 12.142A2 2 0 0 1 16.138 20H7.862a2 2 0 0 1-1.995-1.858L5 6" />
+                          <path d="M10 11v6M14 11v6" />
+                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   {list.description ? (
                     <p className="text-xs text-zinc-500">{list.description}</p>
@@ -856,7 +953,7 @@ export default function RemindersClient({
                       </div>
                     ) : null}
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -1094,6 +1191,50 @@ export default function RemindersClient({
           </div>
         </Card>
       </div>
+
+      {editingList ? (
+        <div
+          className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8"
+          onClick={() => {
+            setEditingList(null);
+            setRenameError(null);
+          }}
+        >
+          <div
+            className="modal-content w-full max-w-sm rounded-3xl bg-[var(--surface)] p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+                {t.reminders.editList}
+              </h4>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setEditingList(null);
+                  setRenameError(null);
+                }}
+              >
+                {t.reminders.cancel}
+              </Button>
+            </div>
+            <div className="mt-4 flex flex-col gap-4">
+              <Input
+                label={t.reminders.listTitleLabel}
+                placeholder={t.reminders.listTitleLabel}
+                value={editListTitle}
+                onChange={(e) => setEditListTitle(e.target.value)}
+              />
+              {renameError ? (
+                <p className="text-sm text-rose-600">{renameError}</p>
+              ) : null}
+              <Button onClick={handleRenameList} disabled={isRenamingList}>
+                {isRenamingList ? t.reminders.renaming : t.reminders.renameList}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isCreatingList ? (
         <div

@@ -611,6 +611,8 @@ export type Dictionary = {
     listResetDayLabel: string;
     createList: string;
     cancel: string;
+    renameList: string;
+    renaming: string;
     editList: string;
     listSettings: string;
     deleteList: string;
@@ -1207,6 +1209,13 @@ export const dictionaries = {
       recurringLabel: "Transação recorrente",
       addToCalendarLabel: "Adicionar recorrência ao calendário",
       recurrenceTabLabel: "Recorrência",
+      installmentsLabel: "Parcelas (crédito)",
+      installmentsCash: "À vista (1x)",
+      installmentsTotalAmount: "Valor total da compra",
+      installmentsPerAmount: "Valor da parcela",
+      installmentsIsPerValueLabel: "O valor informado é o da parcela (não o total)",
+      installmentsPreview: "Valor por parcela",
+      installmentsInfo: "Parcela {index} de {total}",
       notificationsTitle: "Notificações",
       notificationsSubtitle: "Alertas dos cartões e avisos financeiros.",
       notificationsEmpty: "Nenhuma notificação recente.",
@@ -1271,6 +1280,7 @@ export const dictionaries = {
       deleteAction: "Excluir",
       deleteAccountConfirm: "Deseja excluir esta conta?",
       deletePaymentMethodConfirm: "Deseja excluir este cartão?",
+      setPrimary: "Definir como principal",
       close: "Fechar",
       cancel: "Cancelar",
       save: "Salvar",
@@ -1503,6 +1513,8 @@ export const dictionaries = {
       createList: "Criar lista",
       creating: "Criando...",
       cancel: "Cancelar",
+      renameList: "Renomear",
+      renaming: "Renomeando...",
       editList: "Editar lista",
       listSettings: "Configurações",
       deleteList: "Excluir lista",
@@ -2090,6 +2102,13 @@ export const dictionaries = {
       recurringLabel: "Recurring transaction",
       addToCalendarLabel: "Add recurrence to calendar",
       recurrenceTabLabel: "Recurrence",
+      installmentsLabel: "Installments (credit)",
+      installmentsCash: "Full payment (1x)",
+      installmentsTotalAmount: "Total purchase price",
+      installmentsPerAmount: "Installment amount",
+      installmentsIsPerValueLabel: "Amount is per installment (not total)",
+      installmentsPreview: "Amount per installment",
+      installmentsInfo: "Installment {index} of {total}",
       notificationsTitle: "Notifications",
       notificationsSubtitle: "Card alerts and finance updates.",
       notificationsEmpty: "No recent notifications.",
@@ -2154,6 +2173,7 @@ export const dictionaries = {
       deleteAction: "Delete",
       deleteAccountConfirm: "Delete this account?",
       deletePaymentMethodConfirm: "Delete this card?",
+      setPrimary: "Set as primary",
       close: "Close",
       cancel: "Cancel",
       save: "Save",
@@ -2386,6 +2406,8 @@ export const dictionaries = {
       createList: "Create list",
       creating: "Creating...",
       cancel: "Cancel",
+      renameList: "Rename",
+      renaming: "Renaming...",
       editList: "Edit list",
       listSettings: "Settings",
       deleteList: "Delete list",

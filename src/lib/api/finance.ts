@@ -25,6 +25,7 @@ export type FinanceAccount = {
   name: string;
   type: "CASH" | "BANK" | "CARD";
   currency: string;
+  isPrimary: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -42,6 +43,7 @@ export type FinancePaymentMethod = {
   closingDay: number | null;
   dueDay: number | null;
   balance: number | null;
+  isPrimary: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -81,6 +83,10 @@ export type FinanceTransaction = {
   updatedAt: string;
   settledAt: string | null;
   paymentMethodId: string | null;
+  /** 1-based index within an installment series (null for regular transactions). */
+  installmentIndex: number | null;
+  /** Total installments in the series (null for regular transactions). */
+  installmentTotal: number | null;
 };
 
 export type FinanceRecurring = {
@@ -99,6 +105,8 @@ export type FinanceRecurring = {
   tagIds: string[] | null;
   createdAt: string;
   updatedAt: string;
+  /** Total installments for finite credit installment series (null = infinite recurring). */
+  installmentTotal: number | null;
 };
 
 export type FinanceNotification = {
@@ -234,6 +242,7 @@ export const createFinanceAccount = (input: {
   name: string;
   type: "CASH" | "BANK" | "CARD";
   currency?: string;
+  isPrimary?: boolean;
 }) => {
   const resolved = workspacePath(input.workspaceId);
   return apiFetch<FinanceAccount>(`/workspaces/${resolved}/finance/accounts`, {
@@ -243,6 +252,7 @@ export const createFinanceAccount = (input: {
       name: input.name,
       type: input.type,
       currency: input.currency ?? "BRL",
+      isPrimary: input.isPrimary,
     }),
   });
 };
@@ -253,6 +263,7 @@ export const updateFinanceAccount = (input: {
   name?: string;
   type?: "CASH" | "BANK" | "CARD";
   currency?: string;
+  isPrimary?: boolean;
 }) => {
   const resolved = workspacePath(input.workspaceId);
   return apiFetch<FinanceAccount>(
@@ -264,6 +275,7 @@ export const updateFinanceAccount = (input: {
         name: input.name,
         type: input.type,
         currency: input.currency,
+        isPrimary: input.isPrimary,
       }),
     },
   );
@@ -323,6 +335,10 @@ export const createFinanceTransaction = (input: {
   categoryId?: string | null;
   tagIds?: string[] | null;
   recurringId?: string | null;
+  /** Number of installments for credit purchases (1 = à vista, 2–12 = parcelado). */
+  installments?: number;
+  /** When true, `amount` is the per-installment value rather than the total purchase price. */
+  isInstallmentValue?: boolean;
 }) => {
   const resolved = workspacePath(input.workspaceId);
   return apiFetch<FinanceTransaction>(
@@ -343,6 +359,8 @@ export const createFinanceTransaction = (input: {
         categoryId: input.categoryId ?? null,
         tagIds: input.tagIds ?? null,
         recurringId: input.recurringId ?? null,
+        installments: input.installments,
+        isInstallmentValue: input.isInstallmentValue,
       }),
     },
   );
@@ -363,6 +381,8 @@ export const updateFinanceTransaction = (input: {
   categoryId?: string | null;
   tagIds?: string[] | null;
   recurringId?: string | null;
+  installmentTotal?: number;
+  isInstallmentValue?: boolean;
 }) => {
   const resolved = workspacePath(input.workspaceId);
   return apiFetch<FinanceTransaction>(
@@ -383,6 +403,8 @@ export const updateFinanceTransaction = (input: {
         categoryId: input.categoryId ?? null,
         tagIds: input.tagIds ?? null,
         recurringId: input.recurringId ?? null,
+        installmentTotal: input.installmentTotal,
+        isInstallmentValue: input.isInstallmentValue,
       }),
     },
   );
@@ -417,6 +439,7 @@ export const createFinancePaymentMethod = (input: {
   closingDay?: number | null;
   dueDay?: number | null;
   balance?: number | null;
+  isPrimary?: boolean;
 }) => {
   const resolved = workspacePath(input.workspaceId);
   return apiFetch<FinancePaymentMethod>(
@@ -433,6 +456,7 @@ export const createFinancePaymentMethod = (input: {
         closingDay: input.closingDay ?? null,
         dueDay: input.dueDay ?? null,
         balance: input.balance ?? null,
+        isPrimary: input.isPrimary,
       }),
     },
   );
@@ -449,6 +473,7 @@ export const updateFinancePaymentMethod = (input: {
   closingDay?: number | null;
   dueDay?: number | null;
   balance?: number | null;
+  isPrimary?: boolean;
 }) => {
   const resolved = workspacePath(input.workspaceId);
   return apiFetch<FinancePaymentMethod>(
@@ -465,6 +490,7 @@ export const updateFinancePaymentMethod = (input: {
         closingDay: input.closingDay ?? null,
         dueDay: input.dueDay ?? null,
         balance: input.balance ?? null,
+        isPrimary: input.isPrimary,
       }),
     },
   );
