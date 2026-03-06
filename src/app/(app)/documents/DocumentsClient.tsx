@@ -870,7 +870,7 @@ export default function DocumentsClient({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold">{t.modules.documents}</h2>
-          <p className="text-sm text-zinc-600">{t.documents.subtitle}</p>
+          <p className="text-sm text-zinc-600">Atualizados recentemente</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => setIsFolderModalOpen(true)}>
@@ -1003,7 +1003,12 @@ export default function DocumentsClient({
           ) : error ? (
             <p className="text-sm text-red-500">{error}</p>
           ) : records.length === 0 ? (
-            <p className="text-sm text-zinc-500">{t.documents.empty}</p>
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <p className="text-sm text-zinc-500">{t.documents.empty}</p>
+              <Button variant="secondary" onClick={() => setIsUploadModalOpen(true)}>
+                Fazer primeiro upload
+              </Button>
+            </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {records.map((item) => (
@@ -2364,7 +2369,12 @@ export default function DocumentsClient({
           ) : error ? (
             <p className="text-sm text-red-500">{error}</p>
           ) : records.length === 0 ? (
-            <p className="text-sm text-zinc-500">{t.documents.empty}</p>
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <p className="text-sm text-zinc-500">{t.documents.empty}</p>
+              <Button variant="secondary" onClick={() => setIsUploadModalOpen(true)}>
+                Fazer primeiro upload
+              </Button>
+            </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {records.map((item) => (
@@ -2981,7 +2991,7 @@ export default function DocumentsClient({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold">{t.modules.documents}</h2>
-          <p className="text-sm text-zinc-600">{t.documents.subtitle}</p>
+          <p className="text-sm text-zinc-600">Atualizados recentemente</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={() => setIsFolderModalOpen(true)}>

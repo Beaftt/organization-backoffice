@@ -150,6 +150,7 @@ export default function FinanceClient({
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [cardMonthIndex, setCardMonthIndex] = useState(() => chartMonthRange - 1);
+  const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'cards'>('overview');
 
   useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -1053,27 +1054,85 @@ export default function FinanceClient({
               <h2 className="text-2xl font-semibold">{t.modules.finance}</h2>
               <p className="text-sm text-zinc-600">{t.finance.subtitle}</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" onClick={() => setCategoryModalOpen(true)}>
-                {t.finance.newType}
-              </Button>
-              <Button variant="secondary" onClick={() => handleOpenAccount()}>
-                {t.finance.newAccount ?? t.finance.typeLabel}
-              </Button>
-              <Button variant="secondary" onClick={() => handleOpenPaymentMethod()}>
-                {t.finance.paymentMethodAdd ?? t.finance.paymentMethodsTitle ?? "Novo cartão"}
-              </Button>
-              <Button variant="secondary" onClick={() => setRecurringModalOpen(true)}>
-                {t.finance.recurringTitle}
-              </Button>
-              <Button onClick={() => handleOpenTransaction()}>{t.finance.newTransaction}</Button>
+            <Button onClick={() => handleOpenTransaction()}>{t.finance.newTransaction}</Button>
+          </div>
+
+          {/* Summary stats */}
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              {
+                label: t.dashboard.summaryFinanceIncome,
+                value: formatCurrency(transactions.filter((tx) => tx.group === 'INCOME').reduce((acc, tx) => acc + tx.amount, 0)),
+                color: 'text-emerald-600',
+              },
+              {
+                label: t.dashboard.summaryFinanceExpense,
+                value: formatCurrency(transactions.filter((tx) => tx.group === 'EXPENSE').reduce((acc, tx) => acc + tx.amount, 0)),
+                color: 'text-rose-500',
+              },
+              {
+                label: 'Saldo',
+                value: formatCurrency(
+                  transactions.filter((tx) => tx.group === 'INCOME').reduce((acc, tx) => acc + tx.amount, 0) -
+                  transactions.filter((tx) => tx.group === 'EXPENSE').reduce((acc, tx) => acc + tx.amount, 0)
+                ),
+                color: 'text-[var(--foreground)]',
+              },
+            ].map((stat) => (
+              <Card key={stat.label} className="py-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">{stat.label}</p>
+                <p className={`mt-1 text-xl font-bold ${stat.color}`}>{stat.value}</p>
+              </Card>
+            ))}
+          </div>
+
+          {/* Tab navigation */}
+          <div className="flex items-center gap-1 border-b border-[var(--border)]">
+            {([
+              { id: 'overview', label: 'Visão Geral' },
+              { id: 'accounts', label: t.finance.accountsTitle ?? 'Contas' },
+              { id: 'cards', label: t.finance.paymentMethodsTitle ?? 'Cartões' },
+            ] as const).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2 text-sm font-medium transition border-b-2 -mb-px ${
+                  activeTab === tab.id
+                    ? 'border-[var(--sidebar)] text-[var(--sidebar)]'
+                    : 'border-transparent text-zinc-500 hover:text-[var(--foreground)]'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+            <div className="ml-auto flex gap-2 pb-1">
+              {activeTab === 'overview' ? (
+                <>
+                  <Button variant="secondary" onClick={() => setCategoryModalOpen(true)}>
+                    {t.finance.newType}
+                  </Button>
+                  <Button variant="secondary" onClick={() => setRecurringModalOpen(true)}>
+                    {t.finance.recurringTitle}
+                  </Button>
+                </>
+              ) : activeTab === 'accounts' ? (
+                <Button variant="secondary" onClick={() => handleOpenAccount()}>
+                  {t.finance.newAccount ?? t.finance.typeLabel}
+                </Button>
+              ) : (
+                <Button variant="secondary" onClick={() => handleOpenPaymentMethod()}>
+                  {t.finance.paymentMethodAdd ?? 'Novo cartão'}
+                </Button>
+              )}
             </div>
           </div>
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
+          {/* Contas tab */}
+          {activeTab === 'accounts' ? (
+          <Card>
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
@@ -1121,7 +1180,11 @@ export default function FinanceClient({
                 )}
               </div>
             </Card>
+          ) : null}
 
+          {/* Cartões tab */}
+          {activeTab === 'cards' ? (
+            <>
             <Card>
               <div className="flex items-center justify-between">
                 <div>
@@ -1170,8 +1233,6 @@ export default function FinanceClient({
                 )}
               </div>
             </Card>
-          </div>
-
           <Card>
             <div className="flex items-center justify-between">
               <div>
@@ -1234,7 +1295,12 @@ export default function FinanceClient({
               )}
             </div>
           </Card>
+            </>
+          ) : null}
 
+          {/* Visão Geral tab */}
+          {activeTab === 'overview' ? (
+            <>
           <Card>
             <div className="flex items-center justify-between">
               <div>
@@ -1442,6 +1508,8 @@ export default function FinanceClient({
                 ) : null}
               </div>
             </Card>
+            </>
+          ) : null}
 
           {transactionModalOpen ? (
             <div className="modal-overlay fixed inset-0 z-50 overflow-y-auto">

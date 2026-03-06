@@ -524,9 +524,10 @@ export default function RemindersClient({
     }
   };
 
-  const toggleItem = async (itemId: string) => {
-    if (!selectedList) return;
-    const items = itemsByList[selectedList.id] ?? [];
+  const toggleItem = async (itemId: string, listId?: string) => {
+    const list = listId ? lists.find((l) => l.id === listId) : selectedList;
+    if (!list) return;
+    const items = itemsByList[list.id] ?? [];
     const item = items.find((entry) => entry.id === itemId);
     if (!item) return;
     setIsUpdatingItem(true);
@@ -537,14 +538,14 @@ export default function RemindersClient({
 
     try {
       const updated = await updateReminderItem({
-        listId: selectedList.id,
+        listId: list.id,
         id: item.id,
         status: nextStatus,
       });
       setItemsByList((prev) => ({
         ...prev,
-        [selectedList.id]:
-          prev[selectedList.id]?.map((entry) =>
+        [list.id]:
+          prev[list.id]?.map((entry) =>
             entry.id === item.id ? updated : entry,
           ) ?? [],
       }));
@@ -829,367 +830,276 @@ export default function RemindersClient({
         </Card>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_1.6fr]">
-        <Card>
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-              {t.reminders.listsTitle}
-            </h3>
-          </div>
-          <div className="mt-4 space-y-3">
-            {!lists.length ? (
-              <p className="text-sm text-zinc-500">{t.reminders.emptyItems}</p>
-            ) : null}
-            {lists.map((list) => {
-              const listMembers = (list.allowedUserIds ?? [])
-                .map((userId) => membersById.get(userId))
-                .filter((member): member is MemberOption => Boolean(member));
+      <div className="flex flex-col gap-4">
+        {!lists.length ? (
+          <Card>
+            <p className="text-sm text-zinc-500">{t.reminders.emptyItems}</p>
+          </Card>
+        ) : null}
+        {lists.map((list) => {
+          const items = itemsByList[list.id] ?? [];
+          const doneCount = items.filter((i) => i.status === 'DONE').length;
+          const isSelected = selectedId === list.id;
+          const listMembers = (list.allowedUserIds ?? [])
+            .map((userId) => membersById.get(userId))
+            .filter((member): member is MemberOption => Boolean(member));
 
-              return (
-                <div
-                  key={list.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleSelectList(list.id)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSelectList(list.id)}
-                  className={`list-item-animate flex w-full cursor-pointer flex-col gap-3 rounded-2xl border px-4 py-3 text-left transition ${
-                    selectedList?.id === list.id
-                      ? "border-[var(--border-strong)] bg-[var(--surface-muted)]"
-                      : "border-[var(--border)] hover:bg-[var(--surface-muted)]"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold text-[var(--foreground)]">
-                      {list.title}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-zinc-500">
-                        {itemsByList[list.id]?.filter((item) => item.status === "DONE")
-                          .length ?? 0}
-                        /{itemsByList[list.id]?.length ?? 0}
-                      </span>
-                      <button
-                        type="button"
-                        title={t.reminders.editList}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingList(list);
-                          setEditListTitle(list.title);
-                          setRenameError(null);
-                        }}
-                        className="rounded-lg p-1 text-zinc-400 hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        title={t.reminders.deleteList}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteListById(list);
-                        }}
-                        className="rounded-lg p-1 text-zinc-400 hover:bg-rose-50 hover:text-rose-600"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6l-.867 12.142A2 2 0 0 1 16.138 20H7.862a2 2 0 0 1-1.995-1.858L5 6" />
-                          <path d="M10 11v6M14 11v6" />
-                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                  {list.description ? (
-                    <p className="text-xs text-zinc-500">{list.description}</p>
-                  ) : null}
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap gap-2">
-                      {list.recurrence === "MONTHLY" ? (
-                        <span className="rounded-full bg-[var(--surface-muted)] px-3 py-1 text-[11px] font-semibold text-zinc-600">
-                          {t.reminders.badges.monthly}
-                        </span>
-                      ) : null}
-                      {list.linkToFinance ? (
-                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-700">
-                          {t.reminders.badges.financeLinked}
-                        </span>
-                      ) : null}
-                      {list.linkToCalendar ? (
-                        <span className="rounded-full bg-blue-100 px-3 py-1 text-[11px] font-semibold text-blue-700">
-                          {t.reminders.badges.calendarLinked}
-                        </span>
-                      ) : null}
-                    </div>
-                    {listMembers.length ? (
-                      <div className="flex items-center -space-x-2">
-                        {listMembers.slice(0, 4).map((member) => (
-                          <div
-                            key={member?.userId}
-                            title={member?.label}
-                            className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface)] text-[10px] font-semibold text-zinc-600"
-                          >
-                            {member?.photoUrl ? (
-                              <Image
-                                src={member.photoUrl}
-                                alt={member.label}
-                                width={28}
-                                height={28}
-                                className="h-full w-full object-cover"
-                                unoptimized
-                              />
-                            ) : (
-                              getInitials(member?.label ?? "")
-                            )}
-                          </div>
-                        ))}
-                        {listMembers.length > 4 ? (
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[10px] font-semibold text-zinc-600">
-                            +{listMembers.length - 4}
-                          </div>
-                        ) : null}
-                      </div>
+          return (
+            <Card key={list.id}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-[var(--foreground)]">{list.title}</p>
+                  {list.description ? <p className="mt-0.5 text-xs text-zinc-500">{list.description}</p> : null}
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {list.recurrence === 'MONTHLY' ? (
+                      <span className="rounded-full bg-[var(--surface-muted)] px-2.5 py-0.5 text-[11px] font-semibold text-zinc-600">{t.reminders.badges.monthly}</span>
+                    ) : null}
+                    {list.linkToFinance ? (
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">{t.reminders.badges.financeLinked}</span>
+                    ) : null}
+                    {list.linkToCalendar ? (
+                      <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">{t.reminders.badges.calendarLinked}</span>
                     ) : null}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-                {t.reminders.itemsTitle}
-              </h3>
-              {selectedList ? (
-                <p className="text-sm font-semibold text-[var(--foreground)]">
-                  {selectedList.title}
-                </p>
-              ) : null}
-            </div>
-            {selectedList ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="secondary"
-                  onClick={() => setIsSettingsOpen((prev) => !prev)}
-                >
-                  {t.reminders.listSettings}
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={handleDeleteList}
-                  disabled={isUpdatingList}
-                >
-                  {t.reminders.deleteList}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-zinc-400">{doneCount}/{items.length}</span>
+                  {listMembers.length > 0 ? (
+                    <div className="flex items-center -space-x-2">
+                      {listMembers.slice(0, 3).map((member) => (
+                        <div
+                          key={member?.userId}
+                          title={member?.label}
+                          className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface)] text-[10px] font-semibold text-zinc-600"
+                        >
+                          {member?.photoUrl ? (
+                            <Image src={member.photoUrl} alt={member.label} width={24} height={24} className="h-full w-full object-cover" unoptimized />
+                          ) : (
+                            getInitials(member?.label ?? '')
+                          )}
+                        </div>
+                      ))}
+                      {listMembers.length > 3 ? (
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[10px] font-semibold text-zinc-600">+{listMembers.length - 3}</div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    title={t.reminders.listSettings}
+                    onClick={() => { handleSelectList(list.id); setIsSettingsOpen((prev) => !prev); }}
+                    className="rounded-lg p-1.5 text-zinc-400 hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                  </button>
+                  <button
+                    type="button"
+                    title={t.reminders.editList}
+                    onClick={(e) => { e.stopPropagation(); setEditingList(list); setEditListTitle(list.title); setRenameError(null); }}
+                    className="rounded-lg p-1.5 text-zinc-400 hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button
+                    type="button"
+                    title={t.reminders.deleteList}
+                    onClick={(e) => { e.stopPropagation(); handleDeleteListById(list); }}
+                    className="rounded-lg p-1.5 text-zinc-400 hover:bg-rose-50 hover:text-rose-600"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-.867 12.142A2 2 0 0 1 16.138 20H7.862a2 2 0 0 1-1.995-1.858L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                  </button>
+                </div>
               </div>
-            ) : null}
-          </div>
 
-          {isSettingsOpen && selectedList ? (
-            <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-zinc-600">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={selectedList?.recurrence === "MONTHLY"}
-                  onChange={(event) =>
-                    updateListFlag("monthlyReset", event.target.checked)
-                  }
-                  disabled={!selectedList || isUpdatingList}
-                />
-                {t.reminders.monthlyResetLabel}
-              </label>
-              {selectedList?.recurrence === "MONTHLY" ? (
-                <Input
-                  label={t.reminders.listResetDayLabel}
-                  placeholder={t.reminders.listResetDayLabel}
-                  value={String(selectedList.resetDay ?? resetDay)}
-                  onChange={(event) =>
-                    updateReminderList({
-                      id: selectedList.id,
-                      resetDay: Number(event.target.value || resetDay),
-                    })
-                      .then((updated) => {
-                        setLists((prev) =>
-                          prev.map((list) =>
-                            list.id === updated.id ? updated : list,
-                          ),
-                        );
-                      })
-                      .catch((err) => {
-                        if (err instanceof ApiError) {
-                          setError(err.message);
-                        } else {
-                          setError(t.reminders.updateError);
-                        }
-                      })
-                  }
-                />
-              ) : null}
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={selectedList?.linkToFinance ?? false}
-                  onChange={(event) =>
-                    updateListFlag("linkFinance", event.target.checked)
-                  }
-                  disabled={!selectedList || isUpdatingList}
-                />
-                {t.reminders.financeLinkLabel}
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={selectedList?.linkToCalendar ?? false}
-                  onChange={(event) =>
-                    updateListFlag("linkCalendar", event.target.checked)
-                  }
-                  disabled={!selectedList || isUpdatingList}
-                />
-                {t.reminders.calendarLinkLabel}
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={selectedList?.isPrivate ?? false}
-                  onChange={(event) =>
-                    updateReminderList({
-                      id: selectedList.id,
-                      isPrivate: event.target.checked,
-                      allowedUserIds: event.target.checked
-                        ? Array.from(
-                            new Set([
-                              selectedList.authorId ?? "",
-                              ...(selectedList.allowedUserIds ?? []),
-                            ].filter(Boolean)),
-                          )
-                        : selectedList.allowedUserIds ?? null,
-                    })
-                      .then((updated) => {
-                        setLists((prev) =>
-                          prev.map((list) =>
-                            list.id === updated.id ? updated : list,
-                          ),
-                        );
-                      })
-                      .catch((err) => {
-                        if (err instanceof ApiError) {
-                          setError(err.message);
-                        } else {
-                          setError(t.reminders.updateError);
-                        }
-                      })
-                  }
-                  disabled={!selectedList || isUpdatingList}
-                />
-                {t.reminders.privateListLabel}
-              </label>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setMemberSearch("");
-                  setIsMemberPickerOpen(true);
-                }}
-              >
-                {t.reminders.addUsers}
-              </Button>
-            </div>
-          ) : null}
-          {isSettingsOpen && selectedList ? (
-            <div className="mt-4 space-y-2">
-              <p className="text-sm font-semibold text-zinc-600">
-                {t.reminders.allowedUsersLabel}
-              </p>
-              <div className="flex flex-wrap gap-3">
-                {members.map((member) => (
-                  <label key={member.userId} className="flex items-center gap-2 text-sm">
+              {isSelected && isSettingsOpen && selectedList ? (
+                <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-zinc-600">
+                  <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={(selectedList.allowedUserIds ?? []).includes(
-                        member.userId,
-                      )}
-                      onChange={(event) => {
-                        const nextAllowed = event.target.checked
-                          ? Array.from(
-                              new Set([
-                                ...(selectedList.allowedUserIds ?? []),
-                                member.userId,
-                              ]),
-                            )
-                          : (selectedList.allowedUserIds ?? []).filter(
-                              (id) => id !== member.userId,
+                      checked={selectedList?.recurrence === "MONTHLY"}
+                      onChange={(event) =>
+                        updateListFlag("monthlyReset", event.target.checked)
+                      }
+                      disabled={isUpdatingList}
+                    />
+                    {t.reminders.monthlyResetLabel}
+                  </label>
+                  {selectedList?.recurrence === "MONTHLY" ? (
+                    <Input
+                      label={t.reminders.listResetDayLabel}
+                      placeholder={t.reminders.listResetDayLabel}
+                      value={String(selectedList.resetDay ?? resetDay)}
+                      onChange={(event) =>
+                        updateReminderList({
+                          id: selectedList.id,
+                          resetDay: Number(event.target.value || resetDay),
+                        })
+                          .then((updated) => {
+                            setLists((prev) =>
+                              prev.map((l) =>
+                                l.id === updated.id ? updated : l,
+                              ),
                             );
-                        updateListMembers(nextAllowed);
+                          })
+                          .catch((err) => {
+                            if (err instanceof ApiError) {
+                              setError(err.message);
+                            } else {
+                              setError(t.reminders.updateError);
+                            }
+                          })
+                      }
+                    />
+                  ) : null}
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedList?.linkToFinance ?? false}
+                      onChange={(event) =>
+                        updateListFlag("linkFinance", event.target.checked)
+                      }
+                      disabled={isUpdatingList}
+                    />
+                    {t.reminders.financeLinkLabel}
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedList?.linkToCalendar ?? false}
+                      onChange={(event) =>
+                        updateListFlag("linkCalendar", event.target.checked)
+                      }
+                      disabled={isUpdatingList}
+                    />
+                    {t.reminders.calendarLinkLabel}
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedList?.isPrivate ?? false}
+                      onChange={(event) =>
+                        updateReminderList({
+                          id: selectedList.id,
+                          isPrivate: event.target.checked,
+                          allowedUserIds: event.target.checked
+                            ? Array.from(
+                                new Set([
+                                  selectedList.authorId ?? "",
+                                  ...(selectedList.allowedUserIds ?? []),
+                                ].filter(Boolean)),
+                              )
+                            : selectedList.allowedUserIds ?? null,
+                        })
+                          .then((updated) => {
+                            setLists((prev) =>
+                              prev.map((l) =>
+                                l.id === updated.id ? updated : l,
+                              ),
+                            );
+                          })
+                          .catch((err) => {
+                            if (err instanceof ApiError) {
+                              setError(err.message);
+                            } else {
+                              setError(t.reminders.updateError);
+                            }
+                          })
+                      }
+                      disabled={isUpdatingList}
+                    />
+                    {t.reminders.privateListLabel}
+                  </label>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setMemberSearch("");
+                      setIsMemberPickerOpen(true);
+                    }}
+                  >
+                    {t.reminders.addUsers}
+                  </Button>
+                  <div className="w-full">
+                    <p className="text-sm font-semibold text-zinc-600">{t.reminders.allowedUsersLabel}</p>
+                    <div className="mt-2 flex flex-wrap gap-3">
+                      {members.map((member) => (
+                        <label key={member.userId} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={(selectedList.allowedUserIds ?? []).includes(member.userId)}
+                            onChange={(event) => {
+                              const nextAllowed = event.target.checked
+                                ? Array.from(new Set([...(selectedList.allowedUserIds ?? []), member.userId]))
+                                : (selectedList.allowedUserIds ?? []).filter((id) => id !== member.userId);
+                              updateListMembers(nextAllowed);
+                            }}
+                          />
+                          {member.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="mt-4 space-y-2">
+                {items.length === 0 ? (
+                  <p className="text-sm text-zinc-400">{t.reminders.emptyItems}</p>
+                ) : (
+                  items.map((item) => (
+                    <label key={item.id} className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-[var(--surface-muted)]">
+                      <input
+                        type="checkbox"
+                        checked={item.status === 'DONE'}
+                        onChange={() => toggleItem(item.id, list.id)}
+                        disabled={isUpdatingItem}
+                      />
+                      <span className={item.status === 'DONE' ? 'text-sm line-through text-zinc-400' : 'text-sm text-[var(--foreground)]'}>
+                        {item.title}
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+
+              {isSelected ? (
+                <div className="mt-4 flex gap-3">
+                  <div className="flex-1">
+                    <Input
+                      placeholder={t.reminders.itemPlaceholder}
+                      value={newItemTitle}
+                      onChange={(event) => setNewItemTitle(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          void addItem();
+                        }
                       }}
                     />
-                    {member.label}
-                  </label>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="mt-6 flex flex-wrap items-end gap-3">
-            <div className="min-w-[220px] flex-1">
-              <Input
-                label={t.reminders.addItem}
-                placeholder={t.reminders.itemPlaceholder}
-                value={newItemTitle}
-                onChange={(event) => setNewItemTitle(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void addItem();
-                  }
-                }}
-              />
-            </div>
-            <Button onClick={addItem} disabled={!selectedList || isUpdatingItem}>
-              {isPresetFlow ? "+" : t.reminders.addItem}
-            </Button>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            {selectedItems.length ? (
-              selectedItems.map((item) => (
-                <div
-                  key={item.id}
-                  className={`list-item-animate flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition ${
-                    item.id === selectedItemId
-                      ? "border-[var(--border-strong)] bg-[var(--surface-muted)]"
-                      : "border-[var(--border)]"
-                  }`}
-                >
-                  <label className="flex items-center gap-3 text-sm font-medium text-[var(--foreground)]">
-                    <input
-                      type="checkbox"
-                      checked={item.status === "DONE"}
-                      onChange={() => toggleItem(item.id)}
-                      disabled={isUpdatingItem}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setSelectedItemId(item.id)}
-                      className={
-                        item.status === "DONE"
-                          ? "line-through text-zinc-400"
-                          : undefined
-                      }
-                    >
-                      {item.title}
-                    </button>
-                  </label>
+                  </div>
+                  <Button onClick={addItem} disabled={!selectedList || isUpdatingItem}>
+                    {isPresetFlow ? '+' : t.reminders.addItem}
+                  </Button>
                 </div>
-              ))
-            ) : (
-              <p className="text-sm text-zinc-500">{t.reminders.emptyItems}</p>
-            )}
-          </div>
-        </Card>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSelectList(list.id)}
+                  className="mt-4 w-full rounded-xl border border-dashed border-[var(--border)] py-2 text-xs text-zinc-400 transition hover:border-zinc-400"
+                >
+                  + {t.reminders.addItem}
+                </button>
+              )}
+            </Card>
+          );
+        })}
+
+        <button
+          type="button"
+          onClick={() => setIsCreatingList(true)}
+          className="w-full rounded-3xl border border-dashed border-[var(--border)] bg-[var(--surface)] px-6 py-8 text-sm text-zinc-500 transition hover:border-[var(--sidebar)] hover:text-[var(--sidebar)]"
+        >
+          + {t.reminders.newList}
+        </button>
       </div>
 
       {editingList ? (

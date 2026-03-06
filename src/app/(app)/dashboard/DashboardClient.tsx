@@ -131,18 +131,18 @@ export default function DashboardClient() {
         body: (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-white/70">
+              <p className="text-[10px] uppercase tracking-wide text-zinc-400">
                 {t.dashboard.summaryFinanceIncome}
               </p>
-              <p className="text-lg font-semibold text-white">
+              <p className="text-lg font-semibold text-emerald-600">
                 {summaryLoading ? "—" : formatCurrency(financeSummary.income)}
               </p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-white/70">
+              <p className="text-[10px] uppercase tracking-wide text-zinc-400">
                 {t.dashboard.summaryFinanceExpense}
               </p>
-              <p className="text-lg font-semibold text-white">
+              <p className="text-lg font-semibold text-rose-500">
                 {summaryLoading ? "—" : formatCurrency(financeSummary.expense)}
               </p>
             </div>
@@ -155,10 +155,10 @@ export default function DashboardClient() {
         subtitle: t.dashboard.summaryListsSubtitle,
         body: (
           <div>
-            <p className="text-lg font-semibold text-white">
+            <p className="text-2xl font-bold text-[var(--foreground)]">
               {summaryLoading ? "—" : remindersTotal}
             </p>
-            <p className="text-xs text-white/70">
+            <p className="text-xs text-zinc-400">
               {t.dashboard.summaryListsMeta}
             </p>
           </div>
@@ -170,10 +170,10 @@ export default function DashboardClient() {
         subtitle: t.dashboard.summarySecretsSubtitle,
         body: (
           <div>
-            <p className="text-lg font-semibold text-white">
+            <p className="text-2xl font-bold text-[var(--foreground)]">
               {summaryLoading ? "—" : secretsTotal}
             </p>
-            <p className="text-xs text-white/70">
+            <p className="text-xs text-zinc-400">
               {t.dashboard.summarySecretsMeta}
             </p>
           </div>
@@ -184,7 +184,7 @@ export default function DashboardClient() {
         title: t.dashboard.summaryDocumentsTitle,
         subtitle: t.dashboard.summaryDocumentsSubtitle,
         body: (
-          <div className="space-y-1 text-xs text-white/80">
+          <div className="space-y-1 text-xs text-zinc-500">
             {documentsRecent.length ? (
               documentsRecent.map((doc) => (
                 <p key={doc.id} className="truncate">
@@ -192,7 +192,7 @@ export default function DashboardClient() {
                 </p>
               ))
             ) : (
-              <p>{t.dashboard.summaryEmpty}</p>
+              <p className="text-zinc-400">{t.dashboard.summaryEmpty}</p>
             )}
           </div>
         ),
@@ -286,64 +286,74 @@ export default function DashboardClient() {
   ];
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-[var(--foreground)]">
-            {t.dashboard.centralModulesTitle}
-          </h3>
-        </div>
-        <span className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-          {t.dashboard.centralModuleAction}
-        </span>
-      </div>
+    <div className="space-y-6">
+      <section>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+          {t.dashboard.centralModulesTitle}
+        </h3>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {summaryCards.map((card) => (
-          <Card
-            key={card.key}
-            className="relative overflow-hidden border-none bg-gradient-to-br from-blue-600 via-blue-500 to-sky-400 p-5 text-white shadow-lg"
-          >
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/70">
-                {card.title}
-              </p>
-              <p className="text-sm text-white/80">{card.subtitle}</p>
-              {card.body}
-            </div>
-          </Card>
-        ))}
+        {summaryCards.map((card) => {
+          const hrefMap: Record<string, string> = {
+            finance: "/finance",
+            lists: "/reminders",
+            secrets: "/secrets",
+            documents: "/documents",
+          };
+          const href = hrefMap[card.key] ?? "/dashboard";
+          return (
+            <Link
+              key={card.key}
+              href={href}
+              className="block list-item-animate"
+            >
+              <Card className="group relative h-full overflow-hidden border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:-translate-y-0.5 hover:shadow-md">
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                    {card.title}
+                  </p>
+                  <p className="text-sm text-zinc-500">{card.subtitle}</p>
+                  <div className="pt-1">{card.body}</div>
+                </div>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
+      </section>
 
+      <section>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+          {t.layout.modules}
+        </h3>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {modules.map((module) => {
           const content = (
             <Card className="group relative h-full overflow-hidden border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:-translate-y-0.5 hover:shadow-lg">
-              <div
-                className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${module.tone}`}
-              />
-              <div className="relative z-10 flex h-full flex-col justify-between gap-3">
+              <div className="flex h-full flex-col justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <h4 className="text-base font-semibold text-[var(--foreground)]">
                       {module.label}
                     </h4>
                     {module.badge ? (
-                      <span className="rounded-full border border-[var(--border)] bg-white/80 px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500">
+                      <span className="rounded-full border border-[var(--border)] bg-[var(--surface-muted)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500">
                         {module.badge}
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-sm text-zinc-500">
-                    {module.description}
-                  </p>
+                  <p className="text-sm text-zinc-500">{module.description}</p>
                 </div>
-                <div className="flex items-center justify-between text-xs font-semibold text-zinc-600">
-                  <span>
-                    {module.href
-                      ? t.dashboard.centralModuleAction
-                      : t.layout.comingSoon}
-                  </span>
+                <div className="flex items-center gap-2">
+                  {module.href ? (
+                    <span className="rounded-full bg-[var(--sidebar)] px-4 py-1.5 text-xs font-semibold text-white">
+                      {t.dashboard.centralModuleAction}
+                    </span>
+                  ) : (
+                    <span className="rounded-full border border-[var(--border)] px-4 py-1.5 text-xs font-semibold text-zinc-400">
+                      {t.layout.comingSoon}
+                    </span>
+                  )}
                   {module.action ? (
                     <button
                       type="button"
@@ -352,7 +362,7 @@ export default function DashboardClient() {
                         event.stopPropagation();
                         module.action?.onClick();
                       }}
-                      className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-[11px] font-semibold text-[var(--foreground)] transition hover:border-[var(--border-strong)]"
+                      className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[11px] font-semibold text-[var(--foreground)] transition hover:bg-[var(--surface-muted)]"
                     >
                       {module.action.label}
                     </button>
@@ -373,67 +383,7 @@ export default function DashboardClient() {
           );
         })}
       </div>
-
-      <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <Card className="space-y-4">
-          <div>
-            <h3 className="text-lg font-semibold text-[var(--foreground)]">
-              {t.dashboard.centralListsTitle}
-            </h3>
-            <p className="text-sm text-zinc-500">
-              {t.dashboard.centralListsSubtitle}
-            </p>
-          </div>
-          <div className="grid gap-3">
-            {[
-              { key: "daily", label: t.dashboard.centralListDaily },
-              { key: "monthly", label: t.dashboard.centralListMonthly },
-              { key: "pharmacy", label: t.dashboard.centralListPharmacy },
-            ].map((preset) => (
-              <button
-                key={preset.key}
-                type="button"
-                onClick={() => handleOpenPreset(preset.label)}
-                className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-left transition hover:border-[var(--border-strong)]"
-              >
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-[var(--foreground)]">
-                    {preset.label}
-                  </p>
-                  <p className="text-xs text-zinc-500">
-                    {t.dashboard.centralListsCarryover}
-                  </p>
-                </div>
-                <span className="rounded-full border border-[var(--border)] px-3 py-1 text-[11px] text-zinc-500">
-                  {t.dashboard.centralListAction}
-                </span>
-              </button>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="space-y-4">
-          <div>
-            <h3 className="text-lg font-semibold text-[var(--foreground)]">
-              {t.dashboard.centralChatTitle}
-            </h3>
-            <p className="text-sm text-zinc-500">
-              {t.dashboard.centralChatSubtitle}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-sm text-zinc-600">
-            <p className="whitespace-pre-line">{t.dashboard.centralChatExample}</p>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-zinc-500">
-              {t.dashboard.centralChatHint}
-            </span>
-            <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs text-zinc-500">
-              {t.layout.comingSoon}
-            </span>
-          </div>
-        </Card>
-      </div>
+      </section>
     </div>
   );
 }

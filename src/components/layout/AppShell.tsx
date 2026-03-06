@@ -418,13 +418,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           </div>
 
-          <div className="mt-auto flex flex-col gap-2">
+          <div className="mt-auto flex flex-col gap-1">
+            <div className="mb-2 h-px bg-white/10" />
             <Link
               href="/settings/users"
               className={`rounded-xl px-3 py-2 text-sm transition hover:bg-white/20 ${
                 pathname === "/settings/users"
                   ? "bg-white/20 text-white"
-                  : "text-white/70"
+                  : "text-white/60"
               }`}
             >
               {t.layout.members}
@@ -432,7 +433,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               href="/settings"
               className={`rounded-xl px-3 py-2 text-sm transition hover:bg-white/20 ${
-                pathname === "/settings" ? "bg-white/20 text-white" : "text-white/70"
+                pathname === "/settings" ? "bg-white/20 text-white" : "text-white/60"
               }`}
             >
               {t.layout.settings}
@@ -440,7 +441,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               href="/profile"
               className={`rounded-xl px-3 py-2 text-sm transition hover:bg-white/20 ${
-                pathname === "/profile" ? "bg-white/20 text-white" : "text-white/70"
+                pathname === "/profile" ? "bg-white/20 text-white" : "text-white/60"
               }`}
             >
               {t.layout.profile}
@@ -472,15 +473,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <h1 className="text-center text-lg font-semibold">{pageTitle}</h1>
             <div className="flex flex-wrap items-center justify-end gap-3">
-              <Button
-                variant="secondary"
-                onClick={() => setLanguage(language === "pt" ? "en" : "pt")}
-              >
-                {t.layout.language}: {language.toUpperCase()}
-              </Button>
-              <Button variant="secondary" onClick={toggleTheme}>
-                {t.layout.theme}: {theme === "light" ? "Light" : "Dark"}
-              </Button>
+              <div className="flex items-center divide-x divide-[var(--border)] overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface)] text-xs">
+                <button
+                  type="button"
+                  onClick={() => setLanguage(language === "pt" ? "en" : "pt")}
+                  className="px-3 py-1.5 font-medium text-[var(--foreground)] opacity-70 transition hover:opacity-100"
+                  title={t.layout.language}
+                >
+                  {language.toUpperCase()}
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  className="px-3 py-1.5 font-medium capitalize text-[var(--foreground)] opacity-70 transition hover:opacity-100"
+                  title={t.layout.theme}
+                >
+                  {theme === "light" ? "Light" : "Dark"}
+                </button>
+              </div>
               <div className="relative" ref={menuRef}>
                 <button
                   type="button"

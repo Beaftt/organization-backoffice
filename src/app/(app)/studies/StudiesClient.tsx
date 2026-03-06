@@ -588,101 +588,28 @@ export default function StudiesClient() {
           </Card>
 
           <Card>
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">
-                {t.studies.homeworkTitle}
-              </h3>
-              <Button variant="ghost" className="rounded-full">
-                {t.studies.viewAll}
-              </Button>
-            </div>
-            <div className="mt-4 space-y-4">
-              <div className="grid gap-3">
-                <Input
-                  label={t.studies.taskTitleLabel}
-                  value={taskForm.title}
-                  onChange={(event) =>
-                    setTaskForm((prev) => ({
-                      ...prev,
-                      title: event.target.value,
-                    }))
-                  }
-                />
-                <Input
-                  label={t.studies.taskDueLabel}
-                  type="datetime-local"
-                  value={taskForm.dueAt}
-                  onChange={(event) =>
-                    setTaskForm((prev) => ({
-                      ...prev,
-                      dueAt: event.target.value,
-                    }))
-                  }
-                />
-                <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                  <span className="font-medium text-zinc-700">
-                    {t.studies.taskCourseLabel}
-                  </span>
-                  <select
-                    className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-zinc-400"
-                    value={taskForm.courseId}
-                    onChange={(event) =>
-                      setTaskForm((prev) => ({
-                        ...prev,
-                        courseId: event.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">{t.studies.unassignedCourseLabel}</option>
-                    {courses.map((course) => (
-                      <option key={course.id} value={course.id}>
-                        {course.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <Button
-                  onClick={handleCreateTask}
-                  disabled={isSavingTask || !taskForm.title.trim()}
-                >
-                  {isSavingTask ? t.studies.saving : t.studies.taskCreateAction}
-                </Button>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-400">Estatísticas</h3>
+            <div className="mt-4 space-y-5">
+              <div>
+                <p className="text-3xl font-bold text-[var(--foreground)]">
+                  {courses.filter((c) => c.status === 'ACTIVE').length}
+                </p>
+                <p className="text-xs text-zinc-500">Cursos ativos</p>
               </div>
-              {isLoading ? (
-                <p className="text-sm text-zinc-500">{t.studies.loading}</p>
-              ) : error ? (
-                <p className="text-sm text-rose-500">{error}</p>
-              ) : tasks.length ? (
-                <div className="space-y-3">
-                  {tasks.slice(0, 5).map((task) => (
-                    <div
-                      key={task.id}
-                      className="list-item-animate flex items-center justify-between rounded-2xl border border-zinc-100 bg-zinc-50 px-4 py-3"
-                    >
-                      <div>
-                        <p className="text-sm font-semibold text-zinc-700">
-                          {task.title}
-                        </p>
-                        <p className="text-xs text-zinc-500">
-                          {formatDate(task.dueAt)}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-600"
-                        onClick={() => toggleTaskStatus(task)}
-                        disabled={editingTaskId === task.id}
-                      >
-                        {task.status === "DONE"
-                          ? t.studies.taskStatusDone
-                          : t.studies.taskStatusOpen}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-zinc-500">{t.studies.emptyTasks}</p>
-              )}
+              <div>
+                <p className="text-3xl font-bold text-[var(--foreground)]">
+                  {courses.length
+                    ? `${Math.round(courses.reduce((acc, c) => acc + c.progress, 0) / courses.length)}%`
+                    : '0%'}
+                </p>
+                <p className="text-xs text-zinc-500">Progresso médio</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-[var(--foreground)]">
+                  {courses.length}
+                </p>
+                <p className="text-xs text-zinc-500">Total de cursos</p>
+              </div>
             </div>
           </Card>
         </div>

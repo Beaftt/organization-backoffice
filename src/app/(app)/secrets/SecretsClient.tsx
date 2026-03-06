@@ -308,69 +308,66 @@ export default function SecretsClient({
         <Button onClick={() => setIsModalOpen(true)}>{t.secrets.newButton}</Button>
       </div>
 
-      <Card>
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="min-w-[220px] flex-1">
-            <Input
-              label={t.secrets.searchLabel}
-              placeholder={t.secrets.searchPlaceholder}
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
-          <label className="flex flex-col gap-2 text-sm text-zinc-600">
-            {t.secrets.typeLabel}
-            <select
-              value={typeFilter}
-              onChange={(event) => {
-                setTypeFilter(event.target.value as "all" | SecretType);
-                setPage(1);
-              }}
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-            >
-              {typeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-2 text-sm text-zinc-600">
-            {t.secrets.sortLabel}
-            <select
-              value={sortBy}
-              onChange={(event) => {
-                setSortBy(event.target.value as "updatedAt" | "title");
-                setPage(1);
-              }}
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-            >
-              <option value="updatedAt">{t.secrets.updatedAt}</option>
-              <option value="title">{t.secrets.titleLabel}</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-2 text-sm text-zinc-600">
-            {t.secrets.directionLabel}
-            <select
-              value={orderDirection}
-              onChange={(event) => {
-                setOrderDirection(event.target.value as "asc" | "desc");
-                setPage(1);
-              }}
-              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-            >
-              <option value="desc">{t.secrets.desc}</option>
-              <option value="asc">{t.secrets.asc}</option>
-            </select>
-          </label>
-        </div>
-      </Card>
+      {/* Type filter pills */}
+      <div className="flex flex-wrap gap-2">
+        {typeOptions.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => { setTypeFilter(option.value); setPage(1); }}
+            className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
+              typeFilter === option.value
+                ? 'border-[var(--sidebar)] bg-[var(--sidebar)] text-white'
+                : 'border-[var(--border)] bg-[var(--surface)] text-zinc-500 hover:border-zinc-400'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
 
-      <Card>
-        <div className="overflow-x-auto">
+      {/* Main layout: table + info sidebar */}
+      <div className="flex items-start gap-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
+          {/* Search + sort controls */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="min-w-[220px] flex-1">
+              <Input
+                placeholder={t.secrets.searchPlaceholder}
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+            <div className="flex gap-1 rounded-xl border border-[var(--border)] p-1">
+              {(['updatedAt', 'title'] as const).map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => { setSortBy(opt); setPage(1); }}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                    sortBy === opt
+                      ? 'bg-[var(--sidebar)] text-white'
+                      : 'text-zinc-500 hover:text-[var(--foreground)]'
+                  }`}
+                >
+                  {opt === 'updatedAt' ? t.secrets.updatedAt : t.secrets.titleLabel}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setOrderDirection((d) => d === 'asc' ? 'desc' : 'asc')}
+              className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-zinc-500 transition hover:text-[var(--foreground)]"
+            >
+              {orderDirection === 'asc' ? '↑ Asc' : '↓ Desc'}
+            </button>
+          </div>
+
+          <Card>
+            <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-zinc-500">
@@ -462,7 +459,22 @@ export default function SecretsClient({
             </Button>
           </div>
         </div>
-      </Card>
+          </Card>
+        </div>
+
+        {/* Info sidebar */}
+        <div className="hidden w-60 flex-shrink-0 lg:block">
+          <Card>
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Cofre do workspace</p>
+            <p className="mt-1 text-3xl font-bold text-[var(--foreground)]">{total}</p>
+            <p className="mt-0.5 text-xs text-zinc-500">segredos armazenados</p>
+            <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] px-3 py-3">
+              <p className="text-xs font-semibold text-zinc-700">🔒 AES-256</p>
+              <p className="mt-1 text-xs text-zinc-500">Criptografia de nível militar</p>
+            </div>
+          </Card>
+        </div>
+      </div>
 
       {isModalOpen ? (
         <div className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
