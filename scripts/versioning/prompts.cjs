@@ -1,5 +1,15 @@
 const { log } = require('./log.cjs');
 
+function bumpVersionString(version, type) {
+	const parts = version.split('.').map(Number);
+	const major = parts[0] ?? 0;
+	const minor = parts[1] ?? 0;
+	const patch = parts[2] ?? 0;
+	if (type === 'major') return `${major + 1}.0.0`;
+	if (type === 'minor') return `${major}.${minor + 1}.0`;
+	return `${major}.${minor}.${patch + 1}`;
+}
+
 function promptQuestion({ tty, question, allowed }) {
 	return new Promise((resolve) => {
 		const onData = (data) => {
@@ -37,8 +47,16 @@ async function promptPendingVersionChange({ tty, headVersion, currentVersion }) 
 }
 
 async function promptBumpType({ tty, currentVersion }) {
+	const patchV = bumpVersionString(currentVersion, 'patch');
+	const minorV = bumpVersionString(currentVersion, 'minor');
+	const majorV = bumpVersionString(currentVersion, 'major');
+
 	log.info(`Current version: ${currentVersion}\n`);
-	log.info('Select bump: (p)atch, (m)inor, (M)ajor, (s)kip\n');
+	log.info(`Select bump:\n`);
+	log.info(`  (p) ${patchV}  - patch (bugfix)\n`);
+	log.info(`  (m) ${minorV}  - minor (new feature)\n`);
+	log.info(`  (M) ${majorV}  - major (breaking changes)\n`);
+	log.info(`  (s) skip\n`);
 
 	const answer = await promptQuestion({
 		tty,

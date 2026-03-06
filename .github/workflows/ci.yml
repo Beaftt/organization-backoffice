@@ -2,30 +2,41 @@ name: Backoffice CI
 
 on:
   pull_request:
-    paths:
-      - "organization-backoffice/**"
-      - ".github/workflows/**"
+    branches:
+      - main
+      - develop
   push:
-    paths:
-      - "organization-backoffice/**"
-      - ".github/workflows/**"
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-test:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: organization-backoffice
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Use Node
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "yarn"
-          cache-dependency-path: organization-backoffice/yarn.lock
+          node-version: 20
+          cache: yarn
+
+      - name: Install Yarn Classic
+        run: npm i -g yarn@1.22.22
+
+      - name: Configure registry
+        run: yarn config set registry "https://registry.npmjs.org"
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
@@ -33,8 +44,58 @@ jobs:
       - name: Lint
         run: yarn lint
 
-      - name: Test
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [lint]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+
+      - name: Install Yarn Classic
+        run: npm i -g yarn@1.22.22
+
+      - name: Configure registry
+        run: yarn config set registry "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Tests
         run: yarn test:ci
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [lint, test]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+
+      - name: Install Yarn Classic
+        run: npm i -g yarn@1.22.22
+
+      - name: Configure registry
+        run: yarn config set registry "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
 
       - name: Build
         run: yarn build
+        env:
+          NEXT_PUBLIC_SKIP_ENV_VALIDATION: true
