@@ -6,7 +6,12 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { listDocuments, type DocumentSummary } from "@/lib/api/documents";
-import { listFinanceTransactions } from "@/lib/api/finance";
+import {
+  listFinanceCategories,
+  listFinanceTransactions,
+  type FinanceCategory,
+  type FinanceTransaction,
+} from "@/lib/api/finance";
 import { listReminderLists } from "@/lib/api/reminders";
 import { listSecrets } from "@/lib/api/secrets";
 
@@ -36,6 +41,12 @@ export default function DashboardClient() {
     income: 0,
     expense: 0,
   });
+  const [prevFinanceSummary, setPrevFinanceSummary] = useState({
+    income: 0,
+    expense: 0,
+  });
+  const [financeCategories, setFinanceCategories] = useState<FinanceCategory[]>([]);
+  const [financeTransactions, setFinanceTransactions] = useState<FinanceTransaction[]>([]);
 
   const formatCurrency = useCallback(
     (value: number) =>
@@ -57,7 +68,12 @@ export default function DashboardClient() {
     endOfMonth.setDate(0);
     endOfMonth.setHours(23, 59, 59, 999);
 
-    const [remindersResult, secretsResult, documentsResult, financeResult] =
+    const startOfPrevMonth = new Date(startOfMonth);
+    startOfPrevMonth.setMonth(startOfPrevMonth.getMonth() - 1);
+    const endOfPrevMonth = new Date(startOfMonth);
+    endOfPrevMonth.setSeconds(endOfPrevMonth.getSeconds() - 1);
+
+    const [remindersResult, secretsResult, documentsResult, financeResult, prevFinanceResult, categoriesResult] =
       await Promise.allSettled([
         listReminderLists({ pageSize: 1 }),
         listSecrets({ pageSize: 1 }),
@@ -70,6 +86,11 @@ export default function DashboardClient() {
           from: startOfMonth.toISOString(),
           to: endOfMonth.toISOString(),
         }),
+        listFinanceTransactions({
+          from: startOfPrevMonth.toISOString(),
+          to: endOfPrevMonth.toISOString(),
+        }),
+        listFinanceCategories(),
       ]);
 
     if (remindersResult.status === "fulfilled") {
@@ -94,16 +115,35 @@ export default function DashboardClient() {
     }
 
     if (financeResult.status === "fulfilled") {
-      const financeTransactions = financeResult.value;
-      const income = financeTransactions
+      const items = financeResult.value;
+      const income = items
         .filter((item) => item.group === "INCOME")
         .reduce((acc, item) => acc + item.amount, 0);
-      const expense = financeTransactions
+      const expense = items
         .filter((item) => item.group === "EXPENSE")
         .reduce((acc, item) => acc + item.amount, 0);
       setFinanceSummary({ income, expense });
+      setFinanceTransactions(items);
     } else {
       setFinanceSummary({ income: 0, expense: 0 });
+      setFinanceTransactions([]);
+    }
+
+    if (prevFinanceResult.status === "fulfilled") {
+      const items = prevFinanceResult.value;
+      const income = items
+        .filter((item) => item.group === "INCOME")
+        .reduce((acc, item) => acc + item.amount, 0);
+      const expense = items
+        .filter((item) => item.group === "EXPENSE")
+        .reduce((acc, item) => acc + item.amount, 0);
+      setPrevFinanceSummary({ income, expense });
+    } else {
+      setPrevFinanceSummary({ income: 0, expense: 0 });
+    }
+
+    if (categoriesResult.status === "fulfilled") {
+      setFinanceCategories(categoriesResult.value);
     }
 
     setSummaryLoading(false);
@@ -121,6 +161,32 @@ export default function DashboardClient() {
     },
     [router],
   );
+
+  const currentNet = financeSummary.income - financeSummary.expense;
+  const prevNet = prevFinanceSummary.income - prevFinanceSummary.expense;
+  const netPctChange =
+    prevFinanceSummary.expense > 0
+      ? ((financeSummary.expense - prevFinanceSummary.expense) / prevFinanceSummary.expense) * 100
+      : null;
+
+  const topCategories = useMemo(() => {
+    const byCategory: Record<string, number> = {};
+    financeTransactions
+      .filter((t) => t.group === "EXPENSE")
+      .forEach((t) => {
+        const key = t.categoryId ?? "__none__";
+        byCategory[key] = (byCategory[key] ?? 0) + t.amount;
+      });
+    return Object.entries(byCategory)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([categoryId, amount]) => ({
+        category: financeCategories.find((c) => c.id === categoryId),
+        amount,
+      }));
+  }, [financeTransactions, financeCategories]);
+
+  const maxCategoryAmount = topCategories[0]?.amount ?? 1;
 
   const summaryCards = useMemo(
     () => [
@@ -320,6 +386,86 @@ export default function DashboardClient() {
           );
         })}
       </div>
+      </section>
+
+      {/* Resultado do Mês + Principais Categorias — inspired by Visor */}
+      <section>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-400">
+          Resultado do Mês
+        </h3>
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Net result card */}
+          <Link href="/finance" className="block list-item-animate">
+            <Card className="h-full border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:-translate-y-0.5 hover:shadow-md">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                Resultado Parcial
+              </p>
+              {summaryLoading ? (
+                <p className="mt-2 text-2xl font-bold text-zinc-300">—</p>
+              ) : (
+                <>
+                  <p className={`mt-2 text-2xl font-bold ${currentNet >= 0 ? "text-emerald-600" : "text-rose-500"}`}>
+                    {formatCurrency(currentNet)}
+                  </p>
+                  {netPctChange !== null ? (
+                    <p className={`mt-1 text-sm font-medium ${netPctChange <= 0 ? "text-emerald-600" : "text-rose-500"}`}>
+                      {netPctChange <= 0 ? "↓" : "↑"} {Math.abs(netPctChange).toFixed(1)}% vs mês anterior
+                    </p>
+                  ) : null}
+                  <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[var(--border)] pt-4 text-center text-xs">
+                    <div>
+                      <p className="text-zinc-400">Receita</p>
+                      <p className="font-semibold text-emerald-600">{formatCurrency(financeSummary.income)}</p>
+                    </div>
+                    <div>
+                      <p className="text-zinc-400">Gasto</p>
+                      <p className="font-semibold text-rose-500">{formatCurrency(financeSummary.expense)}</p>
+                    </div>
+                    <div>
+                      <p className="text-zinc-400">Mês anterior</p>
+                      <p className="font-semibold text-zinc-500">{formatCurrency(prevNet)}</p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </Card>
+          </Link>
+
+          {/* Top categories card */}
+          <Link href="/finance" className="block list-item-animate">
+            <Card className="h-full border border-[var(--border)] bg-[var(--surface)] p-5 transition hover:-translate-y-0.5 hover:shadow-md">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                Principais Categorias
+              </p>
+              {summaryLoading ? (
+                <p className="mt-2 text-sm text-zinc-400">—</p>
+              ) : topCategories.length === 0 ? (
+                <p className="mt-4 text-sm text-zinc-400">Sem gastos este mês.</p>
+              ) : (
+                <div className="mt-3 grid gap-2.5">
+                  {topCategories.map(({ category, amount }) => (
+                    <div key={category?.id ?? "none"} className="grid gap-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-[var(--foreground)]">
+                          {category?.name ?? "Sem categoria"}
+                        </span>
+                        <span className="font-semibold text-rose-500">
+                          {formatCurrency(amount)}
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-muted)]">
+                        <div
+                          className="h-full rounded-full bg-rose-400 transition-all"
+                          style={{ width: `${(amount / maxCategoryAmount) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </Link>
+        </div>
       </section>
 
       <section>

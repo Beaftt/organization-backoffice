@@ -288,6 +288,22 @@ export default function FinanceClient({
       const paged = sortedTransactions.slice(0, visibleCount);
       const hasMoreTransactions = visibleCount < sortedTransactions.length;
 
+      const totalIncome = useMemo(
+        () =>
+          sortedTransactions
+            .filter((item) => item.group === "INCOME")
+            .reduce((sum, item) => sum + item.amount, 0),
+        [sortedTransactions],
+      );
+
+      const totalExpense = useMemo(
+        () =>
+          sortedTransactions
+            .filter((item) => item.group === "EXPENSE")
+            .reduce((sum, item) => sum + item.amount, 0),
+        [sortedTransactions],
+      );
+
       const cardMethods = useMemo(
         () => paymentMethods.filter((method) => method.type !== "INVEST"),
         [paymentMethods],
@@ -1186,52 +1202,87 @@ export default function FinanceClient({
           {activeTab === 'cards' ? (
             <>
             <Card>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-                    {t.finance.paymentMethodsTitle ?? "Cartões"}
-                  </h3>
-                  <p className="text-sm text-zinc-600">
-                    {t.finance.cardsSubtitle ?? "Total"}: {paymentMethods.length}
-                  </p>
-                </div>
-                <Button variant="secondary" onClick={() => handleOpenPaymentMethod()}>
-                  {t.finance.paymentMethodAdd ?? "Adicionar"}
-                </Button>
-              </div>
-              <div className="mt-4 grid gap-3">
-                {paymentMethods.length === 0 ? (
-                  <p className="text-sm text-zinc-500">{t.finance.paymentMethodEmpty ?? t.finance.empty}</p>
-                ) : (
-                  paymentMethods.map((method) => (
-                    <div
-                      key={method.id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--border)] px-4 py-3"
-                    >
-                      <div>
-                        <p className="text-sm font-semibold text-[var(--foreground)]">
-                          {method.name}
-                        </p>
-                        <p className="text-xs text-zinc-500">
-                          {method.type} · {method.currency ?? "BRL"}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="secondary" onClick={() => handleOpenPaymentMethod(method)}>
-                          {t.finance.editAction ?? t.calendar.editAction}
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          onClick={() => handleDeletePaymentMethod(method)}
-                          disabled={isSaving}
-                        >
-                          {t.finance.deleteAction ?? t.calendar.deleteAction}
-                        </Button>
-                      </div>
+              {/* Credit cards section */}
+              {(() => {
+                const creditCards = paymentMethods.filter((m) => m.type === "CREDIT");
+                const otherMethods = paymentMethods.filter((m) => m.type !== "CREDIT");
+                const creditTotal = creditCards.reduce((sum, m) => sum + (cardBills[m.id]?.remainingAmount ?? 0), 0);
+                const renderMethod = (method: FinancePaymentMethod) => (
+                  <div
+                    key={method.id}
+                    className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3 last:border-b-0"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--foreground)]">
+                        {method.name}{method.isPrimary ? " ⭐" : ""}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {method.type} · {method.currency ?? "BRL"}
+                        {method.type === "CREDIT" && cardBills[method.id] ? (
+                          <> · <span className="text-rose-500">{t.finance.billRemaining ?? "Fatura"}: {formatCurrency(cardBills[method.id].remainingAmount, method.currency ?? "BRL")}</span></>
+                        ) : null}
+                      </p>
                     </div>
-                  ))
-                )}
-              </div>
+                    <div className="flex items-center gap-2">
+                      {method.type === "CREDIT" ? (
+                        <Button variant="secondary" onClick={() => handleOpenBill(method)}>
+                          {t.finance.billPay ?? "Pagar"}
+                        </Button>
+                      ) : null}
+                      <Button variant="secondary" onClick={() => handleOpenPaymentMethod(method)}>
+                        {t.finance.editAction ?? t.calendar.editAction}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => handleDeletePaymentMethod(method)}
+                        disabled={isSaving}
+                      >
+                        {t.finance.deleteAction ?? t.calendar.deleteAction}
+                      </Button>
+                    </div>
+                  </div>
+                );
+                return (
+                  <>
+                    {creditCards.length > 0 ? (
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between px-4 pb-2">
+                          <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                            {t.finance.paymentMethodCredit ?? "Cartões de Crédito"} {creditCards.length}
+                          </h4>
+                          <Button variant="secondary" onClick={() => handleOpenPaymentMethod()}>
+                            {t.finance.paymentMethodAdd ?? "Adicionar"}
+                          </Button>
+                        </div>
+                        <div className="rounded-2xl border border-[var(--border)]">
+                          {creditCards.map(renderMethod)}
+                          <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface-muted)] px-4 py-2">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Total</span>
+                            <span className="text-sm font-bold text-rose-500">
+                              -{formatCurrency(creditTotal, "BRL")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {otherMethods.length > 0 ? (
+                      <div>
+                        <h4 className="mb-2 px-4 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                          {t.finance.paymentMethodDebit ?? "Outras Formas de Pagamento"} {otherMethods.length}
+                        </h4>
+                        <div className="rounded-2xl border border-[var(--border)]">
+                          {otherMethods.map(renderMethod)}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {paymentMethods.length === 0 ? (
+                      <p className="text-sm text-zinc-500">{t.finance.paymentMethodEmpty ?? t.finance.empty}</p>
+                    ) : null}
+                  </>
+                );
+              })()}
             </Card>
           <Card>
             <div className="flex items-center justify-between">
@@ -1443,6 +1494,29 @@ export default function FinanceClient({
                 </div>
               </div>
 
+              {/* Stats summary row — inspired by Visor */}
+              {!isLoading && sortedTransactions.length > 0 ? (
+                <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-sm">
+                  <span className="flex items-center gap-1.5 text-zinc-500">
+                    <span>📅</span>
+                    <span>{sortedTransactions.length}</span>
+                  </span>
+                  <span className="flex items-center gap-1 text-emerald-600">
+                    <span>↑</span>
+                    <span>{formatCurrency(totalIncome, "BRL")}</span>
+                  </span>
+                  <span className="flex items-center gap-1 text-rose-500">
+                    <span>↓</span>
+                    <span>{formatCurrency(totalExpense, "BRL")}</span>
+                  </span>
+                  <span
+                    className={`ml-auto font-semibold ${totalIncome - totalExpense >= 0 ? "text-emerald-600" : "text-rose-500"}`}
+                  >
+                    ↕ {formatCurrency(Math.abs(totalIncome - totalExpense), "BRL")}
+                  </span>
+                </div>
+              ) : null}
+
               {isLoading ? (
                 <p className="mt-4 text-sm text-zinc-500">{t.finance.loading}</p>
               ) : null}
@@ -1452,24 +1526,29 @@ export default function FinanceClient({
               ) : null}
 
               <div className="mt-4 grid gap-3">
-                {paged.map((item) => {
+                {paged.map((item, index) => {
                   const category = categories.find((type) => type.id === item.categoryId);
                   return (
                     <div
                       key={item.id}
                       className="list-item-animate flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--border)] px-4 py-3"
                     >
-                      <div>
-                        <p className="text-sm font-semibold text-[var(--foreground)]">
-                          {item.title}
-                        </p>
-                        <p className="text-xs text-zinc-500">
-                          {category?.name ?? t.finance.tagsEmpty} · {item.occurredAt}
-                        </p>
+                      <div className="flex items-start gap-3">
+                        <span className="mt-0.5 w-5 shrink-0 text-center text-xs text-zinc-400">
+                          {index + 1}
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--foreground)]">
+                            {item.title}
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            {category?.name ?? t.finance.tagsEmpty} · {item.occurredAt}
+                          </p>
+                        </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-semibold text-[var(--foreground)]">
-                          {formatCurrency(item.amount, item.currency ?? "BRL")}
+                        <p className={`text-sm font-semibold ${item.group === "INCOME" ? "text-emerald-600" : "text-[var(--foreground)]"}`}>
+                          {item.group === "INCOME" ? "+" : ""}{formatCurrency(item.amount, item.currency ?? "BRL")}
                         </p>
                         <p className="text-xs text-zinc-500">
                           {item.status === "PAID"
