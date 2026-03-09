@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Avatar } from "@/components/ui/Avatar";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { ApiError } from "@/lib/api/client";
 import {
@@ -16,12 +17,12 @@ import {
   type HrJobParticipant,
 } from "@/lib/api/hr";
 import { getWorkspaceMemberships } from "@/lib/api/workspace-memberships";
-import { listUserProfiles } from "@/lib/api/user-profile";
 import { getWorkspaceId } from "@/lib/storage/workspace";
 
 type MemberOption = {
   userId: string;
   label: string;
+  photoUrl?: string | null;
 };
 
 const isUuid = (value: string) =>
@@ -85,36 +86,19 @@ export default function HrJobsClient() {
     const workspaceId = getWorkspaceId();
     if (!workspaceId) return;
 
-    const [membershipsResult, profilesResult] = await Promise.allSettled([
-      getWorkspaceMemberships(workspaceId),
-      listUserProfiles({ page: 1, pageSize: 80 }),
-    ]);
-
-    const memberships =
-      membershipsResult.status === "fulfilled" ? membershipsResult.value : null;
-    const profiles =
-      profilesResult.status === "fulfilled" ? profilesResult.value : null;
-
-    const profileMap = new Map(
-      (profiles?.items ?? []).map((profile) => [
-        profile.userId,
-        {
-          label: `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim(),
-        },
-      ]),
-    );
-
-    const resolvedMembers = (memberships?.items ?? [])
-      .filter((membership) => isUuid(membership.userId))
-      .map((membership) => {
-        const profile = profileMap.get(membership.userId);
-        return {
+    try {
+      const memberships = await getWorkspaceMemberships(workspaceId);
+      const resolvedMembers = (memberships?.items ?? [])
+        .filter((membership) => isUuid(membership.userId))
+        .map((membership) => ({
           userId: membership.userId,
-          label: profile?.label || membership.userId.slice(0, 8),
-        };
-      });
-
-    setMembers(resolvedMembers);
+          label: membership.displayName || membership.userId.slice(0, 8),
+          photoUrl: membership.photoUrl,
+        }));
+      setMembers(resolvedMembers);
+    } catch {
+      // non-fatal
+    }
   }, []);
 
   const loadJobs = useCallback(async () => {
@@ -302,9 +286,14 @@ export default function HrJobsClient() {
                             key={participant.id}
                             className="list-item-animate flex items-center justify-between text-xs"
                           >
-                            <span>
-                              {member?.label || participant.userId.slice(0, 6)}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {member && (
+                                <Avatar src={member.photoUrl} name={member.label} size={20} />
+                              )}
+                              <span>
+                                {member?.label || participant.userId.slice(0, 6)}
+                              </span>
+                            </div>
                             <span className="rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px]">
                               {participant.status}
                             </span>

@@ -22,7 +22,6 @@ import {
   type ReminderListRecurrence,
 } from "@/lib/api/reminders";
 import { getWorkspaceMemberships } from "@/lib/api/workspace-memberships";
-import { getMyProfile, listUserProfiles } from "@/lib/api/user-profile";
 import { getWorkspaceId } from "@/lib/storage/workspace";
 import { useLanguage } from "@/lib/i18n/language-context";
 
@@ -161,73 +160,18 @@ export default function RemindersClient({
     if (!workspaceId) return;
 
     try {
-      const [membershipsResult, profilesResult, myProfileResult] =
-        await Promise.allSettled([
-          getWorkspaceMemberships(workspaceId),
-          listUserProfiles({ page: 1, pageSize: 100 }),
-          getMyProfile(),
-        ]);
-
-      const memberships =
-        membershipsResult.status === "fulfilled" ? membershipsResult.value : null;
-      const profiles =
-        profilesResult.status === "fulfilled" ? profilesResult.value : null;
-      const myProfile =
-        myProfileResult.status === "fulfilled" ? myProfileResult.value : null;
-
-      const profileMap = new Map(
-        (profiles?.items ?? []).map((profile) => [
-          profile.userId,
-          {
-            label: `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim(),
-            photoUrl: profile.photoUrl,
-          },
-        ]),
+      const memberships = await getWorkspaceMemberships(workspaceId);
+      setMembers(
+        (memberships?.items ?? []).map((membership) => ({
+          userId: membership.userId,
+          label:
+            membership.displayName ||
+            `${membership.userId.slice(0, 8)}...`,
+          photoUrl: membership.photoUrl,
+        })),
       );
-
-      const membershipMembers = (memberships?.items ?? []).map((membership) => ({
-        userId: membership.userId,
-        label:
-          profileMap.get(membership.userId)?.label ||
-          `${membership.userId.slice(0, 8)}...`,
-        photoUrl: profileMap.get(membership.userId)?.photoUrl,
-      }));
-
-      const membersMap = new Map(
-        membershipMembers.map((member) => [member.userId, member]),
-      );
-
-      if (myProfile) {
-        const myLabel = `${myProfile.firstName ?? ""} ${
-          myProfile.lastName ?? ""
-        }`.trim();
-        membersMap.set(myProfile.userId, {
-          userId: myProfile.userId,
-          label: myLabel || `${myProfile.userId.slice(0, 8)}...`,
-          photoUrl: myProfile.photoUrl,
-        });
-      }
-
-      setMembers(Array.from(membersMap.values()));
-
-      const membershipError =
-        membershipsResult.status === "rejected" ? membershipsResult.reason : null;
-      const profileError =
-        profilesResult.status === "rejected" ? profilesResult.reason : null;
-
-      if (membershipError instanceof ApiError && membershipError.statusCode === 403) {
-        return;
-      }
-
-      if (membershipError || profileError) {
-        const err = membershipError ?? profileError;
-        if (err instanceof ApiError) {
-          setError(err.message);
-        } else {
-          setError(t.reminders.loadError);
-        }
-      }
     } catch (err) {
+      if (err instanceof ApiError && err.statusCode === 403) return;
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
