@@ -675,7 +675,9 @@ export default function FinanceClient({
 
           const nextDue = transactionForm.occurredAt.slice(0, 10);
           const isTxSemiannual = transactionForm.recurrenceFrequency === "SEMIANNUAL";
-          const resolvedFrequency = isTxSemiannual ? "MONTHLY" : transactionForm.recurrenceFrequency;
+          const resolvedFrequency = (
+            isTxSemiannual ? "MONTHLY" : transactionForm.recurrenceFrequency
+          ) as "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
           const resolvedInterval = isTxSemiannual ? 6 : (Number(transactionForm.recurrenceInterval) || 1);
           const resolvedEndDate = transactionForm.recurrenceEndDate || null;
 
@@ -891,7 +893,7 @@ export default function FinanceClient({
             title: recurringForm.title.trim(),
             amount: Number(recurringForm.amount),
             group: recurringForm.group,
-            frequency: isSemiannual ? "MONTHLY" : recurringForm.frequency,
+            frequency: (isSemiannual ? "MONTHLY" : recurringForm.frequency) as "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY",
             interval: isSemiannual ? 6 : (Number(recurringForm.interval) || 1),
             nextDue: recurringForm.nextDue,
             endDate: recurringForm.endDate || null,
