@@ -211,9 +211,15 @@ export type Dictionary = {
         recurrenceEnable: "Definir recorrência",
         recurrenceFrequencyLabel: "Frequência",
         recurrenceIntervalLabel: "Intervalo",
-        recurrenceWeekdaysLabel: "Dias da semana (0=Dom, 6=Sáb)",
+        recurrenceDaily: "Diária",
+        recurrenceWeekly: "Semanal",
+        recurrenceMonthly: "Mensal",
+        recurrenceSemiannual: "Semestral",
+        recurrenceYearly: "Anual",
+        recurrenceWeekdaysLabel: "Dias da semana",
         recurrenceMonthDaysLabel: "Dias do mês",
         recurrenceUntilLabel: "Repetir até",
+        recurrenceNoEndDate: "Vazio = sem data de fim (repete indefinidamente)",
         createAction: "Criar evento",
         creating: "Criando...",
         createError: "Não foi possível criar o evento.",
@@ -256,9 +262,15 @@ export type Dictionary = {
       recurrenceEnable: string;
       recurrenceFrequencyLabel: string;
       recurrenceIntervalLabel: string;
+      recurrenceDaily: string;
+      recurrenceWeekly: string;
+      recurrenceMonthly: string;
+      recurrenceSemiannual: string;
+      recurrenceYearly: string;
       recurrenceWeekdaysLabel: string;
       recurrenceMonthDaysLabel: string;
       recurrenceUntilLabel: string;
+      recurrenceNoEndDate: string;
       createAction: string;
       creating: string;
       createError: string;
@@ -415,9 +427,15 @@ export type Dictionary = {
       recurrenceEnable: string;
       recurrenceFrequencyLabel: string;
       recurrenceIntervalLabel: string;
+      recurrenceDaily: string;
+      recurrenceWeekly: string;
+      recurrenceMonthly: string;
+      recurrenceSemiannual: string;
+      recurrenceYearly: string;
       recurrenceWeekdaysLabel: string;
       recurrenceMonthDaysLabel: string;
       recurrenceUntilLabel: string;
+      recurrenceNoEndDate: string;
       createAction: string;
       creating: string;
       createError: string;
@@ -427,6 +445,8 @@ export type Dictionary = {
       ownerLabel: string;
       noEvents: string;
       tagsEmpty: string;
+      participantsLabel: string;
+      participantsHint: string;
       loading: string;
       loadError: string;
     recurringTitle: string;
@@ -587,9 +607,15 @@ export type Dictionary = {
       recurrenceEnable: "Definir recorrência",
       recurrenceFrequencyLabel: "Frequência",
       recurrenceIntervalLabel: "Intervalo",
-      recurrenceWeekdaysLabel: "Dias da semana (0=Dom, 6=Sáb)",
+      recurrenceDaily: "Diária",
+      recurrenceWeekly: "Semanal",
+      recurrenceMonthly: "Mensal",
+      recurrenceSemiannual: "Semestral",
+      recurrenceYearly: "Anual",
+      recurrenceWeekdaysLabel: "Dias da semana",
       recurrenceMonthDaysLabel: "Dias do mês",
       recurrenceUntilLabel: "Repetir até",
+      recurrenceNoEndDate: "Vazio = sem data de fim (repete indefinidamente)",
       createAction: "Criar evento",
       creating: "Criando...",
       createError: "Não foi possível criar o evento.",
@@ -1268,6 +1294,8 @@ export const dictionaries = {
       tagsPlaceholder: "ex: impostos, recorrente",
       addTagAction: "Adicionar tag",
       tagsEmpty: "Sem tags",
+      participantsLabel: "Participantes",
+      participantsHint: "Selecione quem participou desta transação.",
       listTitle: "Lançamentos",
       tableTitle: "Título",
       tableType: "Tipo",
@@ -1299,6 +1327,10 @@ export const dictionaries = {
       cadenceDaily: "Diária",
       cadenceWeekly: "Semanal",
       cadenceYearly: "Anual",
+      cadenceSemiannual: "Semestral",
+      recurrenceIntervalLabel: "Intervalo (a cada N períodos)",
+      recurrenceEndDateLabel: "Repetir até",
+      recurrenceNoEndDate: "Sem data de fim (repetir indefinidamente)",
       loading: "Carregando finanças...",
       empty: "Nenhum lançamento encontrado.",
       loadError: "Não foi possível carregar as finanças.",
@@ -1476,9 +1508,15 @@ export const dictionaries = {
       recurrenceEnable: "Definir recorrência",
       recurrenceFrequencyLabel: "Frequência",
       recurrenceIntervalLabel: "Intervalo",
-      recurrenceWeekdaysLabel: "Dias da semana (0=Dom, 6=Sáb)",
+      recurrenceDaily: "Diária",
+      recurrenceWeekly: "Semanal",
+      recurrenceMonthly: "Mensal",
+      recurrenceSemiannual: "Semestral",
+      recurrenceYearly: "Anual",
+      recurrenceWeekdaysLabel: "Dias da semana",
       recurrenceMonthDaysLabel: "Dias do mês",
       recurrenceUntilLabel: "Repetir até",
+      recurrenceNoEndDate: "Vazio = sem data de fim (repete indefinidamente)",
       createAction: "Criar evento",
       creating: "Criando...",
       createError: "Não foi possível criar o evento.",
@@ -2161,6 +2199,8 @@ export const dictionaries = {
       tagsPlaceholder: "e.g. taxes, recurring",
       addTagAction: "Add tag",
       tagsEmpty: "No tags",
+      participantsLabel: "Participants",
+      participantsHint: "Select who participated in this transaction.",
       listTitle: "Entries",
       tableTitle: "Title",
       tableType: "Type",
@@ -2192,6 +2232,10 @@ export const dictionaries = {
       cadenceDaily: "Daily",
       cadenceWeekly: "Weekly",
       cadenceYearly: "Yearly",
+      cadenceSemiannual: "Semiannual",
+      recurrenceIntervalLabel: "Interval (every N periods)",
+      recurrenceEndDateLabel: "Repeat until",
+      recurrenceNoEndDate: "No end date (repeat indefinitely)",
       loading: "Loading finance data...",
       empty: "No entries found.",
       loadError: "Unable to load finance data.",
@@ -2369,9 +2413,15 @@ export const dictionaries = {
       recurrenceEnable: "Set recurrence",
       recurrenceFrequencyLabel: "Frequency",
       recurrenceIntervalLabel: "Interval",
-      recurrenceWeekdaysLabel: "Weekdays (0=Sun, 6=Sat)",
-      recurrenceMonthDaysLabel: "Month days",
+      recurrenceDaily: "Daily",
+      recurrenceWeekly: "Weekly",
+      recurrenceMonthly: "Monthly",
+      recurrenceSemiannual: "Semiannual",
+      recurrenceYearly: "Yearly",
+      recurrenceWeekdaysLabel: "Days of the week",
+      recurrenceMonthDaysLabel: "Days of the month",
       recurrenceUntilLabel: "Repeat until",
+      recurrenceNoEndDate: "Empty = no end date (repeats indefinitely)",
       createAction: "Create event",
       creating: "Creating...",
       createError: "Unable to create event.",

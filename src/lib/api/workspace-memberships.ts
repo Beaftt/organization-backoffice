@@ -5,6 +5,8 @@ export type WorkspaceMembership = {
   workspaceId: string;
   userId: string;
   status: string;
+  displayName: string | null;
+  photoUrl: string | null;
   createdAt: string;
   updatedAt: string;
 };

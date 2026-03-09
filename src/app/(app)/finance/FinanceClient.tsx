@@ -5,8 +5,12 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { Avatar } from "@/components/ui/Avatar";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { ApiError } from "@/lib/api/client";
+import { getWorkspaceId } from "@/lib/storage/workspace";
+import { getWorkspaceMemberships } from "@/lib/api/workspace-memberships";
+import { getMyProfile } from "@/lib/api/user-profile";
 import { createCalendarEvent } from "@/lib/api/calendar";
 import {
   createFinanceAccount,
@@ -96,6 +100,8 @@ export default function FinanceClient({
   const [cardDetailOpen, setCardDetailOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState<FinancePaymentMethod | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<FinanceTransaction | null>(null);
+  const [members, setMembers] = useState<{ userId: string; label: string; photoUrl: string | null }[]>([]);
+  const [currentUserId, setCurrentUserId] = useState("");
   const [transactionForm, setTransactionForm] = useState({
     title: "",
     amount: "",
@@ -107,10 +113,13 @@ export default function FinanceClient({
     paymentMethodId: "",
     categoryId: "",
     tagIds: [] as string[],
+    participantIds: [] as string[],
     description: "",
     isRecurring: false,
     addToCalendar: false,
-    recurrenceFrequency: "MONTHLY" as "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY",
+    recurrenceFrequency: "MONTHLY" as "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY" | "SEMIANNUAL",
+    recurrenceInterval: "1",
+    recurrenceEndDate: "",
     installments: 1,
     isInstallmentValue: false,
   });
@@ -118,9 +127,10 @@ export default function FinanceClient({
     title: "",
     amount: "",
     group: "INCOME" as "INCOME" | "EXPENSE",
-    frequency: "MONTHLY" as "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY",
+    frequency: "MONTHLY" as "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY" | "SEMIANNUAL",
     interval: "1",
     nextDue: "",
+    endDate: "",
     accountId: "",
     categoryId: "",
     tagIds: [] as string[],
@@ -151,6 +161,10 @@ export default function FinanceClient({
   const [isSaving, setIsSaving] = useState(false);
   const [cardMonthIndex, setCardMonthIndex] = useState(() => chartMonthRange - 1);
   const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'cards'>('overview');
+  const [investWithdrawModalOpen, setInvestWithdrawModalOpen] = useState(false);
+  const [investWithdrawTarget, setInvestWithdrawTarget] = useState<FinancePaymentMethod | null>(null);
+  const [investWithdrawAmount, setInvestWithdrawAmount] = useState('');
+  const [investWithdrawError, setInvestWithdrawError] = useState<string | null>(null);
 
   useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -188,6 +202,30 @@ export default function FinanceClient({
         const queryString = params.toString();
         router.replace(`/finance${queryString ? `?${queryString}` : ""}`);
       }, [query, groupFilter, typeFilter, statusFilter, sortBy, page, router]);
+
+      const loadMembers = useCallback(async () => {
+        const workspaceId = getWorkspaceId();
+        if (!workspaceId) return;
+        try {
+          const [membershipsResult, myProfileResult] = await Promise.allSettled([
+            getWorkspaceMemberships(workspaceId),
+            getMyProfile(),
+          ]);
+          const myProfile = myProfileResult.status === "fulfilled" ? myProfileResult.value : null;
+          if (myProfile?.userId) setCurrentUserId(myProfile.userId);
+          const memberships =
+            membershipsResult.status === "fulfilled" ? membershipsResult.value : null;
+          setMembers(
+            (memberships?.items ?? []).map((m) => ({
+              userId: m.userId,
+              label: m.displayName || `${m.userId.slice(0, 8)}...`,
+              photoUrl: m.photoUrl,
+            })),
+          );
+        } catch {
+          // Members are optional — failures are non-fatal
+        }
+      }, []);
 
       const loadCardBills = useCallback(async (methods: FinancePaymentMethod[]) => {
         const creditMethods = methods.filter((method) => method.type === "CREDIT");
@@ -271,6 +309,10 @@ export default function FinanceClient({
       }, [loadBase]);
 
       useEffect(() => {
+        void loadMembers();
+      }, [loadMembers]);
+
+      useEffect(() => {
         void loadTransactions();
       }, [loadTransactions]);
 
@@ -306,6 +348,11 @@ export default function FinanceClient({
 
       const cardMethods = useMemo(
         () => paymentMethods.filter((method) => method.type !== "INVEST"),
+        [paymentMethods],
+      );
+
+      const investMethods = useMemo(
+        () => paymentMethods.filter((method) => method.type === "INVEST"),
         [paymentMethods],
       );
 
@@ -471,10 +518,13 @@ export default function FinanceClient({
           paymentMethodId: item?.paymentMethodId ?? "",
           categoryId: item?.categoryId ?? "",
           tagIds: item?.tagIds ?? [],
+          participantIds: item ? (item.participantIds ?? []) : (currentUserId ? [currentUserId] : []),
           description: item?.description ?? "",
           isRecurring: Boolean(matchedRecurring ?? item?.recurringId),
           addToCalendar: false,
           recurrenceFrequency: matchedRecurring?.frequency ?? "MONTHLY",
+          recurrenceInterval: String(matchedRecurring?.interval ?? 1),
+          recurrenceEndDate: matchedRecurring?.endDate ?? "",
           // Installment fields
           installments: item?.installmentTotal ?? 1,
           isInstallmentValue: false,
@@ -497,6 +547,72 @@ export default function FinanceClient({
       const handleCloseCardDetails = () => {
         setCardDetailOpen(false);
         setSelectedCard(null);
+      };
+
+      const handleOpenInvestWithdraw = (method: FinancePaymentMethod) => {
+        setInvestWithdrawTarget(method);
+        setInvestWithdrawAmount('');
+        setInvestWithdrawError(null);
+        setInvestWithdrawModalOpen(true);
+      };
+
+      const handleInvestWithdraw = async () => {
+        if (!investWithdrawTarget) return;
+        const amount = parseCurrencyInput(investWithdrawAmount);
+        if (!amount || amount <= 0) {
+          setInvestWithdrawError(t.finance.amountRequired ?? 'Informe um valor válido');
+          return;
+        }
+        const currentBalance = investWithdrawTarget.balance ?? 0;
+        if (amount > currentBalance) {
+          setInvestWithdrawError(t.finance.insufficientBalance ?? 'Saldo insuficiente');
+          return;
+        }
+        setIsSaving(true);
+        setInvestWithdrawError(null);
+        try {
+          const updated = await updateFinancePaymentMethod({
+            id: investWithdrawTarget.id,
+            balance: currentBalance - amount,
+          });
+          setPaymentMethods((prev) =>
+            prev.map((m) => (m.id === updated.id ? updated : m)),
+          );
+          if (investWithdrawTarget.accountId) {
+            const tx = await createFinanceTransaction({
+              accountId: investWithdrawTarget.accountId,
+              paymentMethodId: investWithdrawTarget.id,
+              group: 'INCOME',
+              amount,
+              status: 'PAID',
+              occurredAt: new Date().toISOString().slice(0, 10),
+              title: `Resgate — ${investWithdrawTarget.name}`,
+            });
+            setTransactions((prev) => [tx, ...prev]);
+          }
+          setInvestWithdrawModalOpen(false);
+          setInvestWithdrawTarget(null);
+        } catch (err) {
+          if (err instanceof ApiError) {
+            setInvestWithdrawError(err.message);
+          } else {
+            setInvestWithdrawError(t.finance.saveError);
+          }
+        } finally {
+          setIsSaving(false);
+        }
+      };
+
+      const handleInvestDeposit = (method: FinancePaymentMethod) => {
+        // Open the transaction modal pre-filled for an INVEST deposit
+        handleOpenTransaction();
+        setTransactionForm((prev) => ({
+          ...prev,
+          group: 'EXPENSE',
+          paymentMethodId: method.id,
+          accountId: method.accountId ?? prev.accountId,
+          title: `Depósito — ${method.name}`,
+        }));
       };
 
       const handlePayBill = async () => {
@@ -549,6 +665,7 @@ export default function FinanceClient({
             paymentMethodId: transactionForm.paymentMethodId || null,
             categoryId: transactionForm.categoryId || null,
             tagIds: transactionForm.tagIds,
+            participantIds: transactionForm.participantIds.length > 0 ? transactionForm.participantIds : null,
             description: transactionForm.description.trim() || null,
           };
 
@@ -557,6 +674,10 @@ export default function FinanceClient({
             .map((tag) => tag.name);
 
           const nextDue = transactionForm.occurredAt.slice(0, 10);
+          const isTxSemiannual = transactionForm.recurrenceFrequency === "SEMIANNUAL";
+          const resolvedFrequency = isTxSemiannual ? "MONTHLY" : transactionForm.recurrenceFrequency;
+          const resolvedInterval = isTxSemiannual ? 6 : (Number(transactionForm.recurrenceInterval) || 1);
+          const resolvedEndDate = transactionForm.recurrenceEndDate || null;
 
           if (editingTransaction) {
             let nextRecurringId = linkedRecurringId;
@@ -568,9 +689,10 @@ export default function FinanceClient({
                   amount: payload.amount,
                   currency: transactionForm.currency,
                   group: payload.group,
-                  frequency: transactionForm.recurrenceFrequency,
-                  interval: 1,
+                  frequency: resolvedFrequency,
+                  interval: resolvedInterval,
                   nextDue,
+                  endDate: resolvedEndDate,
                   accountId: payload.accountId,
                   categoryId: payload.categoryId,
                   tagIds: payload.tagIds,
@@ -581,9 +703,10 @@ export default function FinanceClient({
                   amount: payload.amount,
                   currency: transactionForm.currency,
                   group: payload.group,
-                  frequency: transactionForm.recurrenceFrequency,
-                  interval: 1,
+                  frequency: resolvedFrequency,
+                  interval: resolvedInterval,
                   nextDue,
+                  endDate: resolvedEndDate,
                   accountId: payload.accountId,
                   categoryId: payload.categoryId,
                   tagIds: payload.tagIds,
@@ -624,9 +747,10 @@ export default function FinanceClient({
                 amount: payload.amount,
                 currency: transactionForm.currency,
                 group: payload.group,
-                frequency: transactionForm.recurrenceFrequency,
-                interval: 1,
+                frequency: resolvedFrequency,
+                interval: resolvedInterval,
                 nextDue,
+                endDate: resolvedEndDate,
                 accountId: payload.accountId,
                 categoryId: payload.categoryId,
                 tagIds: payload.tagIds,
@@ -656,8 +780,8 @@ export default function FinanceClient({
                 allDay: false,
                 tags: selectedTagNames.length ? selectedTagNames : null,
                 recurrence: {
-                  frequency: transactionForm.recurrenceFrequency,
-                  interval: 1,
+                  frequency: resolvedFrequency,
+                  interval: resolvedInterval,
                 },
               });
             }
@@ -762,13 +886,15 @@ export default function FinanceClient({
         setIsSaving(true);
         setFormError(null);
         try {
+          const isSemiannual = recurringForm.frequency === "SEMIANNUAL";
           await createFinanceRecurring({
             title: recurringForm.title.trim(),
             amount: Number(recurringForm.amount),
             group: recurringForm.group,
-            frequency: recurringForm.frequency,
-            interval: Number(recurringForm.interval) || 1,
+            frequency: isSemiannual ? "MONTHLY" : recurringForm.frequency,
+            interval: isSemiannual ? 6 : (Number(recurringForm.interval) || 1),
             nextDue: recurringForm.nextDue,
+            endDate: recurringForm.endDate || null,
             accountId: recurringForm.accountId || null,
             categoryId: recurringForm.categoryId || null,
             tagIds: recurringForm.tagIds,
@@ -1074,7 +1200,7 @@ export default function FinanceClient({
           </div>
 
           {/* Summary stats */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {[
               {
                 label: t.dashboard.summaryFinanceIncome,
@@ -1093,6 +1219,11 @@ export default function FinanceClient({
                   transactions.filter((tx) => tx.group === 'EXPENSE').reduce((acc, tx) => acc + tx.amount, 0)
                 ),
                 color: 'text-[var(--foreground)]',
+              },
+              {
+                label: t.finance.investmentsTitle ?? 'Investimentos',
+                value: formatCurrency(investMethods.reduce((sum, m) => sum + (m.balance ?? 0), 0)),
+                color: 'text-blue-600',
               },
             ].map((stat) => (
               <Card key={stat.label} className="py-4">
@@ -1205,7 +1336,7 @@ export default function FinanceClient({
               {/* Credit cards section */}
               {(() => {
                 const creditCards = paymentMethods.filter((m) => m.type === "CREDIT");
-                const otherMethods = paymentMethods.filter((m) => m.type !== "CREDIT");
+                const otherMethods = paymentMethods.filter((m) => m.type !== "CREDIT" && m.type !== "INVEST");
                 const creditTotal = creditCards.reduce((sum, m) => sum + (cardBills[m.id]?.remainingAmount ?? 0), 0);
                 const renderMethod = (method: FinancePaymentMethod) => (
                   <div
@@ -1273,6 +1404,57 @@ export default function FinanceClient({
                         </h4>
                         <div className="rounded-2xl border border-[var(--border)]">
                           {otherMethods.map(renderMethod)}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {investMethods.length > 0 ? (
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between px-4 pb-2">
+                          <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                            {t.finance.investmentsTitle ?? 'Investimentos'} {investMethods.length}
+                          </h4>
+                        </div>
+                        <div className="rounded-2xl border border-[var(--border)]">
+                          {investMethods.map((method) => (
+                            <div
+                              key={method.id}
+                              className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3 last:border-b-0"
+                            >
+                              <div>
+                                <p className="text-sm font-semibold text-[var(--foreground)]">
+                                  {method.name}{method.isPrimary ? ' ⭐' : ''}
+                                </p>
+                                <p className="text-xs text-zinc-500">
+                                  {t.finance.balanceLabel ?? 'Saldo'}: <span className="font-semibold text-blue-600">{formatCurrency(method.balance ?? 0, method.currency)}</span>
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button variant="secondary" onClick={() => handleInvestDeposit(method)}>
+                                  {t.finance.investDeposit ?? 'Depositar'}
+                                </Button>
+                                <Button variant="secondary" onClick={() => handleOpenInvestWithdraw(method)}>
+                                  {t.finance.investWithdraw ?? 'Resgatar'}
+                                </Button>
+                                <Button variant="secondary" onClick={() => handleOpenPaymentMethod(method)}>
+                                  {t.finance.editAction ?? t.calendar.editAction}
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  onClick={() => handleDeletePaymentMethod(method)}
+                                  disabled={isSaving}
+                                >
+                                  {t.finance.deleteAction ?? t.calendar.deleteAction}
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                          <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface-muted)] px-4 py-2">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Total</span>
+                            <span className="text-sm font-bold text-blue-600">
+                              {formatCurrency(investMethods.reduce((sum, m) => sum + (m.balance ?? 0), 0))}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     ) : null}
@@ -1761,13 +1943,20 @@ export default function FinanceClient({
                             className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
                           >
                             <option value="">{t.finance.none}</option>
-                            {paymentMethods
-                              .filter((method) => method.type !== "INVEST")
-                              .map((method) => (
-                                <option key={method.id} value={method.id}>
-                                  {method.name}
-                                </option>
-                              ))}
+                            {cardMethods.map((method) => (
+                              <option key={method.id} value={method.id}>
+                                {method.name}
+                              </option>
+                            ))}
+                            {investMethods.length > 0 ? (
+                              <optgroup label={t.finance.investmentsTitle ?? 'Investimentos'}>
+                                {investMethods.map((method) => (
+                                  <option key={method.id} value={method.id}>
+                                    {method.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ) : null}
                           </select>
                         </label>
                         {/* Credit installment selector — only available when creating a CREDIT EXPENSE */}
@@ -1974,6 +2163,36 @@ export default function FinanceClient({
                           </Button>
                         </div>
                       </div>
+                      {members.length > 0 ? (
+                        <div className="grid gap-3">
+                          <p className="text-sm text-zinc-600">{t.finance.participantsLabel}</p>
+                          <p className="text-xs text-zinc-500">{t.finance.participantsHint}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {members.map((member) => (
+                              <Button
+                                key={member.userId}
+                                type="button"
+                                variant={
+                                  transactionForm.participantIds.includes(member.userId)
+                                    ? "primary"
+                                    : "secondary"
+                                }
+                                onClick={() =>
+                                  setTransactionForm((prev) => ({
+                                    ...prev,
+                                    participantIds: prev.participantIds.includes(member.userId)
+                                      ? prev.participantIds.filter((id) => id !== member.userId)
+                                      : [...prev.participantIds, member.userId],
+                                  }))
+                                }
+                              >
+                                <Avatar src={member.photoUrl} name={member.label} size={20} />
+                                {member.label}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                       <div className="grid gap-2 rounded-2xl border border-[var(--border)] px-4 py-3 text-sm text-zinc-600">
                         {/* Hide recurring toggle when credit installment flow is active */}
                         {!(
@@ -2019,7 +2238,8 @@ export default function FinanceClient({
                                 | "DAILY"
                                 | "WEEKLY"
                                 | "MONTHLY"
-                                | "YEARLY",
+                                | "YEARLY"
+                                | "SEMIANNUAL",
                             }))
                           }
                           className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
@@ -2027,8 +2247,43 @@ export default function FinanceClient({
                           <option value="DAILY">{t.finance.cadenceDaily}</option>
                           <option value="WEEKLY">{t.finance.cadenceWeekly}</option>
                           <option value="MONTHLY">{t.finance.cadenceMonthly}</option>
+                          <option value="SEMIANNUAL">{t.finance.cadenceSemiannual}</option>
                           <option value="YEARLY">{t.finance.cadenceYearly}</option>
                         </select>
+                      </label>
+                      {transactionForm.recurrenceFrequency !== "SEMIANNUAL" ? (
+                        <label className="flex flex-col gap-2">
+                          {t.finance.recurrenceIntervalLabel}
+                          <input
+                            type="number"
+                            min={1}
+                            value={transactionForm.recurrenceInterval}
+                            onChange={(event) =>
+                              setTransactionForm((prev) => ({
+                                ...prev,
+                                recurrenceInterval: event.target.value,
+                              }))
+                            }
+                            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                          />
+                        </label>
+                      ) : null}
+                      <label className="flex flex-col gap-2">
+                        {t.finance.recurrenceEndDateLabel}
+                        <input
+                          type="date"
+                          value={transactionForm.recurrenceEndDate}
+                          onChange={(event) =>
+                            setTransactionForm((prev) => ({
+                              ...prev,
+                              recurrenceEndDate: event.target.value,
+                            }))
+                          }
+                          className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                        />
+                        {!transactionForm.recurrenceEndDate ? (
+                          <span className="text-xs text-zinc-400">{t.finance.recurrenceNoEndDate}</span>
+                        ) : null}
                       </label>
                       <label className="flex items-center gap-2">
                         <input
@@ -2294,16 +2549,48 @@ export default function FinanceClient({
                               | "DAILY"
                               | "WEEKLY"
                               | "MONTHLY"
-                              | "YEARLY",
+                              | "YEARLY"
+                              | "SEMIANNUAL",
                           }))
                         }
                         className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
                       >
-                        <option value="DAILY">Daily</option>
-                        <option value="WEEKLY">Weekly</option>
-                        <option value="MONTHLY">Monthly</option>
-                        <option value="YEARLY">Yearly</option>
+                        <option value="DAILY">{t.finance.cadenceDaily}</option>
+                        <option value="WEEKLY">{t.finance.cadenceWeekly}</option>
+                        <option value="MONTHLY">{t.finance.cadenceMonthly}</option>
+                        <option value="SEMIANNUAL">{t.finance.cadenceSemiannual}</option>
+                        <option value="YEARLY">{t.finance.cadenceYearly}</option>
                       </select>
+                    </label>
+                    {recurringForm.frequency !== "SEMIANNUAL" ? (
+                      <Input
+                        label={t.finance.recurrenceIntervalLabel}
+                        type="number"
+                        value={recurringForm.interval}
+                        onChange={(event) =>
+                          setRecurringForm((prev) => ({
+                            ...prev,
+                            interval: event.target.value,
+                          }))
+                        }
+                      />
+                    ) : null}
+                    <label className="flex flex-col gap-2 text-sm text-zinc-600">
+                      {t.finance.recurrenceEndDateLabel}
+                      <input
+                        type="date"
+                        value={recurringForm.endDate}
+                        onChange={(event) =>
+                          setRecurringForm((prev) => ({
+                            ...prev,
+                            endDate: event.target.value,
+                          }))
+                        }
+                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                      />
+                      {!recurringForm.endDate ? (
+                        <span className="text-xs text-zinc-400">{t.finance.recurrenceNoEndDate}</span>
+                      ) : null}
                     </label>
                   </div>
                   {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
@@ -2695,6 +2982,58 @@ export default function FinanceClient({
                   </div>
                 </div>
               </Card>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Invest Withdraw Modal */}
+          {investWithdrawModalOpen && investWithdrawTarget ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+              <div className="w-full max-w-sm">
+                <Card>
+                  <div className="flex-flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-base font-semibold">
+                        {t.finance.investWithdraw ?? 'Resgatar'} — {investWithdrawTarget.name}
+                      </h2>
+                      <button
+                        type="button"
+                        aria-label="Fechar"
+                        onClick={() => setInvestWithdrawModalOpen(false)}
+                        className="text-zinc-400 hover:text-[var(--foreground)]"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <p className="text-sm text-zinc-500">
+                      {t.finance.balanceLabel ?? 'Saldo disponível'}:{' '}
+                      <span className="font-semibold text-blue-600">
+                        {formatCurrency(investWithdrawTarget.balance ?? 0, investWithdrawTarget.currency)}
+                      </span>
+                    </p>
+                    <label className="mt-3 flex flex-col gap-2 text-sm">
+                      {t.finance.amountLabel ?? 'Valor a resgatar'}
+                      <input
+                        type="text"
+                        value={investWithdrawAmount}
+                        onChange={(event) => setInvestWithdrawAmount(formatCurrencyInput(event.target.value.replace(/\D/g, ''), investWithdrawTarget.currency ?? 'BRL'))}
+                        placeholder="0,00"
+                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                      />
+                    </label>
+                    {investWithdrawError ? (
+                      <p className="text-sm text-red-600">{investWithdrawError}</p>
+                    ) : null}
+                    <div className="mt-3 flex justify-end gap-2">
+                      <Button variant="secondary" onClick={() => setInvestWithdrawModalOpen(false)}>
+                        {t.finance.cancel}
+                      </Button>
+                      <Button onClick={handleInvestWithdraw} disabled={isSaving}>
+                        {t.finance.investWithdraw ?? 'Resgatar'}
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
               </div>
             </div>
           ) : null}
