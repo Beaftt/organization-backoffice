@@ -78,6 +78,7 @@ export type FinanceTransaction = {
   accountId: string | null;
   categoryId: string | null;
   tagIds: string[] | null;
+  participantIds: string[] | null;
   recurringId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -99,6 +100,7 @@ export type FinanceRecurring = {
   frequency: "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
   interval: number;
   nextDue: string;
+  endDate: string | null;
   active: boolean;
   accountId: string | null;
   categoryId: string | null;
@@ -334,6 +336,7 @@ export const createFinanceTransaction = (input: {
   paymentMethodId?: string | null;
   categoryId?: string | null;
   tagIds?: string[] | null;
+  participantIds?: string[] | null;
   recurringId?: string | null;
   /** Number of installments for credit purchases (1 = à vista, 2–12 = parcelado). */
   installments?: number;
@@ -358,6 +361,7 @@ export const createFinanceTransaction = (input: {
         paymentMethodId: input.paymentMethodId ?? null,
         categoryId: input.categoryId ?? null,
         tagIds: input.tagIds ?? null,
+        participantIds: input.participantIds ?? null,
         recurringId: input.recurringId ?? null,
         installments: input.installments,
         isInstallmentValue: input.isInstallmentValue,
@@ -380,6 +384,7 @@ export const updateFinanceTransaction = (input: {
   paymentMethodId?: string | null;
   categoryId?: string | null;
   tagIds?: string[] | null;
+  participantIds?: string[] | null;
   recurringId?: string | null;
   installmentTotal?: number;
   isInstallmentValue?: boolean;
@@ -402,6 +407,7 @@ export const updateFinanceTransaction = (input: {
         paymentMethodId: input.paymentMethodId ?? null,
         categoryId: input.categoryId ?? null,
         tagIds: input.tagIds ?? null,
+        participantIds: input.participantIds ?? null,
         recurringId: input.recurringId ?? null,
         installmentTotal: input.installmentTotal,
         isInstallmentValue: input.isInstallmentValue,
@@ -572,6 +578,7 @@ export const createFinanceRecurring = (input: {
   frequency: "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
   interval?: number;
   nextDue: string;
+  endDate?: string | null;
   active?: boolean;
   accountId?: string | null;
   categoryId?: string | null;
@@ -589,6 +596,7 @@ export const createFinanceRecurring = (input: {
       frequency: input.frequency,
       interval: input.interval,
       nextDue: input.nextDue,
+      endDate: input.endDate ?? null,
       active: input.active,
       accountId: input.accountId ?? null,
       categoryId: input.categoryId ?? null,
@@ -607,6 +615,7 @@ export const updateFinanceRecurring = (input: {
   frequency?: "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
   interval?: number;
   nextDue?: string;
+  endDate?: string | null;
   active?: boolean;
   accountId?: string | null;
   categoryId?: string | null;
@@ -626,6 +635,7 @@ export const updateFinanceRecurring = (input: {
         frequency: input.frequency,
         interval: input.interval,
         nextDue: input.nextDue,
+        endDate: input.endDate,
         active: input.active,
         accountId: input.accountId ?? null,
         categoryId: input.categoryId ?? null,

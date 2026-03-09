@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Avatar } from "@/components/ui/Avatar";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -19,7 +20,6 @@ import {
 } from "@/lib/api/calendar";
 import { listDocuments, type DocumentSummary } from "@/lib/api/documents";
 import { getWorkspaceMemberships } from "@/lib/api/workspace-memberships";
-import { getMyProfile, listUserProfiles } from "@/lib/api/user-profile";
 import { getWorkspaceId } from "@/lib/storage/workspace";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { useTheme } from "@/components/providers/ThemeProvider";
@@ -88,10 +88,10 @@ export default function CalendarClient({
     minutesText: "",
     minutesDocumentIds: "",
     recurrenceEnabled: false,
-    recurrenceFrequency: "DAILY" as CalendarRecurrence["frequency"],
+    recurrenceFrequency: "DAILY" as CalendarRecurrence["frequency"] | "SEMIANNUAL",
     recurrenceInterval: "1",
-    recurrenceWeekdays: "",
-    recurrenceMonthDays: "",
+    recurrenceWeekdays: [] as number[],
+    recurrenceMonthDays: [] as number[],
     recurrenceUntil: "",
     documentOnly: false,
   });
@@ -319,76 +319,18 @@ export default function CalendarClient({
     if (!workspaceId) return;
 
     try {
-      const [membershipsResult, profilesResult, myProfileResult] =
-        await Promise.allSettled([
-          getWorkspaceMemberships(workspaceId),
-          listUserProfiles({ page: 1, pageSize: 50 }),
-          getMyProfile(),
-        ]);
-
-      const memberships =
-        membershipsResult.status === "fulfilled" ? membershipsResult.value : null;
-      const profiles =
-        profilesResult.status === "fulfilled" ? profilesResult.value : null;
-      const myProfile =
-        myProfileResult.status === "fulfilled" ? myProfileResult.value : null;
-
-      const profileMap = new Map(
-        (profiles?.items ?? []).map((profile) => [
-          profile.userId,
-          {
-            label: `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim(),
-            photoUrl: profile.photoUrl,
-          },
-        ]),
+      const memberships = await getWorkspaceMemberships(workspaceId);
+      setMembers(
+        (memberships?.items ?? []).map((membership) => ({
+          userId: membership.userId,
+          label:
+            membership.displayName ||
+            `${membership.userId.slice(0, 8)}...`,
+          photoUrl: membership.photoUrl,
+        })),
       );
-
-      const membershipMembers = (memberships?.items ?? []).map((membership) => ({
-        userId: membership.userId,
-        label:
-          profileMap.get(membership.userId)?.label ||
-          `${membership.userId.slice(0, 8)}...`,
-        photoUrl: profileMap.get(membership.userId)?.photoUrl,
-      }));
-
-      const membersMap = new Map(
-        membershipMembers.map((member) => [member.userId, member]),
-      );
-
-      if (myProfile) {
-        const myLabel = `${myProfile.firstName ?? ""} ${
-          myProfile.lastName ?? ""
-        }`.trim();
-        membersMap.set(myProfile.userId, {
-          userId: myProfile.userId,
-          label: myLabel || `${myProfile.userId.slice(0, 8)}...`,
-          photoUrl: myProfile.photoUrl,
-        });
-      }
-
-      setMembers(Array.from(membersMap.values()));
-
-      const membershipError =
-        membershipsResult.status === "rejected" ? membershipsResult.reason : null;
-      const profileError =
-        profilesResult.status === "rejected" ? profilesResult.reason : null;
-
-      if (
-        membershipError instanceof ApiError &&
-        membershipError.statusCode === 403
-      ) {
-        return;
-      }
-
-      if (membershipError || profileError) {
-        const err = membershipError ?? profileError;
-        if (err instanceof ApiError) {
-          setError(err.message);
-        } else {
-          setError(t.calendar.loadError);
-        }
-      }
     } catch (err) {
+      if (err instanceof ApiError && err.statusCode === 403) return;
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
@@ -847,10 +789,16 @@ export default function CalendarClient({
       minutesText: event.minutesText ?? "",
       minutesDocumentIds: (event.minutesDocumentIds ?? []).join(", "),
       recurrenceEnabled: Boolean(event.recurrence),
-      recurrenceFrequency: event.recurrence?.frequency ?? "DAILY",
-      recurrenceInterval: String(event.recurrence?.interval ?? 1),
-      recurrenceWeekdays: event.recurrence?.byWeekday?.join(",") ?? "",
-      recurrenceMonthDays: event.recurrence?.byMonthDay?.join(",") ?? "",
+      recurrenceFrequency:
+        event.recurrence?.frequency === "MONTHLY" && event.recurrence.interval === 6
+          ? ("SEMIANNUAL" as const)
+          : (event.recurrence?.frequency ?? "DAILY"),
+      recurrenceInterval:
+        event.recurrence?.frequency === "MONTHLY" && event.recurrence.interval === 6
+          ? "6"
+          : String(event.recurrence?.interval ?? 1),
+      recurrenceWeekdays: event.recurrence?.byWeekday ?? [],
+      recurrenceMonthDays: event.recurrence?.byMonthDay ?? [],
       recurrenceUntil: event.recurrence?.until
         ? toDateInput(new Date(event.recurrence.until))
         : "",
@@ -911,16 +859,19 @@ export default function CalendarClient({
 
     setIsCreating(true);
 
+    const isSemiannual = eventForm.recurrenceFrequency === "SEMIANNUAL";
     const recurrence: CalendarRecurrence | null = eventForm.recurrenceEnabled
       ? {
-          frequency: eventForm.recurrenceFrequency,
-          interval: Number(eventForm.recurrenceInterval) || 1,
-          byWeekday: eventForm.recurrenceWeekdays
-            ? parseNumberCsv(eventForm.recurrenceWeekdays)
-            : undefined,
-          byMonthDay: eventForm.recurrenceMonthDays
-            ? parseNumberCsv(eventForm.recurrenceMonthDays)
-            : undefined,
+          frequency: isSemiannual ? "MONTHLY" : eventForm.recurrenceFrequency,
+          interval: isSemiannual ? 6 : Number(eventForm.recurrenceInterval) || 1,
+          byWeekday:
+            eventForm.recurrenceWeekdays.length > 0
+              ? eventForm.recurrenceWeekdays
+              : undefined,
+          byMonthDay:
+            eventForm.recurrenceMonthDays.length > 0
+              ? eventForm.recurrenceMonthDays
+              : undefined,
           until: eventForm.recurrenceUntil || null,
         }
       : null;
@@ -982,8 +933,8 @@ export default function CalendarClient({
         recurrenceEnabled: false,
         recurrenceFrequency: "DAILY",
         recurrenceInterval: "1",
-        recurrenceWeekdays: "",
-        recurrenceMonthDays: "",
+        recurrenceWeekdays: [],
+        recurrenceMonthDays: [],
         recurrenceUntil: "",
         documentOnly: false,
       });
@@ -1109,6 +1060,7 @@ export default function CalendarClient({
                         }
                         onChange={() => handleToggleOwner(member.userId)}
                       />
+                      <Avatar src={member.photoUrl} name={member.label} size={20} />
                       {member.label}
                     </label>
                   ))
@@ -1515,6 +1467,7 @@ export default function CalendarClient({
                           }
                           onChange={() => handleToggleOwner(member.userId)}
                         />
+                        <Avatar src={member.photoUrl} name={member.label} size={20} />
                         {member.label}
                       </label>
                     ))
@@ -1700,6 +1653,7 @@ export default function CalendarClient({
                             checked={eventForm.participantIds.includes(member.userId)}
                             onChange={() => handleToggleParticipant(member.userId)}
                           />
+                          <Avatar src={member.photoUrl} name={member.label} size={20} />
                           {member.label}
                         </label>
                       ))
@@ -1831,79 +1785,152 @@ export default function CalendarClient({
                     {t.calendar.recurrenceEnable}
                   </label>
                   {eventForm.recurrenceEnabled ? (
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                        {t.calendar.recurrenceFrequencyLabel}
-                        <select
-                          value={eventForm.recurrenceFrequency}
-                          onChange={(event) =>
-                            setEventForm((prev) => ({
-                              ...prev,
-                              recurrenceFrequency:
-                                event.target.value as CalendarRecurrence["frequency"],
-                            }))
-                          }
-                          className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                        >
-                          <option value="DAILY">Daily</option>
-                          <option value="WEEKLY">Weekly</option>
-                          <option value="MONTHLY">Monthly</option>
-                          <option value="YEARLY">Yearly</option>
-                        </select>
-                      </label>
-                      <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                        {t.calendar.recurrenceIntervalLabel}
-                        <Input
-                          type="number"
-                          min={1}
-                          value={eventForm.recurrenceInterval}
-                          onChange={(event) =>
-                            setEventForm((prev) => ({
-                              ...prev,
-                              recurrenceInterval: event.target.value,
-                            }))
-                          }
-                        />
-                      </label>
-                      <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                        {t.calendar.recurrenceWeekdaysLabel}
-                        <Input
-                          value={eventForm.recurrenceWeekdays}
-                          onChange={(event) =>
-                            setEventForm((prev) => ({
-                              ...prev,
-                              recurrenceWeekdays: event.target.value,
-                            }))
-                          }
-                          placeholder="0,1,2"
-                        />
-                      </label>
-                      <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                        {t.calendar.recurrenceMonthDaysLabel}
-                        <Input
-                          value={eventForm.recurrenceMonthDays}
-                          onChange={(event) =>
-                            setEventForm((prev) => ({
-                              ...prev,
-                              recurrenceMonthDays: event.target.value,
-                            }))
-                          }
-                          placeholder="1,15,30"
-                        />
-                      </label>
-                      <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                        {t.calendar.recurrenceUntilLabel}
-                        <Input
-                          type="date"
-                          value={eventForm.recurrenceUntil}
-                          onChange={(event) =>
-                            setEventForm((prev) => ({
-                              ...prev,
-                              recurrenceUntil: event.target.value,
-                            }))
-                          }
-                        />
-                      </label>
+                    <div className="grid gap-4">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <label className="flex flex-col gap-2 text-sm text-zinc-600">
+                          {t.calendar.recurrenceFrequencyLabel}
+                          <select
+                            value={eventForm.recurrenceFrequency}
+                            onChange={(event) =>
+                              setEventForm((prev) => ({
+                                ...prev,
+                                recurrenceFrequency:
+                                  event.target.value as
+                                    | CalendarRecurrence["frequency"]
+                                    | "SEMIANNUAL",
+                              }))
+                            }
+                            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
+                          >
+                            <option value="DAILY">{t.calendar.recurrenceDaily}</option>
+                            <option value="WEEKLY">{t.calendar.recurrenceWeekly}</option>
+                            <option value="MONTHLY">{t.calendar.recurrenceMonthly}</option>
+                            <option value="SEMIANNUAL">{t.calendar.recurrenceSemiannual}</option>
+                            <option value="YEARLY">{t.calendar.recurrenceYearly}</option>
+                          </select>
+                        </label>
+                        {eventForm.recurrenceFrequency !== "SEMIANNUAL" ? (
+                          <label className="flex flex-col gap-2 text-sm text-zinc-600">
+                            {t.calendar.recurrenceIntervalLabel}
+                            <Input
+                              type="number"
+                              min={1}
+                              value={eventForm.recurrenceInterval}
+                              onChange={(event) =>
+                                setEventForm((prev) => ({
+                                  ...prev,
+                                  recurrenceInterval: event.target.value,
+                                }))
+                              }
+                            />
+                          </label>
+                        ) : null}
+                        <label className="flex flex-col gap-2 text-sm text-zinc-600 md:col-span-2">
+                          {t.calendar.recurrenceUntilLabel}
+                          <Input
+                            type="date"
+                            value={eventForm.recurrenceUntil}
+                            onChange={(event) =>
+                              setEventForm((prev) => ({
+                                ...prev,
+                                recurrenceUntil: event.target.value,
+                              }))
+                            }
+                          />
+                          <span className="text-xs text-zinc-400">
+                            {t.calendar.recurrenceNoEndDate}
+                          </span>
+                        </label>
+                      </div>
+                      {eventForm.recurrenceFrequency === "WEEKLY" ? (
+                        <div className="flex flex-col gap-2">
+                          <span className="text-sm text-zinc-600">
+                            {t.calendar.recurrenceWeekdaysLabel}
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {[
+                              { label: "Dom", value: 0 },
+                              { label: "Seg", value: 1 },
+                              { label: "Ter", value: 2 },
+                              { label: "Qua", value: 3 },
+                              { label: "Qui", value: 4 },
+                              { label: "Sex", value: 5 },
+                              { label: "S\u00e1b", value: 6 },
+                            ].map((day) => (
+                              <button
+                                key={day.value}
+                                type="button"
+                                onClick={() =>
+                                  setEventForm((prev) => ({
+                                    ...prev,
+                                    recurrenceWeekdays: prev.recurrenceWeekdays.includes(
+                                      day.value,
+                                    )
+                                      ? prev.recurrenceWeekdays.filter(
+                                          (d) => d !== day.value,
+                                        )
+                                      : [
+                                          ...prev.recurrenceWeekdays,
+                                          day.value,
+                                        ].sort((a, b) => a - b),
+                                  }))
+                                }
+                                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                                  eventForm.recurrenceWeekdays.includes(day.value)
+                                    ? "border-[var(--sidebar)] bg-[var(--sidebar)] text-white"
+                                    : "border-[var(--border)] bg-[var(--surface)] text-zinc-600 hover:bg-[var(--surface-muted)]"
+                                }`}
+                              >
+                                {day.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                      {eventForm.recurrenceFrequency === "MONTHLY" ||
+                      eventForm.recurrenceFrequency === "SEMIANNUAL" ? (
+                        <div className="flex flex-col gap-2">
+                          <span className="text-sm text-zinc-600">
+                            {t.calendar.recurrenceMonthDaysLabel}
+                          </span>
+                          <div
+                            className="grid gap-1"
+                            style={{
+                              gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+                            }}
+                          >
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map(
+                              (day) => (
+                                <button
+                                  key={day}
+                                  type="button"
+                                  onClick={() =>
+                                    setEventForm((prev) => ({
+                                      ...prev,
+                                      recurrenceMonthDays:
+                                        prev.recurrenceMonthDays.includes(day)
+                                          ? prev.recurrenceMonthDays.filter(
+                                              (d) => d !== day,
+                                            )
+                                          : [
+                                              ...prev.recurrenceMonthDays,
+                                              day,
+                                            ].sort((a, b) => a - b),
+                                    }))
+                                  }
+                                  className={`rounded-lg py-1.5 text-xs font-medium transition-colors ${
+                                    eventForm.recurrenceMonthDays.includes(day)
+                                      ? "bg-[var(--sidebar)] text-white"
+                                      : "bg-[var(--surface-muted)] text-zinc-600 hover:bg-[var(--border)]"
+                                  }`}
+                                >
+                                  {day}
+                                </button>
+                              ),
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -1991,6 +2018,7 @@ export default function CalendarClient({
                             }))
                           }
                         />
+                        <Avatar src={member.photoUrl} name={member.label} size={20} />
                         {member.label}
                       </label>
                     ))
