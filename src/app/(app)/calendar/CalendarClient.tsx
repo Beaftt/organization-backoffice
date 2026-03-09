@@ -862,7 +862,7 @@ export default function CalendarClient({
     const isSemiannual = eventForm.recurrenceFrequency === "SEMIANNUAL";
     const recurrence: CalendarRecurrence | null = eventForm.recurrenceEnabled
       ? {
-          frequency: isSemiannual ? "MONTHLY" : eventForm.recurrenceFrequency,
+          frequency: (isSemiannual ? "MONTHLY" : eventForm.recurrenceFrequency) as CalendarRecurrence["frequency"],
           interval: isSemiannual ? 6 : Number(eventForm.recurrenceInterval) || 1,
           byWeekday:
             eventForm.recurrenceWeekdays.length > 0
