@@ -57,6 +57,13 @@ export type InventoryItemsResponse = {
   pageSize: number;
 };
 
+export type InventoryMovementsResponse = {
+  items: InventoryMovement[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
 export type InventoryMovement = {
   id: string;
   itemId: string;
@@ -255,7 +262,7 @@ export const listInventoryMovements = async (params: {
   const query = new URLSearchParams();
   query.set('page', String(params.page ?? 1));
   query.set('pageSize', String(params.pageSize ?? 20));
-  return apiFetch<InventoryItemsResponse>(
+  return apiFetch<InventoryMovementsResponse>(
     `/workspaces/${workspaceId}/inventory/items/${params.itemId}/movements?${query}`,
     { workspaceId },
   );

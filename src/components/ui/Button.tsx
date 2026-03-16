@@ -17,7 +17,7 @@ export function Button({
       : variant === "secondary"
         ? "border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-muted)]"
         : variant === "danger"
-          ? "border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-800 dark:bg-red-950 dark:text-red-400 dark:hover:bg-red-900"
+          ? "border border-[var(--danger-border)] bg-[var(--danger)] text-[var(--danger-text)] hover:bg-[var(--danger-hover)]"
           : "text-[var(--foreground)]/70 hover:text-[var(--foreground)] hover:bg-[var(--surface-muted)]";
 
   return <button className={`${base} ${styles} ${className}`} {...props} />;
