@@ -343,6 +343,13 @@ export default function DashboardClient() {
       tone: "from-slate-500/20 via-slate-300/10 to-transparent",
     },
     {
+      key: "inventory",
+      label: t.modules.inventory,
+      description: t.dashboard.centralModuleHint,
+      href: "/inventory",
+      tone: "from-teal-500/20 via-emerald-300/10 to-transparent",
+    },
+    {
       key: "chat",
       label: t.dashboard.centralChatTitle,
       description: t.dashboard.centralChatSubtitle,

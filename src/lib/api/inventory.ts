@@ -111,6 +111,21 @@ export const createInventoryLocation = async (input: {
   });
 };
 
+export const updateInventoryLocation = async (input: {
+  id: string;
+  name: string;
+  icon?: string | null;
+  color?: string | null;
+  workspaceId?: string;
+}) => {
+  const workspaceId = getWorkspaceOrThrow(input.workspaceId);
+  return apiFetch<InventoryLocation>(`/workspaces/${workspaceId}/inventory/locations/${input.id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name: input.name, icon: input.icon, color: input.color }),
+    workspaceId,
+  });
+};
+
 export const deleteInventoryLocation = async (input: { id: string; workspaceId?: string }) => {
   const workspaceId = getWorkspaceOrThrow(input.workspaceId);
   await apiFetch<void>(`/workspaces/${workspaceId}/inventory/locations/${input.id}`, {

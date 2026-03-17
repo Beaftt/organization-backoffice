@@ -10,6 +10,7 @@ import { ApiError } from '@/lib/api/client';
 import {
   createInventoryLocation,
   deleteInventoryLocation,
+  updateInventoryLocation,
   listInventoryItems,
   type InventoryItem,
   type InventoryLocation,
@@ -34,6 +35,9 @@ export function InventoryClient({ initialLocations, initialError }: InventoryCli
   const [error, setError] = useState<string | null>(initialError ?? null);
   const [newLocationName, setNewLocationName] = useState('');
   const [isAddingLocation, setIsAddingLocation] = useState(false);
+  const [editLocationId, setEditLocationId] = useState<string | null>(null);
+  const [editLocationName, setEditLocationName] = useState('');
+  const [isSavingLocation, setIsSavingLocation] = useState(false);
   const [showAddItem, setShowAddItem] = useState(false);
   const [consumeTarget, setConsumeTarget] = useState<InventoryItem | null>(null);
   const [restockTarget, setRestockTarget] = useState<InventoryItem | null>(null);
@@ -73,12 +77,32 @@ export function InventoryClient({ initialLocations, initialError }: InventoryCli
   };
 
   const handleDeleteLocation = async (id: string) => {
+    if (!window.confirm(t.inventory.locationDeleteConfirm)) return;
     try {
       await deleteInventoryLocation({ id });
       setLocations((prev) => prev.filter((l) => l.id !== id));
       if (selectedId === id) setSelectedId(locations.find((l) => l.id !== id)?.id ?? null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t.inventory.deleteError);
+      setError(err instanceof ApiError ? err.message : t.inventory.locationDeleteError);
+    }
+  };
+
+  const handleStartEditLocation = (loc: InventoryLocation) => {
+    setEditLocationId(loc.id);
+    setEditLocationName(loc.name);
+  };
+
+  const handleSaveLocation = async (id: string) => {
+    if (!editLocationName.trim()) return;
+    setIsSavingLocation(true);
+    try {
+      const updated = await updateInventoryLocation({ id, name: editLocationName.trim() });
+      setLocations((prev) => prev.map((l) => (l.id === id ? updated : l)));
+      setEditLocationId(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t.inventory.locationEditError);
+    } finally {
+      setIsSavingLocation(false);
     }
   };
 
@@ -110,16 +134,77 @@ export function InventoryClient({ initialLocations, initialError }: InventoryCli
           <ul className="flex flex-col gap-1">
             {locations.map((loc) => (
               <li key={loc.id}>
-                <button
-                  onClick={() => setSelectedId(loc.id)}
-                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
+                {editLocationId === loc.id ? (
+                  <div className="flex items-center gap-1 rounded-lg px-1 py-1">
+                    <input
+                      autoFocus
+                      className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--surface-muted)] px-2 py-1 text-sm text-[var(--foreground)] outline-none focus:border-[var(--sidebar)]"
+                      value={editLocationName}
+                      onChange={(e) => setEditLocationName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveLocation(loc.id);
+                        if (e.key === 'Escape') setEditLocationId(null);
+                      }}
+                    />
+                    <button
+                      onClick={() => handleSaveLocation(loc.id)}
+                      disabled={isSavingLocation || !editLocationName.trim()}
+                      className="shrink-0 rounded-md bg-[var(--sidebar)] px-2 py-1 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                      aria-label={t.inventory.locationSave}
+                    >
+                      {isSavingLocation ? '…' : '✓'}
+                    </button>
+                    <button
+                      onClick={() => setEditLocationId(null)}
+                      className="shrink-0 rounded-md px-1.5 py-1 text-xs text-zinc-400 transition hover:text-[var(--foreground)]"
+                      aria-label={t.inventory.cancel}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <div className={`group flex w-full items-center gap-1 rounded-lg transition-colors ${
                     selectedId === loc.id
-                      ? 'bg-[var(--sidebar)] text-white'
-                      : 'text-[var(--foreground)] hover:bg-[var(--surface-muted)]'
-                  }`}
-                >
-                  <span className="truncate">{loc.icon ? `${loc.icon} ` : ''}{loc.name}</span>
-                </button>
+                      ? 'bg-[var(--sidebar)]'
+                      : 'hover:bg-[var(--surface-muted)]'
+                  }`}>
+                    <button
+                      onClick={() => setSelectedId(loc.id)}
+                      className={`min-w-0 flex-1 truncate px-3 py-2 text-left text-sm ${
+                        selectedId === loc.id ? 'text-white' : 'text-[var(--foreground)]'
+                      }`}
+                    >
+                      {loc.icon ? `${loc.icon} ` : ''}{loc.name}
+                    </button>
+                    <button
+                      onClick={() => handleStartEditLocation(loc)}
+                      className={`shrink-0 rounded p-1 opacity-0 transition group-hover:opacity-100 ${
+                        selectedId === loc.id ? 'text-white/70 hover:text-white' : 'text-zinc-400 hover:text-[var(--foreground)]'
+                      }`}
+                      aria-label={t.inventory.locationEdit}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteLocation(loc.id)}
+                      className={`shrink-0 rounded p-1 opacity-0 transition group-hover:opacity-100 ${
+                        selectedId === loc.id ? 'text-white/70 hover:text-red-300' : 'text-zinc-400 hover:text-red-500'
+                      }`}
+                      aria-label={t.inventory.delete}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <path d="M10 11v6" />
+                        <path d="M14 11v6" />
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
