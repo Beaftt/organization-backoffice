@@ -26,6 +26,7 @@ const moduleLinks = [
   { key: "studies", href: "/studies", entitlement: "module.organization" },
   { key: "hr", href: "/hr", entitlement: "module.hr" },
   { key: "jobs", href: "/vagas", entitlement: "module.jobs" },
+  { key: "inventory", href: "/inventory", entitlement: "module.organization" },
 ];
 
 const routeTitles: Record<string, string> = {
@@ -46,6 +47,7 @@ const routeTitles: Record<string, string> = {
   "/studies": "studies",
   "/calendar": "calendar",
   "/vagas": "jobs",
+  "/inventory": "inventory",
 };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
