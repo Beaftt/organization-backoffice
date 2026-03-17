@@ -9,6 +9,10 @@
   --sidebar: #5f80ff;
   --sidebar-text: #eef3ff;
   --sidebar-active: #ffffff;
+  --danger: #fef2f2;
+  --danger-border: #fecaca;
+  --danger-text: #dc2626;
+  --danger-hover: #fee2e2;
 }
 
 html[data-theme="dark"] {
@@ -20,6 +24,10 @@ html[data-theme="dark"] {
   --sidebar: #4058c4;
   --sidebar-text: #e6edff;
   --sidebar-active: #0f172a;
+  --danger: #450a0a;
+  --danger-border: #991b1b;
+  --danger-text: #f87171;
+  --danger-hover: #7f1d1d;
 }
 
 html,
