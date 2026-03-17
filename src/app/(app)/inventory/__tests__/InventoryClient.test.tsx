@@ -78,9 +78,9 @@ describe('InventoryClient', () => {
     });
   });
 
-  it('renders with default state', () => {
+  it('renders with default state', async () => {
     render(<InventoryClient initialLocations={mockLocations} />);
-    expect(screen.getByText('Inventário')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Inventário')).toBeInTheDocument());
     expect(screen.getByText('Cozinha')).toBeInTheDocument();
     expect(screen.getByText('Banheiro')).toBeInTheDocument();
   });
@@ -97,8 +97,10 @@ describe('InventoryClient', () => {
 
   it('loads items when a location is selected', async () => {
     render(<InventoryClient initialLocations={mockLocations} />);
-    expect(inventoryApi.listInventoryItems).toHaveBeenCalledWith(
-      expect.objectContaining({ locationId: 'loc-1' }),
+    await waitFor(() =>
+      expect(inventoryApi.listInventoryItems).toHaveBeenCalledWith(
+        expect.objectContaining({ locationId: 'loc-1' }),
+      ),
     );
   });
 

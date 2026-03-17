@@ -50,7 +50,7 @@ export function InventoryClient({ initialLocations, initialError }: InventoryCli
     } finally {
       setIsLoadingItems(false);
     }
-  }, [t]);
+  }, [t.inventory.loadError]);
 
   useEffect(() => {
     if (selectedId) loadItems(selectedId);
