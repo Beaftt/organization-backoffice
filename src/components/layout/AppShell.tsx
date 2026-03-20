@@ -308,7 +308,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-white/20 text-white">
                 <Image
                   src={workspaceLogo ?? "/logo_organization.png"}
-                  alt="Workspace logo"
+                  alt={t.layout.workspaceLogoAlt}
                   width={40}
                   height={40}
                   className="h-full w-full object-cover"
@@ -316,11 +316,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 />
               </div>
               <div>
-                <p className="text-sm font-semibold">Organization</p>
-                <p className="text-xs text-white/70">Backoffice</p>
+                <p className="text-sm font-semibold">{t.layout.brandTitle}</p>
+                <p className="text-xs text-white/70">{t.layout.brandSubtitle}</p>
               </div>
             </div>
-            <button className="text-white/70" onClick={() => setMobileOpen(false)}>
+            <button aria-label={t.layout.close} className="text-white/70" onClick={() => setMobileOpen(false)}>
               ✕
             </button>
           </div>
@@ -366,9 +366,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <aside className="hidden h-full w-64 flex-col bg-[var(--sidebar)] p-6 text-[var(--sidebar-text)] lg:flex">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-white/20 text-white">
-              <Image
-                src={workspaceLogo ?? "/logo_organization.png"}
-                alt="Workspace logo"
+                <Image
+                  src={workspaceLogo ?? "/logo_organization.png"}
+                  alt={t.layout.workspaceLogoAlt}
                 width={40}
                 height={40}
                 className="h-full w-full object-cover"
@@ -376,8 +376,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               />
             </div>
             <div>
-              <p className="text-sm font-semibold">Organization</p>
-              <p className="text-xs text-white/70">Backoffice</p>
+              <p className="text-sm font-semibold">{t.layout.brandTitle}</p>
+              <p className="text-xs text-white/70">{t.layout.brandSubtitle}</p>
             </div>
           </div>
 
@@ -490,7 +490,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   className="px-3 py-1.5 font-medium capitalize text-[var(--foreground)] opacity-70 transition hover:opacity-100"
                   title={t.layout.theme}
                 >
-                  {theme === "light" ? "Light" : "Dark"}
+                  {theme === "light" ? t.layout.themeLight : t.layout.themeDark}
                 </button>
               </div>
               <div className="relative" ref={menuRef}>
@@ -503,7 +503,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     {profilePhoto ? (
                       <Image
                         src={profilePhoto}
-                        alt="Profile"
+                        alt={t.layout.profileAlt}
                         width={32}
                         height={32}
                         className="h-full w-full object-cover"
@@ -598,16 +598,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="fixed bottom-6 right-6 z-50">
         {supportOpen ? (
-          <div className="mb-3 w-80 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_18px_40px_rgba(15,23,42,0.18)]">
+          <div className="mb-3 w-80 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold">Suporte</p>
+                <p className="text-sm font-semibold">{t.layout.supportTitle}</p>
                 <p className="text-xs text-zinc-500">
-                  Vamos te responder o quanto antes 💙
+                  {t.layout.supportSubtitle}
                 </p>
               </div>
               <button
                 type="button"
+                aria-label={t.layout.close}
                 onClick={() => setSupportOpen(false)}
                 className="text-sm text-zinc-500 hover:text-zinc-700"
               >
@@ -617,27 +618,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
             <form className="mt-4 space-y-3" onSubmit={handleSupportSubmit}>
               <Input
-                placeholder="Seu nome"
+                placeholder={t.layout.supportNamePlaceholder}
                 value={supportName}
                 onChange={(event) => setSupportName(event.target.value)}
               />
               <Input
-                placeholder="Seu email ou WhatsApp"
+                placeholder={t.layout.supportContactPlaceholder}
                 value={supportContact}
                 onChange={(event) => setSupportContact(event.target.value)}
               />
               <textarea
                 className="h-28 w-full resize-none rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                placeholder="Como podemos ajudar?"
+                placeholder={t.layout.supportMessagePlaceholder}
                 value={supportMessage}
                 onChange={(event) => setSupportMessage(event.target.value)}
               />
               <Button type="submit" className="w-full">
-                Enviar mensagem
+                {t.layout.supportSend}
               </Button>
               {supportSent ? (
                 <p className="text-center text-xs text-emerald-600">
-                  Abrimos seu email com a mensagem pronta.
+                  {t.layout.supportSent}
                 </p>
               ) : null}
             </form>
@@ -648,7 +649,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           type="button"
           onClick={() => setSupportOpen((prev) => !prev)}
           className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--primary)] text-white shadow-[0_12px_30px_rgba(79,70,229,0.35)] transition hover:translate-y-[-2px]"
-          aria-label="Abrir suporte"
+          aria-label={t.layout.supportOpen}
         >
           💬
         </button>

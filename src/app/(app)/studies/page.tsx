@@ -1,4 +1,4 @@
-import StudiesClient from "./StudiesClient";
+import { StudiesClient } from './StudiesClient';
 
 export default function StudiesPage() {
   return <StudiesClient />;
