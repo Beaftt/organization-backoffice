@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { Avatar } from "@/components/ui/Avatar";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { FinanceStatsRow } from "@/components/finance/FinanceStatsRow";
 import { RecurringBillsChecklist } from "@/components/finance/RecurringBillsChecklist";
@@ -67,7 +66,6 @@ import {
 } from "@/lib/api/finance";
 
 const pageSize = 6;
-const suggestedTags = ["Mercado", "Compras", "Eventos"];
 
 type FinanceClientProps = {
   initialQuery?: string;

@@ -42,7 +42,7 @@ export function ListSidebarItem({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === 'Enter' && onSelect()}
-      aria-selected={isSelected}
+      aria-pressed={isSelected}
     >
       <span
         className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full"

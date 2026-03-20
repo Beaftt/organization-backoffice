@@ -327,7 +327,8 @@ export function useRemindersState({
         const nextId = nextLists[0]?.id ?? '';
         if (listToDelete.id === selectedId) setSelectedId(nextId);
         const params = new URLSearchParams(window.location.search);
-        nextId ? params.set('listId', nextId) : params.delete('listId');
+        if (nextId) params.set('listId', nextId);
+        else params.delete('listId');
         router.replace(`/reminders?${params.toString()}`);
       } catch (err) {
         setError(err instanceof ApiError ? err.message : t.reminders.updateError);

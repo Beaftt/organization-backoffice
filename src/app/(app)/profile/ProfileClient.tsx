@@ -38,7 +38,7 @@ export default function ProfileClient() {
         if (userResult.status === "fulfilled") {
           setEmail(userResult.value.email ?? "");
         }
-      } catch (_e) {
+      } catch {
         // silent — shows empty state
       }
     };
@@ -62,7 +62,7 @@ export default function ProfileClient() {
         setPhotoUrl(profile.photoUrl ?? null);
         window.dispatchEvent(new Event("profile-updated"));
       })
-      .catch((_e) => {
+      .catch(() => {
         setUploadError(t.profile.errorSave);
       })
       .finally(() => {
@@ -77,7 +77,7 @@ export default function ProfileClient() {
       await updateMyProfile({ photoUrl: null });
       setPhotoUrl(null);
       window.dispatchEvent(new Event("profile-updated"));
-    } catch (_e) {
+    } catch {
       setUploadError(t.profile.errorSave);
     } finally {
       setIsUploading(false);
@@ -90,7 +90,7 @@ export default function ProfileClient() {
       await updateMyProfile({ firstName: name.trim() || null, lastName: null });
       window.dispatchEvent(new Event("profile-updated"));
       setSaveState("saved");
-    } catch (_e) {
+    } catch {
       setSaveState("error");
     }
   };

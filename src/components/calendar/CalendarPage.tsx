@@ -204,10 +204,14 @@ export function CalendarPage({
   // ── URL sync ──────────────────────────────────────────────────
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    selectedOwners.length ? params.set('owners', selectedOwners.join(',')) : params.delete('owners');
-    fromDate ? params.set('from', fromDate) : params.delete('from');
-    toDate ? params.set('to', toDate) : params.delete('to');
-    tagFilter.trim() ? params.set('tag', tagFilter.trim()) : params.delete('tag');
+    if (selectedOwners.length) params.set('owners', selectedOwners.join(','));
+    else params.delete('owners');
+    if (fromDate) params.set('from', fromDate);
+    else params.delete('from');
+    if (toDate) params.set('to', toDate);
+    else params.delete('to');
+    if (tagFilter.trim()) params.set('tag', tagFilter.trim());
+    else params.delete('tag');
     const qs = params.toString();
     router.replace(`/calendar${qs ? `?${qs}` : ''}`);
   }, [selectedOwners, fromDate, toDate, tagFilter, router]);

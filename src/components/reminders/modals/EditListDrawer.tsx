@@ -58,6 +58,7 @@ export function EditListDrawer({
 
   useEffect(() => {
     if (list) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTitle(list.title);
       setDescription(list.description ?? '');
     }

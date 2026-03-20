@@ -4,24 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ApiError } from '@/lib/api/client';
 import {
-  createDocumentFolder,
-  createDocumentReference,
-  deleteDocument,
-  deleteDocumentFolder,
   type DocumentFolder,
   type DocumentReference,
   listDocumentFolders,
-  listDocumentReferences,
   listDocuments,
   type DocumentSummary,
-  updateDocument,
-  updateDocumentFolder,
-  uploadDocumentFile,
   type DocumentReferenceKind,
   type DocumentReferenceModule,
   type DocumentType,
 } from '@/lib/api/documents';
-import { lookupUserByEmail, type UserLookup } from '@/lib/api/users';
+import { type UserLookup } from '@/lib/api/users';
 import { getWorkspaceMemberships } from '@/lib/api/workspace-memberships';
 import { listUsers } from '@/lib/api/users';
 import { getWorkspaceId } from '@/lib/storage/workspace';

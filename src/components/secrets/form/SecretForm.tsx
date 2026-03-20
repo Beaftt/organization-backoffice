@@ -32,7 +32,6 @@ export function SecretForm({
   onCancel,
   isSubmitting,
   error,
-  isEdit = false,
 }: SecretFormProps) {
   const { t } = useLanguage();
 

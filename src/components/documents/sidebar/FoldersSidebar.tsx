@@ -44,7 +44,7 @@ export function FoldersSidebar({
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => onDrop(e, null)}
         aria-label={t.documents.allFolders}
-        aria-selected={isAllSelected}
+        aria-pressed={isAllSelected}
       >
         <span className="text-base">{isAllSelected ? '📂' : '📁'}</span>
         <span className="truncate text-sm font-medium text-[var(--foreground)]">

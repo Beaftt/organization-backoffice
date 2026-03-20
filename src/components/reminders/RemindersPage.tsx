@@ -17,10 +17,6 @@ type Props = {
   initialError?: string | null;
 };
 
-function getInitials(name: string) {
-  return name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('');
-}
-
 export default function RemindersPage({ initialLists, initialItemsByList, initialSelectedId, initialError }: Props) {
   const s = useRemindersState({ initialLists, initialItemsByList, initialSelectedId, initialError });
   const { t } = s;

@@ -53,7 +53,7 @@ export function FolderTreeItem({
           if (e.key === 'Enter') onSelect(folder.id);
         }}
         aria-label={folder.name}
-        aria-selected={isActive}
+        aria-pressed={isActive}
       >
         {children.length > 0 ? (
           <button
