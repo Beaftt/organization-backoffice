@@ -24,7 +24,7 @@ vi.mock('@/lib/i18n/language-context', () => ({
         locationsTitle: 'Locais',
         locationPlaceholder: 'Novo local...',
         itemsTitle: 'Itens',
-        addItem: '+ Adicionar item',
+        addItem: 'Adicionar item',
         emptyItems: 'Nenhum item ainda.',
         selectLocation: 'Selecione um local.',
         loadError: 'Erro ao carregar.',
@@ -81,8 +81,8 @@ describe('InventoryClient', () => {
   it('renders with default state', async () => {
     render(<InventoryClient initialLocations={mockLocations} />);
     await waitFor(() => expect(screen.getByText('Inventário')).toBeInTheDocument());
-    expect(screen.getByText('Cozinha')).toBeInTheDocument();
-    expect(screen.getByText('Banheiro')).toBeInTheDocument();
+    expect(screen.getAllByText('Cozinha').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Banheiro').length).toBeGreaterThan(0);
   });
 
   it('shows error banner when initialError is provided', () => {
@@ -92,7 +92,7 @@ describe('InventoryClient', () => {
 
   it('shows select location hint when no locations exist', () => {
     render(<InventoryClient initialLocations={[]} />);
-    expect(screen.getByText('Selecione um local.')).toBeInTheDocument();
+    expect(screen.getAllByText('Selecione um local.').length).toBeGreaterThan(0);
   });
 
   it('loads items when a location is selected', async () => {
@@ -120,7 +120,7 @@ describe('InventoryClient', () => {
   it('shows "add item" button when a location is selected', async () => {
     render(<InventoryClient initialLocations={mockLocations} />);
     await waitFor(() =>
-      expect(screen.getByText('+ Adicionar item')).toBeInTheDocument(),
+      expect(screen.getByText('Adicionar item')).toBeInTheDocument(),
     );
   });
 
@@ -150,12 +150,14 @@ describe('InventoryClient', () => {
 
     render(<InventoryClient initialLocations={mockLocations} />);
 
-    const input = screen.getByPlaceholderText('Novo local...');
+    await user.click(screen.getByRole('button', { name: /novo local/i }));
+
+    const input = await screen.findByPlaceholderText('Nome...');
     await user.type(input, 'Escritório');
-    await user.click(screen.getByRole('button', { name: '+' }));
+    await user.click(screen.getByRole('button', { name: /✓/i }));
 
     await waitFor(() =>
-      expect(screen.getByText('Escritório')).toBeInTheDocument(),
+      expect(screen.getAllByText('Escritório').length).toBeGreaterThan(0),
     );
   });
 });

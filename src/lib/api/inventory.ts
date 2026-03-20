@@ -173,6 +173,7 @@ export const createInventoryItem = async (input: {
   autoAddQuantity?: number | null;
 }) => {
   const workspaceId = getWorkspaceOrThrow(input.workspaceId);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { workspaceId: _w, ...body } = input;
   return apiFetch<InventoryItem>(`/workspaces/${workspaceId}/inventory/items`, {
     method: 'POST',
@@ -195,6 +196,7 @@ export const updateInventoryItem = async (input: {
   autoAddQuantity?: number | null;
 }) => {
   const workspaceId = getWorkspaceOrThrow(input.workspaceId);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { id, workspaceId: _w, ...body } = input;
   return apiFetch<InventoryItem>(`/workspaces/${workspaceId}/inventory/items/${id}`, {
     method: 'PUT',

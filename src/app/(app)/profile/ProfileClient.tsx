@@ -2,164 +2,144 @@
 
 import type { ChangeEvent } from "react";
 import { useEffect, useState } from "react";
-import Image from "next/image";
-import { Card } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { getDefaultModule, setDefaultModule, type DefaultModule } from "@/lib/storage/preferences";
 import { getMyProfile, updateMyProfile, uploadMyProfilePhoto } from "@/lib/api/user-profile";
+import { getMyUser } from "@/lib/api/users";
+import { ProfileAvatarSection } from "@/components/profile/ProfileAvatarSection";
+import { ProfileForm } from "@/components/profile/ProfileForm";
+import type { SaveState } from "@/components/profile/ProfileSaveButton";
 
 export default function ProfileClient() {
-  const [name, setName] = useState("");
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [defaultModule, setDefaultModuleState] = useState<DefaultModule>("dashboard");
   const { t } = useLanguage();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [defaultModule, setDefaultModuleState] = useState<DefaultModule>("dashboard");
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadProfile = async () => {
+    const loadData = async () => {
       try {
-        const profile = await getMyProfile();
-        const fullName = [profile.firstName, profile.lastName]
-          .filter(Boolean)
-          .join(" ")
-          .trim();
-        if (fullName) {
-          setName(fullName);
+        const [profileResult, userResult] = await Promise.allSettled([
+          getMyProfile(),
+          getMyUser(),
+        ]);
+        if (profileResult.status === "fulfilled") {
+          const fullName = [profileResult.value.firstName, profileResult.value.lastName]
+            .filter(Boolean)
+            .join(" ")
+            .trim();
+          if (fullName) setName(fullName);
+          setPhotoUrl(profileResult.value.photoUrl ?? null);
         }
-        setPhotoPreview(profile.photoUrl ?? null);
+        if (userResult.status === "fulfilled") {
+          setEmail(userResult.value.email ?? "");
+        }
       } catch {
-        setPhotoPreview(null);
+        // silent — shows empty state
       }
     };
 
-    loadProfile();
+    void loadData();
     const storedDefault = getDefaultModule();
-    if (storedDefault) {
-      setDefaultModuleState(storedDefault);
-    }
+    if (storedDefault) setDefaultModuleState(storedDefault);
   }, []);
 
   const handlePhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     if (!file.type.startsWith("image/")) {
-      setError("Selecione uma imagem válida.");
+      setUploadError(t.profile.errorSave);
       return;
     }
-
-    const upload = async () => {
-      setIsUploading(true);
-      try {
-        const profile = await uploadMyProfilePhoto(file);
-        setPhotoPreview(profile.photoUrl ?? null);
-        setError(null);
+    setIsUploading(true);
+    setUploadError(null);
+    uploadMyProfilePhoto(file)
+      .then((profile) => {
+        setPhotoUrl(profile.photoUrl ?? null);
         window.dispatchEvent(new Event("profile-updated"));
-      } catch {
-        setError("Não foi possível atualizar a foto.");
-      } finally {
+      })
+      .catch(() => {
+        setUploadError(t.profile.errorSave);
+      })
+      .finally(() => {
         setIsUploading(false);
-      }
-    };
+      });
+  };
 
-    upload();
+  const handleRemovePhoto = async () => {
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      await updateMyProfile({ photoUrl: null });
+      setPhotoUrl(null);
+      window.dispatchEvent(new Event("profile-updated"));
+    } catch {
+      setUploadError(t.profile.errorSave);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleSave = async () => {
-    setIsSaving(true);
+    setSaveState("saving");
     try {
       await updateMyProfile({ firstName: name.trim() || null, lastName: null });
       window.dispatchEvent(new Event("profile-updated"));
+      setSaveState("saved");
     } catch {
-      setError("Não foi possível salvar o perfil.");
-    } finally {
-      setIsSaving(false);
+      setSaveState("error");
     }
   };
 
+  const displayName = name.trim() && name.trim() !== email ? name.trim() : null;
+  const initials = displayName
+    ? displayName
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => p[0]?.toUpperCase() ?? "")
+        .join("")
+    : email.slice(0, 2).toUpperCase();
+
   return (
-    <Card className="max-w-2xl">
-      <h2 className="text-lg font-semibold">Perfil</h2>
-      <p className="mt-2 text-sm text-zinc-600">
-        Atualize sua foto, nome e informações básicas.
-      </p>
-      <div className="mt-6 flex flex-col gap-4">
-        <Input
-          label="Nome"
-          placeholder="Seu nome"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
-        <label className="flex flex-col gap-2 text-sm text-zinc-600">
-          Foto de perfil
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoChange}
-            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-            disabled={isUploading}
-          />
-        </label>
-        <label className="flex flex-col gap-2 text-sm text-zinc-600">
-          {t.auth.defaultModuleLabel}
-          <select
-            value={defaultModule}
-            onChange={(event) => {
-              const next = event.target.value as DefaultModule;
-              setDefaultModuleState(next);
-              setDefaultModule(next);
-            }}
-            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-          >
-            <option value="dashboard">{t.layout.dashboard}</option>
-            <option value="reminders">{t.modules.reminders}</option>
-            <option value="finance">{t.modules.finance}</option>
-            <option value="secrets">{t.modules.secrets}</option>
-            <option value="documents">{t.modules.documents}</option>
-            <option value="hr">{t.modules.hr}</option>
-            <option value="studies">{t.modules.studies}</option>
-            <option value="calendar">{t.modules.calendar}</option>
-          </select>
-        </label>
-        {photoPreview ? (
-          <div className="flex items-center gap-4">
-            <Image
-              src={photoPreview}
-              alt="Pré-visualização"
-              width={64}
-              height={64}
-              className="h-16 w-16 rounded-full object-cover"
-              unoptimized
-            />
-            <Button
-              variant="secondary"
-              onClick={async () => {
-                setIsSaving(true);
-                try {
-                  await updateMyProfile({ photoUrl: null });
-                  setPhotoPreview(null);
-                  window.dispatchEvent(new Event("profile-updated"));
-                } catch {
-                  setError("Não foi possível remover a foto.");
-                } finally {
-                  setIsSaving(false);
-                }
-              }}
-              disabled={isSaving}
-            >
-              Remover foto
-            </Button>
-          </div>
-        ) : null}
+    <div className="flex flex-col gap-6">
+      {/* Page header */}
+      <div>
+        <h2 className="text-2xl font-semibold text-[var(--foreground)]">{t.profile.title}</h2>
+        <p className="mt-0.5 text-sm text-[var(--foreground)]/50">{t.profile.subtitle}</p>
       </div>
-      {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
-      <Button className="mt-6" onClick={handleSave} disabled={isSaving}>
-        {isSaving ? "Salvando..." : "Salvar"}
-      </Button>
-    </Card>
+
+      {/* Two-column layout on desktop */}
+      <div className="grid gap-6 md:grid-cols-[280px_1fr]">
+        <ProfileAvatarSection
+          photoUrl={photoUrl}
+          initials={initials}
+          displayName={displayName}
+          email={email}
+          isUploading={isUploading}
+          onPhotoChange={handlePhotoChange}
+          onRemovePhoto={handleRemovePhoto}
+          uploadError={uploadError}
+        />
+        <ProfileForm
+          name={name}
+          email={email}
+          defaultModule={defaultModule}
+          saveState={saveState}
+          onNameChange={setName}
+          onDefaultModuleChange={(module) => {
+            setDefaultModuleState(module);
+            setDefaultModule(module);
+          }}
+          onSave={handleSave}
+          onSaveStateChange={setSaveState}
+        />
+      </div>
+    </div>
   );
 }
+

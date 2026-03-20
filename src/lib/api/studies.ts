@@ -204,6 +204,17 @@ export const updateStudyCourse = (input: {
   );
 };
 
+export const deleteStudyCourse = (input: {
+  workspaceId?: string;
+  id: string;
+}) => {
+  const resolved = workspacePath(input.workspaceId);
+  return apiFetch<void>(`/workspaces/${resolved}/studies/courses/${input.id}`, {
+    method: 'DELETE',
+    workspaceId: resolved,
+  });
+};
+
 export const createStudyTask = (input: {
   workspaceId?: string;
   title: string;

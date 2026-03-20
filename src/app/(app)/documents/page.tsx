@@ -8,18 +8,19 @@ type SearchParams = {
   page?: string;
 };
 
-export default function DocumentsPage({
+export default async function DocumentsPage({
   searchParams,
 }: {
-  searchParams?: SearchParams;
+  searchParams?: Promise<SearchParams>;
 }) {
+  const params = await searchParams;
   return (
     <DocumentsClient
-      initialQuery={searchParams?.q ?? ""}
-      initialFolder={searchParams?.folder ?? "all"}
-      initialType={searchParams?.type ?? "all"}
-      initialSort={searchParams?.sort ?? "updatedAt"}
-      initialPage={Number(searchParams?.page ?? 1)}
+      initialQuery={params?.q ?? ""}
+      initialFolder={params?.folder ?? "all"}
+      initialType={params?.type ?? "all"}
+      initialSort={params?.sort ?? "updatedAt"}
+      initialPage={Number(params?.page ?? 1)}
     />
   );
 }

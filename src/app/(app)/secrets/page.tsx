@@ -9,18 +9,19 @@ type SearchParams = {
   page?: string;
 };
 
-export default function SecretsPage({
+export default async function SecretsPage({
   searchParams,
 }: {
-  searchParams?: SearchParams;
+  searchParams?: Promise<SearchParams>;
 }) {
+  const params = await searchParams;
   return (
     <SecretsClient
-      initialQuery={searchParams?.q ?? ""}
-      initialType={(searchParams?.type as "all" | SecretType) ?? "all"}
-      initialSort={(searchParams?.sort as "updatedAt" | "title") ?? "updatedAt"}
-      initialDirection={(searchParams?.direction as "asc" | "desc") ?? "desc"}
-      initialPage={Number(searchParams?.page ?? 1)}
+      initialQuery={params?.q ?? ""}
+      initialType={(params?.type as "all" | SecretType) ?? "all"}
+      initialSort={(params?.sort as "updatedAt" | "title") ?? "updatedAt"}
+      initialDirection={(params?.direction as "asc" | "desc") ?? "desc"}
+      initialPage={Number(params?.page ?? 1)}
     />
   );
 }
