@@ -1,12 +1,28 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { useLanguage } from "@/lib/i18n/language-context";
+import { FinanceStatsRow } from "@/components/finance/FinanceStatsRow";
+import { RecurringBillsChecklist } from "@/components/finance/RecurringBillsChecklist";
+import { FinanceCategoriesPanel } from "@/components/finance/FinanceCategoriesPanel";
+import { EntriesSearchBar } from "@/components/finance/entries/EntriesSearchBar";
+import { EntriesSummaryRow } from "@/components/finance/entries/EntriesSummaryRow";
+import { EntriesList } from "@/components/finance/entries/EntriesList";
+import { AccountsList } from "@/components/finance/accounts/AccountsList";
+import { InvestmentsSection } from "@/components/finance/payment-methods/InvestmentsSection";
+import { CardsSection } from "@/components/finance/payment-methods/CardsSection";
+import { TransactionDrawer } from "@/components/finance/transaction/TransactionDrawer";
+import { AccountDrawer } from "@/components/finance/drawers/AccountDrawer";
+import { PaymentMethodDrawer } from "@/components/finance/drawers/PaymentMethodDrawer";
+import { TypeDrawer } from "@/components/finance/drawers/TypeDrawer";
+import { TagDrawer } from "@/components/finance/drawers/TagDrawer";
+import { ManageRecordsModal } from "@/components/finance/drawers/ManageRecordsModal";
 import { ApiError } from "@/lib/api/client";
 import { getWorkspaceId } from "@/lib/storage/workspace";
 import { getWorkspaceMemberships } from "@/lib/api/workspace-memberships";
@@ -19,7 +35,9 @@ import {
   createFinanceRecurring,
   createFinanceTag,
   createFinanceTransaction,
+  deleteFinanceCategory,
   deleteFinanceRecurring,
+  deleteFinanceTag,
   deleteFinanceTransaction,
   deleteFinanceAccount,
   deleteFinancePaymentMethod,
@@ -33,8 +51,10 @@ import {
   payFinanceCardBill,
   toggleFinanceRecurring,
   updateFinanceAccount,
+  updateFinanceCategory,
   updateFinancePaymentMethod,
   updateFinanceRecurring,
+  updateFinanceTag,
   updateFinanceTransaction,
   type FinanceCardBill,
   type FinanceAccount,
@@ -157,10 +177,13 @@ export default function FinanceClient({
     isPrimary: false,
   });
   const [tagDraft, setTagDraft] = useState("");
+  const [tagModalOpen, setTagModalOpen] = useState(false);
+  const [tagName, setTagName] = useState("");
+  const [manageRecordsOpen, setManageRecordsOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [cardMonthIndex, setCardMonthIndex] = useState(() => chartMonthRange - 1);
-  const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'cards'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'entries' | 'accounts' | 'paymentMethods'>('overview');
   const [investWithdrawModalOpen, setInvestWithdrawModalOpen] = useState(false);
   const [investWithdrawTarget, setInvestWithdrawTarget] = useState<FinancePaymentMethod | null>(null);
   const [investWithdrawAmount, setInvestWithdrawAmount] = useState('');
@@ -824,6 +847,53 @@ export default function FinanceClient({
         }
       };
 
+      const handleOpenTagModal = () => {
+        setFormError(null);
+        setTagName("");
+        setTagModalOpen(true);
+      };
+
+      const handleSaveTagStandalone = async () => {
+        const value = tagName.trim();
+        if (!value) return;
+        setIsSaving(true);
+        setFormError(null);
+        try {
+          const created = await createFinanceTag({ name: value });
+          setTags((prev) => [...prev, created]);
+          setTagModalOpen(false);
+          setTagName("");
+        } catch (err) {
+          if (err instanceof ApiError) {
+            setFormError(err.message);
+          } else {
+            setFormError(t.finance.tagError ?? t.finance.loadError);
+          }
+        } finally {
+          setIsSaving(false);
+        }
+      };
+
+      const handleUpdateTag = async (id: string, name: string) => {
+        const updated = await updateFinanceTag({ id, name });
+        setTags((prev) => prev.map((tag) => (tag.id === id ? updated : tag)));
+      };
+
+      const handleDeleteTagRecord = async (id: string) => {
+        await deleteFinanceTag({ id });
+        setTags((prev) => prev.filter((tag) => tag.id !== id));
+      };
+
+      const handleUpdateCategory = async (id: string, name: string, group: 'INCOME' | 'EXPENSE') => {
+        const updated = await updateFinanceCategory({ id, name, group });
+        setCategories((prev) => prev.map((cat) => (cat.id === id ? updated : cat)));
+      };
+
+      const handleDeleteCategoryRecord = async (id: string) => {
+        await deleteFinanceCategory({ id });
+        setCategories((prev) => prev.filter((cat) => cat.id !== id));
+      };
+
       const handleCreateTag = async () => {
         const value = tagDraft.trim();
         if (!value) return;
@@ -1191,65 +1261,50 @@ export default function FinanceClient({
           maximumFractionDigits: 2,
         }).format(value);
 
+      const paidIds = new Set(
+        recurring
+          .filter((item) => {
+            const interval = item.interval ?? 1;
+            const prevDue = shiftRecurringDate(item.nextDue, item.frequency, -interval);
+            return transactions.some((tx) => tx.recurringId === item.id && tx.occurredAt === prevDue);
+          })
+          .map((item) => item.id),
+      );
+
       return (
         <div className="flex flex-col gap-6">
+          {/* Header */}
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-2xl font-semibold">{t.modules.finance}</h2>
-              <p className="text-sm text-zinc-600">{t.finance.subtitle}</p>
+              <p className="text-sm text-[var(--foreground)]/60">{t.finance.subtitle}</p>
             </div>
-            <Button onClick={() => handleOpenTransaction()}>{t.finance.newTransaction}</Button>
           </div>
 
-          {/* Summary stats */}
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {[
-              {
-                label: t.dashboard.summaryFinanceIncome,
-                value: formatCurrency(transactions.filter((tx) => tx.group === 'INCOME').reduce((acc, tx) => acc + tx.amount, 0)),
-                color: 'text-emerald-600',
-              },
-              {
-                label: t.dashboard.summaryFinanceExpense,
-                value: formatCurrency(transactions.filter((tx) => tx.group === 'EXPENSE').reduce((acc, tx) => acc + tx.amount, 0)),
-                color: 'text-rose-500',
-              },
-              {
-                label: 'Saldo',
-                value: formatCurrency(
-                  transactions.filter((tx) => tx.group === 'INCOME').reduce((acc, tx) => acc + tx.amount, 0) -
-                  transactions.filter((tx) => tx.group === 'EXPENSE').reduce((acc, tx) => acc + tx.amount, 0)
-                ),
-                color: 'text-[var(--foreground)]',
-              },
-              {
-                label: t.finance.investmentsTitle ?? 'Investimentos',
-                value: formatCurrency(investMethods.reduce((sum, m) => sum + (m.balance ?? 0), 0)),
-                color: 'text-blue-600',
-              },
-            ].map((stat) => (
-              <Card key={stat.label} className="py-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">{stat.label}</p>
-                <p className={`mt-1 text-xl font-bold ${stat.color}`}>{stat.value}</p>
-              </Card>
-            ))}
-          </div>
+          {/* Stats row */}
+          <FinanceStatsRow
+            totalIncome={totalIncome}
+            totalExpense={totalExpense}
+            investmentsTotal={investMethods.reduce((s, m) => s + (m.balance ?? 0), 0)}
+            investmentsCount={investMethods.length}
+          />
 
           {/* Tab navigation */}
-          <div className="flex items-center gap-1 border-b border-[var(--border)]">
+          <div className="flex items-center gap-1 border-b [border-color:var(--border)]">
             {([
-              { id: 'overview', label: 'Visão Geral' },
-              { id: 'accounts', label: t.finance.accountsTitle ?? 'Contas' },
-              { id: 'cards', label: t.finance.paymentMethodsTitle ?? 'Cartões' },
+              { id: 'overview', label: t.finance.tabsOverview ?? 'Visão Geral' },
+              { id: 'entries', label: t.finance.tabsEntries ?? 'Lançamentos' },
+              { id: 'accounts', label: t.finance.tabsAccounts ?? t.finance.accountsTitle ?? 'Contas' },
+              { id: 'paymentMethods', label: t.finance.tabsPaymentMethods ?? 'Métodos de Pagamento' },
             ] as const).map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 text-sm font-medium transition border-b-2 -mb-px ${
+                className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${
                   activeTab === tab.id
                     ? 'border-[var(--sidebar)] text-[var(--sidebar)]'
-                    : 'border-transparent text-zinc-500 hover:text-[var(--foreground)]'
+                    : 'border-transparent text-[var(--foreground)]/50 hover:text-[var(--foreground)]'
                 }`}
               >
                 {tab.label}
@@ -1258,1065 +1313,237 @@ export default function FinanceClient({
             <div className="ml-auto flex gap-2 pb-1">
               {activeTab === 'overview' ? (
                 <>
+                  <Button variant="secondary" onClick={handleOpenTagModal}>
+                    + {t.finance.addTagAction ?? 'Nova tag'}
+                  </Button>
                   <Button variant="secondary" onClick={() => setCategoryModalOpen(true)}>
                     {t.finance.newType}
                   </Button>
+                  <Button variant="secondary" onClick={() => setManageRecordsOpen(true)}>
+                    {t.finance.manageRecords ?? 'Gerenciar'}
+                  </Button>
                   <Button variant="secondary" onClick={() => setRecurringModalOpen(true)}>
-                    {t.finance.recurringTitle}
+                    + {t.finance.recurringTitle}
                   </Button>
                 </>
+              ) : activeTab === 'entries' ? (
+                <Button onClick={() => handleOpenTransaction()}>
+                  {t.finance.newTransaction}
+                </Button>
               ) : activeTab === 'accounts' ? (
                 <Button variant="secondary" onClick={() => handleOpenAccount()}>
-                  {t.finance.newAccount ?? t.finance.typeLabel}
+                  + {t.finance.newAccount ?? t.finance.accountLabel}
                 </Button>
               ) : (
                 <Button variant="secondary" onClick={() => handleOpenPaymentMethod()}>
-                  {t.finance.paymentMethodAdd ?? 'Novo cartão'}
+                  + {t.finance.paymentMethodAdd ?? 'Adicionar'}
                 </Button>
               )}
             </div>
           </div>
 
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {error ? <p className="text-sm text-[var(--expense)]">{error}</p> : null}
 
-          {/* Contas tab */}
-          {activeTab === 'accounts' ? (
-          <Card>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-                    {t.finance.accountsTitle ?? t.finance.accountLabel ?? "Contas"}
-                  </h3>
-                  <p className="text-sm text-zinc-600">
-                    {t.finance.accountsSubtitle ?? "Total"}: {accounts.length}
-                  </p>
-                </div>
-                <Button variant="secondary" onClick={() => handleOpenAccount()}>
-                  {t.finance.newAccount ?? t.finance.accountLabel}
-                </Button>
-              </div>
-              <div className="mt-4 grid gap-3">
-                {accounts.length === 0 ? (
-                  <p className="text-sm text-zinc-500">{t.finance.empty}</p>
-                ) : (
-                  accounts.map((account) => (
-                    <div
-                      key={account.id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--border)] px-4 py-3"
-                    >
-                      <div>
-                        <p className="text-sm font-semibold text-[var(--foreground)]">
-                          {account.name}
-                        </p>
-                        <p className="text-xs text-zinc-500">
-                          {account.type} · {account.currency ?? "BRL"}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="secondary" onClick={() => handleOpenAccount(account)}>
-                          {t.finance.editAction ?? t.calendar.editAction}
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          onClick={() => handleDeleteAccount(account)}
-                          disabled={isSaving}
-                        >
-                          {t.finance.deleteAction ?? t.calendar.deleteAction}
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </Card>
-          ) : null}
-
-          {/* Cartões tab */}
-          {activeTab === 'cards' ? (
-            <>
-            <Card>
-              {/* Credit cards section */}
-              {(() => {
-                const creditCards = paymentMethods.filter((m) => m.type === "CREDIT");
-                const otherMethods = paymentMethods.filter((m) => m.type !== "CREDIT" && m.type !== "INVEST");
-                const creditTotal = creditCards.reduce((sum, m) => sum + (cardBills[m.id]?.remainingAmount ?? 0), 0);
-                const renderMethod = (method: FinancePaymentMethod) => (
-                  <div
-                    key={method.id}
-                    className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3 last:border-b-0"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-[var(--foreground)]">
-                        {method.name}{method.isPrimary ? " ⭐" : ""}
-                      </p>
-                      <p className="text-xs text-zinc-500">
-                        {method.type} · {method.currency ?? "BRL"}
-                        {method.type === "CREDIT" && cardBills[method.id] ? (
-                          <> · <span className="text-rose-500">{t.finance.billRemaining ?? "Fatura"}: {formatCurrency(cardBills[method.id].remainingAmount, method.currency ?? "BRL")}</span></>
-                        ) : null}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {method.type === "CREDIT" ? (
-                        <Button variant="secondary" onClick={() => handleOpenBill(method)}>
-                          {t.finance.billPay ?? "Pagar"}
-                        </Button>
-                      ) : null}
-                      <Button variant="secondary" onClick={() => handleOpenPaymentMethod(method)}>
-                        {t.finance.editAction ?? t.calendar.editAction}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        onClick={() => handleDeletePaymentMethod(method)}
-                        disabled={isSaving}
-                      >
-                        {t.finance.deleteAction ?? t.calendar.deleteAction}
-                      </Button>
-                    </div>
-                  </div>
-                );
-                return (
-                  <>
-                    {creditCards.length > 0 ? (
-                      <div className="mb-4">
-                        <div className="flex items-center justify-between px-4 pb-2">
-                          <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                            {t.finance.paymentMethodCredit ?? "Cartões de Crédito"} {creditCards.length}
-                          </h4>
-                          <Button variant="secondary" onClick={() => handleOpenPaymentMethod()}>
-                            {t.finance.paymentMethodAdd ?? "Adicionar"}
-                          </Button>
-                        </div>
-                        <div className="rounded-2xl border border-[var(--border)]">
-                          {creditCards.map(renderMethod)}
-                          <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface-muted)] px-4 py-2">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Total</span>
-                            <span className="text-sm font-bold text-rose-500">
-                              -{formatCurrency(creditTotal, "BRL")}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {otherMethods.length > 0 ? (
-                      <div>
-                        <h4 className="mb-2 px-4 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                          {t.finance.paymentMethodDebit ?? "Outras Formas de Pagamento"} {otherMethods.length}
-                        </h4>
-                        <div className="rounded-2xl border border-[var(--border)]">
-                          {otherMethods.map(renderMethod)}
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {investMethods.length > 0 ? (
-                      <div className="mt-4">
-                        <div className="flex items-center justify-between px-4 pb-2">
-                          <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                            {t.finance.investmentsTitle ?? 'Investimentos'} {investMethods.length}
-                          </h4>
-                        </div>
-                        <div className="rounded-2xl border border-[var(--border)]">
-                          {investMethods.map((method) => (
-                            <div
-                              key={method.id}
-                              className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3 last:border-b-0"
-                            >
-                              <div>
-                                <p className="text-sm font-semibold text-[var(--foreground)]">
-                                  {method.name}{method.isPrimary ? ' ⭐' : ''}
-                                </p>
-                                <p className="text-xs text-zinc-500">
-                                  {t.finance.balanceLabel ?? 'Saldo'}: <span className="font-semibold text-blue-600">{formatCurrency(method.balance ?? 0, method.currency)}</span>
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Button variant="secondary" onClick={() => handleInvestDeposit(method)}>
-                                  {t.finance.investDeposit ?? 'Depositar'}
-                                </Button>
-                                <Button variant="secondary" onClick={() => handleOpenInvestWithdraw(method)}>
-                                  {t.finance.investWithdraw ?? 'Resgatar'}
-                                </Button>
-                                <Button variant="secondary" onClick={() => handleOpenPaymentMethod(method)}>
-                                  {t.finance.editAction ?? t.calendar.editAction}
-                                </Button>
-                                <Button
-                                  variant="secondary"
-                                  onClick={() => handleDeletePaymentMethod(method)}
-                                  disabled={isSaving}
-                                >
-                                  {t.finance.deleteAction ?? t.calendar.deleteAction}
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                          <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface-muted)] px-4 py-2">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Total</span>
-                            <span className="text-sm font-bold text-blue-600">
-                              {formatCurrency(investMethods.reduce((sum, m) => sum + (m.balance ?? 0), 0))}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {paymentMethods.length === 0 ? (
-                      <p className="text-sm text-zinc-500">{t.finance.paymentMethodEmpty ?? t.finance.empty}</p>
-                    ) : null}
-                  </>
-                );
-              })()}
-            </Card>
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-                  {t.finance.cardsTitle ?? "Cartões"}
-                </h3>
-                <p className="text-sm text-zinc-600">
-                  {t.finance.cardsSubtitle ?? "Selecione um cartão para ver detalhes"}
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 flex gap-4 overflow-x-auto pb-2">
-              {cardMethods.length === 0 ? (
-                <p className="text-sm text-zinc-500">{t.finance.empty}</p>
-              ) : (
-                cardMethods.map((method) => {
-                  const bill = cardBills[method.id];
-                  const typeLabel =
-                    method.type === "CREDIT"
-                      ? t.finance.paymentMethodCredit ?? "Crédito"
-                      : method.type === "DEBIT"
-                        ? t.finance.paymentMethodDebit ?? "Débito"
-                        : method.type === "PIX"
-                          ? t.finance.paymentMethodPix ?? "Pix"
-                          : t.finance.paymentMethodCard ?? "Cartão";
-
-                  return (
-                    <button
-                      key={method.id}
-                      type="button"
-                      onClick={() => handleOpenCardDetails(method)}
-                      className="min-w-[240px] rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left transition hover:border-zinc-400"
-                    >
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-[var(--foreground)]">
-                          {method.name}
-                        </p>
-                        <span className="rounded-full border border-[var(--border)] px-2 py-1 text-[10px] text-zinc-500">
-                          {typeLabel}
-                        </span>
-                      </div>
-                      <p className="mt-3 text-xs text-zinc-500">
-                        {t.finance.balanceLabel ?? "Saldo"}: {" "}
-                        {formatCurrency(method.balance ?? 0, method.currency)}
-                      </p>
-                      {method.type === "CREDIT" ? (
-                        <p className="mt-1 text-xs text-zinc-500">
-                          {t.finance.billRemaining ?? "Saldo da fatura"}: {" "}
-                          {bill ? formatCurrency(bill.remainingAmount, method.currency) : "-"}
-                        </p>
-                      ) : null}
-                      {method.type === "CREDIT" && bill?.bill.dueDate ? (
-                        <p className="mt-1 text-xs text-zinc-500">
-                          {t.finance.billDue ?? "Vencimento"}: {bill.bill.dueDate}
-                        </p>
-                      ) : null}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </Card>
-            </>
-          ) : null}
-
-          {/* Visão Geral tab */}
+          {/* Overview tab */}
           {activeTab === 'overview' ? (
-            <>
-          <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-                  {t.finance.recurringTitle}
-                </h3>
-                <p className="text-sm text-zinc-600">{t.finance.nextDueLabel}</p>
-              </div>
-            </div>
-            <div className="mt-4 grid gap-3">
-              {recurring.length === 0 ? (
-                <p className="text-sm text-zinc-500">{t.finance.empty}</p>
-              ) : (
-                recurring.map((item) => {
-                  const category = categories.find((type) => type.id === item.categoryId);
-                  const interval = item.interval ?? 1;
-                  const previousDue = shiftRecurringDate(item.nextDue, item.frequency, -interval);
-                  const isPaid = transactions.some(
-                    (entry) => entry.recurringId === item.id && entry.occurredAt === previousDue,
-                  );
-                  const displayDue = isPaid ? previousDue : item.nextDue;
-                  return (
-                    <div
-                      key={item.id}
-                      className="list-item-animate rounded-2xl border border-[var(--border)] px-4 py-3"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <label className="flex items-center gap-2 text-sm">
-                            <input
-                              type="checkbox"
-                              checked={isPaid}
-                              onChange={(event) =>
-                                handleToggleRecurringPayment(item, event.target.checked)
-                              }
-                              disabled={isSaving}
-                            />
-                          </label>
-                          <p className="text-sm font-semibold text-[var(--foreground)]">
-                            {item.title}
-                          </p>
-                        </div>
-                        <span className="text-xs text-zinc-500">{item.frequency}</span>
-                      </div>
-                      <p className="text-xs text-zinc-500">
-                        {category?.name ?? t.finance.tagsEmpty} · {displayDue}
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-[var(--foreground)]">
-                        {formatCurrency(item.amount, item.currency ?? "BRL")}
-                      </p>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </Card>
-
-          <Card>
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="min-w-[220px] flex-1">
-                <Input
-                  label={t.finance.searchLabel}
-                  placeholder={t.finance.searchPlaceholder}
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    setPage(1);
-                  }}
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card>
+                <RecurringBillsChecklist
+                  recurring={recurring}
+                  categories={categories}
+                  paidIds={paidIds}
+                  disabled={isSaving}
+                  onToggle={handleToggleRecurringPayment}
+                  onAdd={() => setRecurringModalOpen(true)}
                 />
-              </div>
-              <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                {t.finance.groupLabel}
-                <select
-                  value={groupFilter}
-                  onChange={(event) => {
-                    setGroupFilter(event.target.value);
-                    setPage(1);
-                  }}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                >
-                  <option value="all">{t.finance.groupAll}</option>
-                  <option value="INCOME">{t.finance.groupIncome}</option>
-                  <option value="EXPENSE">{t.finance.groupExpense}</option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                {t.finance.typeLabel}
-                <select
-                  value={typeFilter}
-                  onChange={(event) => {
-                    setTypeFilter(event.target.value);
-                    setPage(1);
-                  }}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                >
-                  <option value="all">{t.finance.typeAll}</option>
-                  {categories.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                {t.finance.statusLabel}
-                <select
-                  value={statusFilter}
-                  onChange={(event) => {
-                    setStatusFilter(event.target.value);
-                    setPage(1);
-                  }}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                >
-                  <option value="all">{t.finance.statusAll}</option>
-                  <option value="PAID">{t.finance.statusPaid}</option>
-                  <option value="PENDING">{t.finance.statusPending}</option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                {t.finance.sortLabel}
-                <select
-                  value={sortBy}
-                  onChange={(event) => setSortBy(event.target.value)}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                >
-                  <option value="date">{t.finance.sortDate}</option>
-                  <option value="amount">{t.finance.sortAmount}</option>
-                </select>
-              </label>
-            </div>
-          </Card>
-
-          <Card>
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
-                    {t.finance.listTitle}
-                  </h3>
-                  <p className="text-sm text-zinc-600">{t.finance.monthEventsTitle}</p>
-                </div>
-              </div>
-
-              {/* Stats summary row — inspired by Visor */}
-              {!isLoading && sortedTransactions.length > 0 ? (
-                <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-muted)] px-4 py-3 text-sm">
-                  <span className="flex items-center gap-1.5 text-zinc-500">
-                    <span>📅</span>
-                    <span>{sortedTransactions.length}</span>
-                  </span>
-                  <span className="flex items-center gap-1 text-emerald-600">
-                    <span>↑</span>
-                    <span>{formatCurrency(totalIncome, "BRL")}</span>
-                  </span>
-                  <span className="flex items-center gap-1 text-rose-500">
-                    <span>↓</span>
-                    <span>{formatCurrency(totalExpense, "BRL")}</span>
-                  </span>
-                  <span
-                    className={`ml-auto font-semibold ${totalIncome - totalExpense >= 0 ? "text-emerald-600" : "text-rose-500"}`}
-                  >
-                    ↕ {formatCurrency(Math.abs(totalIncome - totalExpense), "BRL")}
-                  </span>
-                </div>
-              ) : null}
-
-              {isLoading ? (
-                <p className="mt-4 text-sm text-zinc-500">{t.finance.loading}</p>
-              ) : null}
-
-              {!isLoading && paged.length === 0 ? (
-                <p className="mt-4 text-sm text-zinc-500">{t.finance.empty}</p>
-              ) : null}
-
-              <div className="mt-4 grid gap-3">
-                {paged.map((item, index) => {
-                  const category = categories.find((type) => type.id === item.categoryId);
-                  return (
-                    <div
-                      key={item.id}
-                      className="list-item-animate flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--border)] px-4 py-3"
-                    >
-                      <div className="flex items-start gap-3">
-                        <span className="mt-0.5 w-5 shrink-0 text-center text-xs text-zinc-400">
-                          {index + 1}
-                        </span>
-                        <div>
-                          <p className="text-sm font-semibold text-[var(--foreground)]">
-                            {item.title}
-                          </p>
-                          <p className="text-xs text-zinc-500">
-                            {category?.name ?? t.finance.tagsEmpty} · {item.occurredAt}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`text-sm font-semibold ${item.group === "INCOME" ? "text-emerald-600" : "text-[var(--foreground)]"}`}>
-                          {item.group === "INCOME" ? "+" : ""}{formatCurrency(item.amount, item.currency ?? "BRL")}
-                        </p>
-                        <p className="text-xs text-zinc-500">
-                          {item.status === "PAID"
-                            ? t.finance.statusPaid
-                            : t.finance.statusPending}
-                        </p>
-                        <div className="mt-2 flex justify-end gap-2">
-                          <Button
-                            variant="secondary"
-                            onClick={() => handleOpenTransaction(item)}
-                          >
-                            {t.finance.editAction ?? t.calendar.editAction}
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            onClick={() => handleDeleteTransaction(item)}
-                            disabled={isSaving}
-                          >
-                            {t.finance.deleteAction ?? t.calendar.deleteAction}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-4 flex items-center justify-between text-xs text-zinc-500">
-                <span>
-                  {t.finance.showing ?? "Exibindo"} {paged.length} {t.finance.of ?? "de"} {sortedTransactions.length}
-                </span>
-                {hasMoreTransactions ? (
-                  <Button variant="secondary" onClick={() => setPage((prev) => prev + 1)}>
-                    {t.finance.loadMore ?? "Carregar mais"}
-                  </Button>
-                ) : null}
-              </div>
-            </Card>
-            </>
-          ) : null}
-
-          {transactionModalOpen ? (
-            <div className="modal-overlay fixed inset-0 z-50 overflow-y-auto">
-              <button
-                type="button"
-                className="fixed inset-0 bg-black/40"
-                onClick={() => setTransactionModalOpen(false)}
-              />
-              <div className="flex min-h-full items-center justify-center px-4 py-4">
-              <Card className="modal-content relative z-10 w-full max-w-2xl">
-                <div className="grid gap-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">
-                      {editingTransaction ? t.finance.editAction : t.finance.newTransaction}
-                    </h3>
-                    <Button variant="secondary" onClick={() => setTransactionModalOpen(false)}>
-                      {t.finance.close ?? t.calendar.closeAction}
-                    </Button>
-                  </div>
-                  <div className="flex flex-wrap gap-2 text-sm">
-                    <Button
-                      type="button"
-                      variant={transactionTab === "details" ? "primary" : "secondary"}
-                      onClick={() => setTransactionTab("details")}
-                    >
-                      {t.finance.details}
-                    </Button>
-                    {transactionForm.isRecurring ? (
-                      <Button
-                        type="button"
-                        variant={transactionTab === "recurrence" ? "primary" : "secondary"}
-                        onClick={() => setTransactionTab("recurrence")}
-                      >
-                        {t.finance.recurrenceTabLabel}
-                      </Button>
-                    ) : null}
-                  </div>
-                  {transactionTab === "details" ? (
-                    <>
-                      <Input
-                        label={t.finance.titleLabel}
-                        value={transactionForm.title}
-                        onChange={(event) =>
-                          setTransactionForm((prev) => ({
-                            ...prev,
-                            title: event.target.value,
-                          }))
-                        }
-                      />
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div className="flex flex-col gap-2 text-sm text-zinc-600">
-                          <span className="font-medium text-zinc-700">
-                            {(() => {
-                              const selMethod = paymentMethods.find((m) => m.id === transactionForm.paymentMethodId);
-                              const isCreditExpenseNew = !editingTransaction && selMethod?.type === "CREDIT" && transactionForm.group === "EXPENSE" && transactionForm.installments > 1;
-                              const isCreditExpenseEdit = Boolean(editingTransaction?.installmentTotal && editingTransaction.installmentTotal > 1);
-                              if (!isCreditExpenseNew && !isCreditExpenseEdit) return t.finance.amountLabel;
-                              return transactionForm.isInstallmentValue ? (t.finance.installmentsPerAmount ?? t.finance.amountLabel) : (t.finance.installmentsTotalAmount ?? t.finance.amountLabel);
-                            })()}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <input
-                              inputMode="numeric"
-                              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] outline-none transition focus:border-zinc-400"
-                              value={transactionForm.amount}
-                              onChange={(event) => {
-                                const digits = event.target.value.replace(/\D/g, "");
-                                setTransactionForm((prev) => ({
-                                  ...prev,
-                                  amount: formatCurrencyInput(digits, prev.currency),
-                                }));
-                              }}
-                            />
-                            <select
-                              value={transactionForm.currency}
-                              onChange={(event) => {
-                                const currency = event.target.value as "BRL" | "USD";
-                                const digits = transactionForm.amount.replace(/\D/g, "");
-                                setTransactionForm((prev) => ({
-                                  ...prev,
-                                  currency,
-                                  amount: formatCurrencyInput(digits, currency),
-                                }));
-                              }}
-                              className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm"
-                            >
-                              <option value="BRL">BRL</option>
-                              <option value="USD">USD</option>
-                            </select>
-                          </div>
-                        </div>
-                        <Input
-                          label={t.finance.dateLabel}
-                          type="datetime-local"
-                          value={transactionForm.occurredAt}
-                          onChange={(event) =>
-                            setTransactionForm((prev) => ({
-                              ...prev,
-                              occurredAt: event.target.value,
-                            }))
-                          }
-                        />
-                        <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                          {t.finance.groupLabel}
-                          <select
-                            value={transactionForm.group}
-                            onChange={(event) =>
-                              setTransactionForm((prev) => ({
-                                ...prev,
-                                group: event.target.value as "INCOME" | "EXPENSE",
-                              }))
-                            }
-                            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                          >
-                            <option value="INCOME">{t.finance.groupIncome}</option>
-                            <option value="EXPENSE">{t.finance.groupExpense}</option>
-                          </select>
-                        </label>
-                        <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                          {t.finance.statusLabel}
-                          <select
-                            value={transactionForm.status}
-                            onChange={(event) =>
-                              setTransactionForm((prev) => ({
-                                ...prev,
-                                status: event.target.value as "PAID" | "PENDING",
-                              }))
-                            }
-                            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                          >
-                            <option value="PAID">{t.finance.statusPaid}</option>
-                            <option value="PENDING">{t.finance.statusPending}</option>
-                          </select>
-                        </label>
-                        <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                          {t.finance.accountLabel}
-                          <select
-                            value={transactionForm.accountId}
-                            onChange={(event) =>
-                              setTransactionForm((prev) => ({
-                                ...prev,
-                                accountId: event.target.value,
-                              }))
-                            }
-                            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                          >
-                            <option value="">{t.finance.accountAll}</option>
-                            {accounts.map((account) => (
-                              <option key={account.id} value={account.id}>
-                                {account.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                          {t.finance.methodLabel}
-                          <select
-                            value={transactionForm.paymentMethodId}
-                            onChange={(event) => {
-                              const value = event.target.value;
-                              const selected = paymentMethods.find(
-                                (method) => method.id === value,
-                              );
-                              setTransactionForm((prev) => ({
-                                ...prev,
-                                paymentMethodId: value,
-                                accountId: selected?.accountId ?? prev.accountId,
-                              }));
-                            }}
-                            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                          >
-                            <option value="">{t.finance.none}</option>
-                            {cardMethods.map((method) => (
-                              <option key={method.id} value={method.id}>
-                                {method.name}
-                              </option>
-                            ))}
-                            {investMethods.length > 0 ? (
-                              <optgroup label={t.finance.investmentsTitle ?? 'Investimentos'}>
-                                {investMethods.map((method) => (
-                                  <option key={method.id} value={method.id}>
-                                    {method.name}
-                                  </option>
-                                ))}
-                              </optgroup>
-                            ) : null}
-                          </select>
-                        </label>
-                        {/* Credit installment selector — only available when creating a CREDIT EXPENSE */}
-                        {!editingTransaction &&
-                        paymentMethods.find((m) => m.id === transactionForm.paymentMethodId)?.type === "CREDIT" &&
-                        transactionForm.group === "EXPENSE" ? (
-                          <div className="md:col-span-2 grid gap-3 rounded-2xl border border-[var(--border)] px-4 py-3 text-sm text-zinc-600">
-                            <label className="flex flex-col gap-2">
-                              {t.finance.installmentsLabel ?? "Parcelas"}
-                              <select
-                                value={transactionForm.installments}
-                                onChange={(event) => {
-                                  const val = Number(event.target.value);
-                                  setTransactionForm((prev) => ({
-                                    ...prev,
-                                    installments: val,
-                                    isInstallmentValue: val > 1 ? prev.isInstallmentValue : false,
-                                  }));
-                                }}
-                                className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                              >
-                                <option value={1}>{t.finance.installmentsCash ?? "À vista (1x)"}</option>
-                                {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
-                                  <option key={n} value={n}>{n}x</option>
-                                ))}
-                              </select>
-                            </label>
-                            {transactionForm.installments > 1 ? (
-                              <>
-                                <label className="flex items-center gap-2">
-                                  <input
-                                    type="checkbox"
-                                    checked={transactionForm.isInstallmentValue}
-                                    onChange={(event) =>
-                                      setTransactionForm((prev) => ({
-                                        ...prev,
-                                        isInstallmentValue: event.target.checked,
-                                      }))
-                                    }
-                                  />
-                                  {t.finance.installmentsIsPerValueLabel ?? "O valor informado é o da parcela (não o total)"}
-                                </label>
-                                {!transactionForm.isInstallmentValue && transactionForm.amount ? (
-                                  <p className="text-xs text-zinc-500">
-                                    {t.finance.installmentsPreview ?? "Valor por parcela"}:{" "}
-                                    {formatCurrencyInput(
-                                      String(
-                                        Math.round(
-                                          (parseCurrencyInput(transactionForm.amount) / transactionForm.installments) * 100,
-                                        ),
-                                      ),
-                                      transactionForm.currency,
-                                    )}
-                                  </p>
-                                ) : null}
-                              </>
-                            ) : null}
-                          </div>
-                        ) : null}
-                        {/* Installment total editor — visible when editing an installment transaction */}
-                        {editingTransaction?.installmentTotal && editingTransaction.installmentTotal > 1 ? (
-                          <div className="md:col-span-2 grid gap-3 rounded-2xl border border-[var(--border)] px-4 py-3 text-sm text-zinc-600">
-                            <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-zinc-400">
-                              {t.finance.installmentsLabel}
-                              <span className="normal-case tracking-normal font-normal text-zinc-500">
-                                {(t.finance.installmentsInfo ?? "Parcela {index} de {total}")
-                                  .replace("{index}", String(editingTransaction.installmentIndex ?? ""))
-                                  .replace("{total}", String(transactionForm.installments))}
-                              </span>
-                            </span>
-                            <div className="flex flex-wrap gap-2">
-                              {Array.from(
-                                { length: 12 - (editingTransaction.installmentIndex ?? 1) + 1 },
-                                (_, k) => (editingTransaction.installmentIndex ?? 1) + k,
-                              ).map((n) => (
-                                <button
-                                  key={n}
-                                  type="button"
-                                  onClick={() =>
-                                    setTransactionForm((prev) => ({ ...prev, installments: n }))
-                                  }
-                                  className={`rounded-full px-3 py-0.5 text-xs font-semibold ring-1 transition-colors ${
-                                    transactionForm.installments === n
-                                      ? "bg-zinc-800 text-white ring-zinc-800"
-                                      : "bg-transparent text-zinc-600 ring-[var(--border)] hover:ring-zinc-400"
-                                  }`}
-                                >
-                                  {n}x
-                                </button>
-                              ))}
-                            </div>
-                            <label className="flex items-center gap-2 text-xs text-zinc-600">
-                              <input
-                                type="checkbox"
-                                checked={transactionForm.isInstallmentValue}
-                                onChange={(event) =>
-                                  setTransactionForm((prev) => ({
-                                    ...prev,
-                                    isInstallmentValue: event.target.checked,
-                                  }))
-                                }
-                              />
-                              {t.finance.installmentsIsPerValueLabel}
-                            </label>
-                            {!transactionForm.isInstallmentValue && parseCurrencyInput(transactionForm.amount) ? (
-                              <p className="text-xs text-zinc-500">
-                                {t.finance.installmentsPreview ?? "Valor por parcela"}:{" "}
-                                {formatCurrencyInput(
-                                  String(
-                                    Math.round(
-                                      (parseCurrencyInput(transactionForm.amount) /
-                                        transactionForm.installments) *
-                                        100,
-                                    ),
-                                  ),
-                                  transactionForm.currency,
-                                )}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : null}
-                        <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                          {t.finance.typeLabel}
-                          <select
-                            value={transactionForm.categoryId}
-                            onChange={(event) =>
-                              setTransactionForm((prev) => ({
-                                ...prev,
-                                categoryId: event.target.value,
-                              }))
-                            }
-                            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                          >
-                            <option value="">{t.finance.typeAll}</option>
-                            {categories.map((type) => (
-                              <option key={type.id} value={type.id}>
-                                {type.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                      <Input
-                        label={t.finance.descriptionLabel}
-                        value={transactionForm.description}
-                        onChange={(event) =>
-                          setTransactionForm((prev) => ({
-                            ...prev,
-                            description: event.target.value,
-                          }))
-                        }
-                      />
-                      <div className="grid gap-3">
-                        <div>
-                          <p className="text-sm text-zinc-600">{t.finance.tagsLabel}</p>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {tags.length > 0
-                              ? tags.map((tag) => (
-                                  <Button
-                                    key={tag.id}
-                                    type="button"
-                                    variant={
-                                      transactionForm.tagIds.includes(tag.id)
-                                        ? "primary"
-                                        : "secondary"
-                                    }
-                                    onClick={() =>
-                                      setTransactionForm((prev) => ({
-                                        ...prev,
-                                        tagIds: prev.tagIds.includes(tag.id)
-                                          ? prev.tagIds.filter((item) => item !== tag.id)
-                                          : [...prev.tagIds, tag.id],
-                                      }))
-                                    }
-                                  >
-                                    {tag.name}
-                                  </Button>
-                                ))
-                              : suggestedTags.map((tag) => (
-                                  <Button
-                                    key={tag}
-                                    type="button"
-                                    variant="secondary"
-                                    onClick={() => handleSuggestedTag(tag)}
-                                  >
-                                    {tag}
-                                  </Button>
-                                ))}
-                          </div>
-                          {tags.length === 0 ? (
-                            <p className="mt-2 text-xs text-zinc-500">
-                              {t.finance.tagsEmpty}
-                            </p>
-                          ) : null}
-                        </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2">
-                          <Input
-                            value={tagDraft}
-                            placeholder={t.finance.tagsPlaceholder}
-                            onChange={(event) => setTagDraft(event.target.value)}
-                          />
-                          <Button variant="secondary" onClick={handleCreateTag}>
-                            {t.finance.addTagAction}
-                          </Button>
-                        </div>
-                      </div>
-                      {members.length > 0 ? (
-                        <div className="grid gap-3">
-                          <p className="text-sm text-zinc-600">{t.finance.participantsLabel}</p>
-                          <p className="text-xs text-zinc-500">{t.finance.participantsHint}</p>
-                          <div className="flex flex-wrap gap-2">
-                            {members.map((member) => (
-                              <Button
-                                key={member.userId}
-                                type="button"
-                                variant={
-                                  transactionForm.participantIds.includes(member.userId)
-                                    ? "primary"
-                                    : "secondary"
-                                }
-                                onClick={() =>
-                                  setTransactionForm((prev) => ({
-                                    ...prev,
-                                    participantIds: prev.participantIds.includes(member.userId)
-                                      ? prev.participantIds.filter((id) => id !== member.userId)
-                                      : [...prev.participantIds, member.userId],
-                                  }))
-                                }
-                              >
-                                <Avatar src={member.photoUrl} name={member.label} size={20} />
-                                {member.label}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-                      <div className="grid gap-2 rounded-2xl border border-[var(--border)] px-4 py-3 text-sm text-zinc-600">
-                        {/* Hide recurring toggle when credit installment flow is active */}
-                        {!(
-                          !editingTransaction &&
-                          paymentMethods.find((m) => m.id === transactionForm.paymentMethodId)?.type === "CREDIT" &&
-                          transactionForm.group === "EXPENSE" &&
-                          transactionForm.installments > 1
-                        ) ? (
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={transactionForm.isRecurring}
-                            onChange={(event) => {
-                              const checked = event.target.checked;
-                              setTransactionForm((prev) => ({
-                                ...prev,
-                                isRecurring: checked,
-                                addToCalendar: checked ? prev.addToCalendar : false,
-                              }));
-                              if (checked) {
-                                setTransactionTab("recurrence");
-                              } else {
-                                setTransactionTab("details");
-                              }
-                            }}
-                          />
-                          {t.finance.recurringLabel}
-                        </label>
-                        ) : null}
-                      </div>
-                    </>
-                  ) : null}
-                  {transactionTab === "recurrence" && transactionForm.isRecurring ? (
-                    <div className="grid gap-4 rounded-2xl border border-[var(--border)] px-4 py-4 text-sm text-zinc-600">
-                      <label className="flex flex-col gap-2">
-                        {t.finance.recurrenceFrequencyLabel}
-                        <select
-                          value={transactionForm.recurrenceFrequency}
-                          onChange={(event) =>
-                            setTransactionForm((prev) => ({
-                              ...prev,
-                              recurrenceFrequency: event.target.value as
-                                | "DAILY"
-                                | "WEEKLY"
-                                | "MONTHLY"
-                                | "YEARLY"
-                                | "SEMIANNUAL",
-                            }))
-                          }
-                          className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                        >
-                          <option value="DAILY">{t.finance.cadenceDaily}</option>
-                          <option value="WEEKLY">{t.finance.cadenceWeekly}</option>
-                          <option value="MONTHLY">{t.finance.cadenceMonthly}</option>
-                          <option value="SEMIANNUAL">{t.finance.cadenceSemiannual}</option>
-                          <option value="YEARLY">{t.finance.cadenceYearly}</option>
-                        </select>
-                      </label>
-                      {transactionForm.recurrenceFrequency !== "SEMIANNUAL" ? (
-                        <label className="flex flex-col gap-2">
-                          {t.finance.recurrenceIntervalLabel}
-                          <input
-                            type="number"
-                            min={1}
-                            value={transactionForm.recurrenceInterval}
-                            onChange={(event) =>
-                              setTransactionForm((prev) => ({
-                                ...prev,
-                                recurrenceInterval: event.target.value,
-                              }))
-                            }
-                            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                          />
-                        </label>
-                      ) : null}
-                      <label className="flex flex-col gap-2">
-                        {t.finance.recurrenceEndDateLabel}
-                        <input
-                          type="date"
-                          value={transactionForm.recurrenceEndDate}
-                          onChange={(event) =>
-                            setTransactionForm((prev) => ({
-                              ...prev,
-                              recurrenceEndDate: event.target.value,
-                            }))
-                          }
-                          className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                        />
-                        {!transactionForm.recurrenceEndDate ? (
-                          <span className="text-xs text-zinc-400">{t.finance.recurrenceNoEndDate}</span>
-                        ) : null}
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={transactionForm.addToCalendar}
-                          onChange={(event) =>
-                            setTransactionForm((prev) => ({
-                              ...prev,
-                              addToCalendar: event.target.checked,
-                            }))
-                          }
-                        />
-                        {t.finance.addToCalendarLabel}
-                      </label>
-                    </div>
-                  ) : null}
-                  {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
-                  <div className="flex justify-end gap-2">
-                    <Button variant="secondary" onClick={() => setTransactionModalOpen(false)}>
-                      {t.finance.cancel}
-                    </Button>
-                    <Button onClick={handleSaveTransaction} disabled={isSaving}>
-                      {isSaving ? t.finance.saving : t.finance.save}
-                    </Button>
-                  </div>
-                </div>
               </Card>
-              </div>
+              <FinanceCategoriesPanel transactions={transactions} categories={categories} />
             </div>
           ) : null}
 
+          {/* Entries tab */}
+          {activeTab === 'entries' ? (
+            <Card className="grid gap-4">
+              <EntriesSearchBar
+                query={query}
+                groupFilter={groupFilter}
+                typeFilter={typeFilter}
+                statusFilter={statusFilter}
+                sortBy={sortBy}
+                categories={categories}
+                onQuery={(v) => { setQuery(v); setPage(1); }}
+                onGroup={(v) => { setGroupFilter(v); setPage(1); }}
+                onType={(v) => { setTypeFilter(v); setPage(1); }}
+                onStatus={(v) => { setStatusFilter(v); setPage(1); }}
+                onSort={setSortBy}
+                onNew={() => handleOpenTransaction()}
+              />
+              {!isLoading && sortedTransactions.length > 0 ? (
+                <EntriesSummaryRow
+                  total={sortedTransactions.length}
+                  totalIncome={totalIncome}
+                  totalExpense={totalExpense}
+                />
+              ) : null}
+              <EntriesList
+                transactions={paged}
+                categories={categories}
+                isLoading={isLoading}
+                hasMore={hasMoreTransactions}
+                isSaving={isSaving}
+                onEdit={handleOpenTransaction}
+                onDelete={handleDeleteTransaction}
+                onLoadMore={() => setPage((prev) => prev + 1)}
+              />
+            </Card>
+          ) : null}
+
+          {/* Accounts tab */}
+          {activeTab === 'accounts' ? (
+            <Card>
+              <AccountsList
+                accounts={accounts}
+                isSaving={isSaving}
+                onAdd={() => handleOpenAccount()}
+                onEdit={handleOpenAccount}
+                onDelete={handleDeleteAccount}
+              />
+            </Card>
+          ) : null}
+
+          {/* Payment methods tab */}
+          {activeTab === 'paymentMethods' ? (
+            <div className="grid gap-6">
+              <Card>
+                <InvestmentsSection
+                  investMethods={investMethods}
+                  isSaving={isSaving}
+                  onAdd={() => handleOpenPaymentMethod()}
+                  onEdit={handleOpenPaymentMethod}
+                  onDelete={handleDeletePaymentMethod}
+                  onDeposit={handleInvestDeposit}
+                  onWithdraw={handleOpenInvestWithdraw}
+                />
+              </Card>
+              <Card>
+                <CardsSection
+                  cardMethods={cardMethods}
+                  cardBills={cardBills}
+                  isSaving={isSaving}
+                  onAdd={() => handleOpenPaymentMethod()}
+                  onEdit={handleOpenPaymentMethod}
+                  onDelete={handleDeletePaymentMethod}
+                  onPayBill={handleOpenBill}
+                  onViewDetails={handleOpenCardDetails}
+                />
+              </Card>
+            </div>
+          ) : null}
+
+          {/* === DRAWERS === */}
+
+          {/* Transaction drawer (right side) */}
+          <TransactionDrawer
+            open={transactionModalOpen}
+            editing={editingTransaction}
+            form={transactionForm}
+            activeTab={transactionTab}
+            accounts={accounts}
+            paymentMethods={paymentMethods}
+            categories={categories}
+            tags={tags}
+            members={members}
+            tagDraft={tagDraft}
+            cardMethods={cardMethods}
+            investMethods={investMethods}
+            formError={formError}
+            isSaving={isSaving}
+            onClose={() => setTransactionModalOpen(false)}
+            onChange={(patch) => setTransactionForm((prev) => ({ ...prev, ...patch }))}
+            onTabChange={setTransactionTab}
+            onTagDraftChange={setTagDraft}
+            onTagToggle={(tagId) =>
+              setTransactionForm((prev) => ({
+                ...prev,
+                tagIds: prev.tagIds.includes(tagId)
+                  ? prev.tagIds.filter((id) => id !== tagId)
+                  : [...prev.tagIds, tagId],
+              }))
+            }
+            onTagAdd={handleCreateTag}
+            onTagSuggest={handleSuggestedTag}
+            onSave={handleSaveTransaction}
+            formatCurrencyInput={formatCurrencyInput}
+            parseCurrencyInput={parseCurrencyInput}
+          />
+
+          {/* Account drawer */}
+          <AccountDrawer
+            open={accountModalOpen}
+            editing={editingAccount}
+            form={accountForm}
+            formError={formError}
+            isSaving={isSaving}
+            onClose={() => setAccountModalOpen(false)}
+            onChange={(patch) => setAccountForm((prev) => ({ ...prev, ...patch }))}
+            onSave={handleSaveAccount}
+            onDelete={handleDeleteAccount}
+          />
+
+          {/* Payment method drawer */}
+          <PaymentMethodDrawer
+            open={paymentMethodModalOpen}
+            editing={editingPaymentMethod}
+            form={paymentMethodForm}
+            accounts={accounts}
+            formError={formError}
+            isSaving={isSaving}
+            onClose={() => setPaymentMethodModalOpen(false)}
+            onChange={(patch) => setPaymentMethodForm((prev) => ({ ...prev, ...patch }))}
+            onSave={handleSavePaymentMethod}
+            onDelete={handleDeletePaymentMethod}
+            formatCurrencyInput={formatCurrencyInput}
+          />
+
+          {/* Type/category drawer */}
+          <TypeDrawer
+            open={categoryModalOpen}
+            name={categoryForm.name}
+            group={categoryForm.group}
+            formError={formError}
+            isSaving={isSaving}
+            onClose={() => setCategoryModalOpen(false)}
+            onNameChange={(v) => setCategoryForm((prev) => ({ ...prev, name: v }))}
+            onGroupChange={(v) => setCategoryForm((prev) => ({ ...prev, group: v }))}
+            onSave={handleCreateCategory}
+          />
+
+          {/* Tag drawer */}
+          <TagDrawer
+            open={tagModalOpen}
+            name={tagName}
+            formError={formError}
+            isSaving={isSaving}
+            onClose={() => setTagModalOpen(false)}
+            onNameChange={setTagName}
+            onSave={handleSaveTagStandalone}
+          />
+
+          {/* Manage records modal */}
+          <ManageRecordsModal
+            open={manageRecordsOpen}
+            tags={tags}
+            categories={categories}
+            onClose={() => setManageRecordsOpen(false)}
+            onUpdateTag={handleUpdateTag}
+            onDeleteTag={handleDeleteTagRecord}
+            onUpdateCategory={handleUpdateCategory}
+            onDeleteCategory={handleDeleteCategoryRecord}
+          />
+
+          {/* === CENTERED MODALS (kept as-is) === */}
+
+          {/* Card detail modal */}
           {cardDetailOpen && selectedCard ? (
             <div className="modal-overlay fixed inset-0 z-50 overflow-y-auto">
               <button
@@ -2330,8 +1557,8 @@ export default function FinanceClient({
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-lg font-semibold">{selectedCard.name}</h3>
-                      <p className="text-sm text-zinc-600">
-                        {t.finance.cardDetailsTitle ?? "Detalhes do cartão"}
+                      <p className="text-sm text-[var(--foreground)]/60">
+                        {t.finance.cardDetailsTitle ?? 'Detalhes do cartão'}
                       </p>
                     </div>
                     <Button variant="secondary" onClick={handleCloseCardDetails}>
@@ -2339,132 +1566,72 @@ export default function FinanceClient({
                     </Button>
                   </div>
 
-                  {selectedCard.type === "CREDIT" ? (
-                    <div className="rounded-2xl border border-[var(--border)] p-4">
+                  {selectedCard.type === 'CREDIT' ? (
+                    <div className="rounded-2xl border [border-color:var(--border)] p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <p className="text-xs text-zinc-500">
-                            {t.finance.billRemaining ?? "Saldo da fatura"}
-                          </p>
+                          <p className="text-xs text-[var(--foreground)]/50">{t.finance.billRemaining ?? 'Saldo da fatura'}</p>
                           <p className="text-lg font-semibold">
-                            {formatCurrency(
-                              cardBills[selectedCard.id]?.remainingAmount ?? 0,
-                              selectedCard.currency,
-                            )}
+                            {formatCurrency(cardBills[selectedCard.id]?.remainingAmount ?? 0, selectedCard.currency)}
                           </p>
                           {cardBills[selectedCard.id]?.bill.dueDate ? (
-                            <p className="text-xs text-zinc-500">
-                              {t.finance.billDue ?? "Vencimento"}: {" "}
-                              {cardBills[selectedCard.id]?.bill.dueDate}
+                            <p className="text-xs text-[var(--foreground)]/50">
+                              {t.finance.billDue ?? 'Vencimento'}: {cardBills[selectedCard.id]?.bill.dueDate}
                             </p>
                           ) : null}
                         </div>
                         <Button variant="secondary" onClick={() => handleOpenBill(selectedCard)}>
-                          {t.finance.billPay ?? "Pagar"}
+                          {t.finance.billPay ?? 'Pagar'}
                         </Button>
                       </div>
                     </div>
                   ) : null}
 
-                  <div className="rounded-2xl border border-[var(--border)] p-4">
+                  <div className="rounded-2xl border [border-color:var(--border)] p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                          {t.finance.monthTitle ?? "Mês"}
-                        </p>
-                        <p className="text-sm text-zinc-600">
-                          {t.finance.cardTransactionsTitle ?? "Movimentações"}
+                        <p className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground)]/50">
+                          {t.finance.monthTitle ?? 'Mês'}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-zinc-500">
-                        <button
-                          type="button"
-                          onClick={() => setCardMonthIndex((current) => Math.max(0, current - 1))}
-                          disabled={cardMonthIndex <= 0}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] text-sm text-zinc-600 disabled:opacity-40"
-                          aria-label="Previous month"
-                        >
-                          ←
-                        </button>
-                        <span className="rounded-full border border-[var(--border)] px-3 py-1">
-                          {activeCardMonth?.label ?? "-"}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setCardMonthIndex((current) =>
-                              Math.min(cardMonthKeys.length - 1, current + 1),
-                            )
-                          }
-                          disabled={cardMonthIndex >= cardMonthKeys.length - 1}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] text-sm text-zinc-600 disabled:opacity-40"
-                          aria-label="Next month"
-                        >
-                          →
-                        </button>
+                      <div className="flex items-center gap-2 text-xs text-[var(--foreground)]/50">
+                        <button type="button" onClick={() => setCardMonthIndex((c) => Math.max(0, c - 1))} disabled={cardMonthIndex <= 0}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border [border-color:var(--border)] disabled:opacity-40" aria-label="Previous month">←</button>
+                        <span className="rounded-full border [border-color:var(--border)] px-3 py-1">{activeCardMonth?.label ?? '-'}</span>
+                        <button type="button" onClick={() => setCardMonthIndex((c) => Math.min(cardMonthKeys.length - 1, c + 1))} disabled={cardMonthIndex >= cardMonthKeys.length - 1}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border [border-color:var(--border)] disabled:opacity-40" aria-label="Next month">→</button>
                       </div>
                     </div>
                     <div className="mt-4 flex items-end gap-4 overflow-x-auto pb-2">
                       {cardMonthlyTotals.map((month) => (
                         <div key={month.key} className="flex min-w-[72px] flex-col items-center gap-2">
                           <div className="flex items-end gap-1">
-                            <div
-                              className="w-3 rounded-full bg-emerald-500"
-                              style={{
-                                height: Math.max(8, (month.income / cardMaxValue) * 80),
-                              }}
-                            />
-                            <div
-                              className="w-3 rounded-full bg-red-400"
-                              style={{
-                                height: Math.max(8, (month.expense / cardMaxValue) * 80),
-                              }}
-                            />
+                            <div className="w-3 rounded-full bg-[var(--income)]" style={{ height: Math.max(8, (month.income / cardMaxValue) * 80) }} />
+                            <div className="w-3 rounded-full bg-[var(--expense)]" style={{ height: Math.max(8, (month.expense / cardMaxValue) * 80) }} />
                           </div>
-                          <span className="text-[10px] text-zinc-500">{month.label}</span>
+                          <span className="text-[10px] text-[var(--foreground)]/50">{month.label}</span>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-3 text-xs text-zinc-500">
-                      {t.finance.groupIncome}: {" "}
-                      {formatCurrency(activeCardMonth?.income ?? 0, selectedCard.currency)} · {" "}
-                      {t.finance.groupExpense}: {" "}
-                      {formatCurrency(activeCardMonth?.expense ?? 0, selectedCard.currency)}
+                    <div className="mt-3 text-xs text-[var(--foreground)]/50">
+                      ↑ {formatCurrency(activeCardMonth?.income ?? 0, selectedCard.currency)} · ↓ {formatCurrency(activeCardMonth?.expense ?? 0, selectedCard.currency)}
                     </div>
                   </div>
 
                   <div className="grid gap-3">
-                    <div>
-                      <h4 className="text-sm font-semibold">
-                        {t.finance.cardTransactionsTitle ?? "Transações do mês"}
-                      </h4>
-                      <p className="text-xs text-zinc-500">
-                        {t.finance.cardTransactionsSubtitle ?? "Detalhes do período selecionado"}
-                      </p>
-                    </div>
+                    <h4 className="text-sm font-semibold">{t.finance.cardTransactionsTitle ?? 'Transações do mês'}</h4>
                     {activeCardTransactions.length === 0 ? (
-                      <p className="text-sm text-zinc-500">
-                        {t.finance.cardTransactionsEmpty ?? t.finance.empty}
-                      </p>
+                      <p className="text-sm text-[var(--foreground)]/50">{t.finance.cardTransactionsEmpty ?? t.finance.empty}</p>
                     ) : (
                       activeCardTransactions.map((item) => {
-                        const category = categories.find((type) => type.id === item.categoryId);
+                        const category = categories.find((c) => c.id === item.categoryId);
                         return (
-                          <div
-                            key={item.id}
-                            className="flex items-center justify-between rounded-2xl border border-[var(--border)] px-4 py-3"
-                          >
+                          <div key={item.id} className="flex items-center justify-between rounded-2xl border [border-color:var(--border)] px-4 py-3">
                             <div>
-                              <p className="text-sm font-semibold text-[var(--foreground)]">
-                                {item.title}
-                              </p>
-                              <p className="text-xs text-zinc-500">
-                                {category?.name ?? t.finance.tagsEmpty} · {item.occurredAt}
-                              </p>
+                              <p className="text-sm font-semibold text-[var(--foreground)]">{item.title}</p>
+                              <p className="text-xs text-[var(--foreground)]/50">{category?.name ?? t.finance.tagsEmpty} · {item.occurredAt.slice(0, 10)}</p>
                             </div>
-                            <p className="text-sm font-semibold text-[var(--foreground)]">
-                              {formatCurrency(item.amount, item.currency ?? selectedCard.currency)}
-                            </p>
+                            <p className="text-sm font-semibold">{formatCurrency(item.amount, item.currency ?? selectedCard.currency)}</p>
                           </div>
                         );
                       })
@@ -2476,511 +1643,121 @@ export default function FinanceClient({
             </div>
           ) : null}
 
-          {recurringModalOpen ? (
-            <div className="modal-overlay fixed inset-0 z-50 overflow-y-auto">
+          {/* Recurring creation modal */}
+          {recurringModalOpen ? createPortal(
+            <>
+              {/* Overlay */}
               <button
                 type="button"
-                className="fixed inset-0 bg-black/40"
+                aria-label="Fechar"
+                className="modal-overlay fixed inset-0 z-40 bg-black/40"
                 onClick={() => setRecurringModalOpen(false)}
               />
-              <div className="flex min-h-full items-center justify-center px-4 py-4">
-              <Card className="modal-content relative z-10 w-full max-w-xl">
-                <div className="grid gap-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">{t.finance.recurringTitle}</h3>
-                    <Button variant="secondary" onClick={() => setRecurringModalOpen(false)}>
-                      {t.finance.close ?? t.calendar.closeAction}
-                    </Button>
-                  </div>
-                  <Input
-                    label={t.finance.titleLabel}
-                    value={recurringForm.title}
-                    onChange={(event) =>
-                      setRecurringForm((prev) => ({
-                        ...prev,
-                        title: event.target.value,
-                      }))
-                    }
-                  />
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <Input
-                      label={t.finance.amountLabel}
-                      value={recurringForm.amount}
-                      onChange={(event) =>
-                        setRecurringForm((prev) => ({
-                          ...prev,
-                          amount: event.target.value,
-                        }))
-                      }
-                    />
-                    <Input
-                      label={t.finance.nextDueLabel}
-                      type="date"
-                      value={recurringForm.nextDue}
-                      onChange={(event) =>
-                        setRecurringForm((prev) => ({
-                          ...prev,
-                          nextDue: event.target.value,
-                        }))
-                      }
-                    />
-                    <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                      {t.finance.groupLabel}
-                      <select
-                        value={recurringForm.group}
-                        onChange={(event) =>
-                          setRecurringForm((prev) => ({
-                            ...prev,
-                            group: event.target.value as "INCOME" | "EXPENSE",
-                          }))
-                        }
-                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                      >
-                        <option value="INCOME">{t.finance.groupIncome}</option>
-                        <option value="EXPENSE">{t.finance.groupExpense}</option>
-                      </select>
-                    </label>
-                    <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                      {t.finance.recurrenceFrequencyLabel}
-                      <select
-                        value={recurringForm.frequency}
-                        onChange={(event) =>
-                          setRecurringForm((prev) => ({
-                            ...prev,
-                            frequency: event.target.value as
-                              | "DAILY"
-                              | "WEEKLY"
-                              | "MONTHLY"
-                              | "YEARLY"
-                              | "SEMIANNUAL",
-                          }))
-                        }
-                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                      >
-                        <option value="DAILY">{t.finance.cadenceDaily}</option>
-                        <option value="WEEKLY">{t.finance.cadenceWeekly}</option>
-                        <option value="MONTHLY">{t.finance.cadenceMonthly}</option>
-                        <option value="SEMIANNUAL">{t.finance.cadenceSemiannual}</option>
-                        <option value="YEARLY">{t.finance.cadenceYearly}</option>
-                      </select>
-                    </label>
-                    {recurringForm.frequency !== "SEMIANNUAL" ? (
-                      <Input
-                        label={t.finance.recurrenceIntervalLabel}
-                        type="number"
-                        value={recurringForm.interval}
-                        onChange={(event) =>
-                          setRecurringForm((prev) => ({
-                            ...prev,
-                            interval: event.target.value,
-                          }))
-                        }
-                      />
-                    ) : null}
-                    <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                      {t.finance.recurrenceEndDateLabel}
-                      <input
-                        type="date"
-                        value={recurringForm.endDate}
-                        onChange={(event) =>
-                          setRecurringForm((prev) => ({
-                            ...prev,
-                            endDate: event.target.value,
-                          }))
-                        }
-                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                      />
-                      {!recurringForm.endDate ? (
-                        <span className="text-xs text-zinc-400">{t.finance.recurrenceNoEndDate}</span>
+
+              {/* Centered modal panel */}
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div
+                className="modal-content w-full max-w-xl flex flex-col bg-[var(--surface)] rounded-2xl shadow-2xl"
+                style={{ maxHeight: '90vh', overflow: 'hidden' }}
+                role="dialog"
+                aria-modal="true"
+                aria-label={t.finance.recurringTitle}
+              >
+                {/* Header */}
+                <div className="flex shrink-0 items-center justify-between border-b [border-color:var(--border)] px-5 py-4">
+                  <h2 className="text-base font-semibold text-[var(--foreground)]">{t.finance.recurringTitle}</h2>
+                  <button
+                    type="button"
+                    onClick={() => setRecurringModalOpen(false)}
+                    aria-label={t.finance.close ?? 'Fechar'}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--foreground)]/50 transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Scrollable body */}
+                <div className="flex-1 overflow-y-auto px-5 py-4">
+                  <div className="grid gap-4">
+                    <Input label={t.finance.titleLabel} value={recurringForm.title} onChange={(e) => setRecurringForm((prev) => ({ ...prev, title: e.target.value }))} />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Input label={t.finance.amountLabel} value={recurringForm.amount} onChange={(e) => setRecurringForm((prev) => ({ ...prev, amount: e.target.value }))} />
+                      <Input label={t.finance.nextDueLabel} type="date" value={recurringForm.nextDue} onChange={(e) => setRecurringForm((prev) => ({ ...prev, nextDue: e.target.value }))} />
+                      <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--foreground)]/60">
+                        {t.finance.groupLabel}
+                        <select value={recurringForm.group} onChange={(e) => setRecurringForm((prev) => ({ ...prev, group: e.target.value as 'INCOME' | 'EXPENSE' }))}
+                          className="rounded-xl border [border-color:var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm">
+                          <option value="INCOME">{t.finance.groupIncome}</option>
+                          <option value="EXPENSE">{t.finance.groupExpense}</option>
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--foreground)]/60">
+                        {t.finance.recurrenceFrequencyLabel}
+                        <select value={recurringForm.frequency} onChange={(e) => setRecurringForm((prev) => ({ ...prev, frequency: e.target.value as typeof recurringForm.frequency }))}
+                          className="rounded-xl border [border-color:var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm">
+                          <option value="DAILY">{t.finance.cadenceDaily}</option>
+                          <option value="WEEKLY">{t.finance.cadenceWeekly}</option>
+                          <option value="MONTHLY">{t.finance.cadenceMonthly}</option>
+                          <option value="SEMIANNUAL">{t.finance.cadenceSemiannual}</option>
+                          <option value="YEARLY">{t.finance.cadenceYearly}</option>
+                        </select>
+                      </label>
+                      {recurringForm.frequency !== 'SEMIANNUAL' ? (
+                        <Input label={t.finance.recurrenceIntervalLabel} type="number" value={recurringForm.interval} onChange={(e) => setRecurringForm((prev) => ({ ...prev, interval: e.target.value }))} />
                       ) : null}
-                    </label>
-                  </div>
-                  {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
-                  <div className="flex justify-end gap-2">
-                    <Button variant="secondary" onClick={() => setRecurringModalOpen(false)}>
-                      {t.finance.cancel}
-                    </Button>
-                    <Button onClick={handleSaveRecurring} disabled={isSaving}>
-                      {isSaving ? t.finance.saving : t.finance.save}
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-              </div>
-            </div>
-          ) : null}
-
-          {categoryModalOpen ? (
-            <div className="modal-overlay fixed inset-0 z-50 overflow-y-auto">
-              <button
-                type="button"
-                className="fixed inset-0 bg-black/40"
-                onClick={() => setCategoryModalOpen(false)}
-              />
-              <div className="flex min-h-full items-center justify-center px-4 py-4">
-              <Card className="modal-content relative z-10 w-full max-w-lg">
-                <div className="grid gap-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">{t.finance.newType}</h3>
-                    <Button variant="secondary" onClick={() => setCategoryModalOpen(false)}>
-                      {t.finance.close ?? t.calendar.closeAction}
-                    </Button>
-                  </div>
-                  <Input
-                    label={t.finance.typeLabel}
-                    value={categoryForm.name}
-                    onChange={(event) =>
-                      setCategoryForm((prev) => ({
-                        ...prev,
-                        name: event.target.value,
-                      }))
-                    }
-                  />
-                  <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                    {t.finance.groupLabel}
-                    <select
-                      value={categoryForm.group}
-                      onChange={(event) =>
-                        setCategoryForm((prev) => ({
-                          ...prev,
-                          group: event.target.value as "INCOME" | "EXPENSE",
-                        }))
-                      }
-                      className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                    >
-                      <option value="INCOME">{t.finance.groupIncome}</option>
-                      <option value="EXPENSE">{t.finance.groupExpense}</option>
-                    </select>
-                  </label>
-                  {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
-                  <div className="flex justify-end gap-2">
-                    <Button variant="secondary" onClick={() => setCategoryModalOpen(false)}>
-                      {t.finance.cancel}
-                    </Button>
-                    <Button onClick={handleCreateCategory} disabled={isSaving}>
-                      {isSaving ? t.finance.saving : t.finance.save}
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-              </div>
-            </div>
-          ) : null}
-
-          {accountModalOpen ? (
-            <div className="modal-overlay fixed inset-0 z-50 overflow-y-auto">
-              <button
-                type="button"
-                className="fixed inset-0 bg-black/40"
-                onClick={() => setAccountModalOpen(false)}
-              />
-              <div className="flex min-h-full items-center justify-center px-4 py-4">
-              <Card className="modal-content relative z-10 w-full max-w-lg">
-                <div className="grid gap-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">
-                      {editingAccount ? t.finance.editAction ?? t.calendar.editAction : t.finance.newAccount ?? t.finance.accountLabel}
-                    </h3>
-                    <Button variant="secondary" onClick={() => setAccountModalOpen(false)}>
-                      {t.finance.close ?? t.calendar.closeAction}
-                    </Button>
-                  </div>
-                  <Input
-                    label={t.finance.accountLabel}
-                    value={accountForm.name}
-                    onChange={(event) =>
-                      setAccountForm((prev) => ({
-                        ...prev,
-                        name: event.target.value,
-                      }))
-                    }
-                  />
-                  <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                    {t.finance.accountTypeLabel}
-                    <select
-                      value={accountForm.type}
-                      onChange={(event) =>
-                        setAccountForm((prev) => ({
-                          ...prev,
-                          type: event.target.value as "CASH" | "BANK" | "CARD",
-                        }))
-                      }
-                      className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                    >
-                      <option value="BANK">Bank</option>
-                      <option value="CASH">Cash</option>
-                      <option value="CARD">Card</option>
-                    </select>
-                  </label>
-                  <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                    {t.finance.currencyLabel ?? "Moeda"}
-                    <select
-                      value={accountForm.currency}
-                      onChange={(event) =>
-                        setAccountForm((prev) => ({
-                          ...prev,
-                          currency: event.target.value,
-                        }))
-                      }
-                      className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                    >
-                      <option value="BRL">BRL</option>
-                      <option value="USD">USD</option>
-                    </select>
-                  </label>
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-600">
-                    <input
-                      type="checkbox"
-                      checked={accountForm.isPrimary}
-                      onChange={(e) =>
-                        setAccountForm((prev) => ({ ...prev, isPrimary: e.target.checked }))
-                      }
-                      className="h-4 w-4 rounded border-[var(--border)]"
-                    />
-                    {t.finance.setPrimary ?? "Definir como principal"}
-                  </label>
-                  {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
-                  <div className="flex flex-wrap justify-end gap-2">
-                    {editingAccount ? (
-                      <Button
-                        variant="secondary"
-                        onClick={() => handleDeleteAccount(editingAccount)}
-                        disabled={isSaving}
-                      >
-                        {t.finance.deleteAction ?? t.calendar.deleteAction}
-                      </Button>
-                    ) : null}
-                    <Button variant="secondary" onClick={() => setAccountModalOpen(false)}>
-                      {t.finance.cancel}
-                    </Button>
-                    <Button onClick={handleSaveAccount} disabled={isSaving}>
-                      {isSaving ? t.finance.saving : t.finance.save}
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-              </div>
-            </div>
-          ) : null}
-
-          {paymentMethodModalOpen ? (
-            <div className="modal-overlay fixed inset-0 z-50 overflow-y-auto">
-              <button
-                type="button"
-                className="fixed inset-0 bg-black/40"
-                onClick={() => setPaymentMethodModalOpen(false)}
-              />
-              <div className="flex min-h-full items-center justify-center px-4 py-4">
-              <Card className="modal-content relative z-10 w-full max-w-2xl">
-                <div className="grid gap-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">
-                      {editingPaymentMethod
-                        ? t.finance.editAction ?? t.calendar.editAction
-                        : t.finance.paymentMethodTitle ?? t.finance.paymentMethodsTitle ?? "Novo cartão"}
-                    </h3>
-                    <Button variant="secondary" onClick={() => setPaymentMethodModalOpen(false)}>
-                      {t.finance.close ?? t.calendar.closeAction}
-                    </Button>
-                  </div>
-                  <Input
-                    label={t.finance.paymentMethodNameLabel ?? t.finance.titleLabel}
-                    value={paymentMethodForm.name}
-                    onChange={(event) =>
-                      setPaymentMethodForm((prev) => ({
-                        ...prev,
-                        name: event.target.value,
-                      }))
-                    }
-                  />
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                      {t.finance.paymentMethodTypeLabel ?? t.finance.typeLabel}
-                      <select
-                        value={paymentMethodForm.type}
-                        onChange={(event) =>
-                          setPaymentMethodForm((prev) => ({
-                            ...prev,
-                            type: event.target.value as FinancePaymentMethodType,
-                          }))
-                        }
-                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                      >
-                        <option value="CREDIT">{t.finance.paymentMethodCredit ?? "Crédito"}</option>
-                        <option value="DEBIT">{t.finance.paymentMethodDebit ?? "Débito"}</option>
-                        <option value="PIX">{t.finance.paymentMethodPix ?? "Pix"}</option>
-                        <option value="INVEST">{t.finance.paymentMethodInvest ?? "Investimento"}</option>
-                      </select>
-                    </label>
-                    <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                      {t.finance.paymentMethodAccountLabel ?? t.finance.accountLabel}
-                      <select
-                        value={paymentMethodForm.accountId}
-                        onChange={(event) =>
-                          setPaymentMethodForm((prev) => ({
-                            ...prev,
-                            accountId: event.target.value,
-                          }))
-                        }
-                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                      >
-                        <option value="">{t.finance.none}</option>
-                        {accounts.map((account) => (
-                          <option key={account.id} value={account.id}>
-                            {account.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="flex flex-col gap-2 text-sm text-zinc-600">
-                      {t.finance.currencyLabel ?? "Moeda"}
-                      <select
-                        value={paymentMethodForm.currency}
-                        onChange={(event) =>
-                          setPaymentMethodForm((prev) => ({
-                            ...prev,
-                            currency: event.target.value,
-                          }))
-                        }
-                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                      >
-                        <option value="BRL">BRL</option>
-                        <option value="USD">USD</option>
-                      </select>
-                    </label>
-                    <Input
-                      label={t.finance.balanceLabel ?? "Saldo"}
-                      value={paymentMethodForm.balance}
-                      onChange={(event) =>
-                        setPaymentMethodForm((prev) => ({
-                          ...prev,
-                          balance: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-
-                  {paymentMethodForm.type === "CREDIT" ? (
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <Input
-                        label={t.finance.paymentMethodLimitLabel ?? "Limite"}
-                        value={paymentMethodForm.limit}
-                        onChange={(event) => {
-                          const digits = event.target.value.replace(/\D/g, "");
-                          setPaymentMethodForm((prev) => ({
-                            ...prev,
-                            limit: formatCurrencyInput(digits, prev.currency),
-                          }));
-                        }}
-                      />
-                      <Input
-                        label={t.finance.paymentMethodClosingDayLabel ?? "Fechamento"}
-                        type="date"
-                        value={paymentMethodForm.closingDay}
-                        onChange={(event) =>
-                          setPaymentMethodForm((prev) => ({
-                            ...prev,
-                            closingDay: event.target.value,
-                          }))
-                        }
-                      />
-                      <Input
-                        label={t.finance.paymentMethodDueDayLabel ?? "Vencimento"}
-                        type="date"
-                        value={paymentMethodForm.dueDay}
-                        onChange={(event) =>
-                          setPaymentMethodForm((prev) => ({
-                            ...prev,
-                            dueDay: event.target.value,
-                          }))
-                        }
-                      />
+                      <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--foreground)]/60">
+                        {t.finance.recurrenceEndDateLabel}
+                        <input type="date" value={recurringForm.endDate} onChange={(e) => setRecurringForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                          className="rounded-xl border [border-color:var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm" />
+                        {!recurringForm.endDate ? <span className="text-xs text-[var(--foreground)]/40">{t.finance.recurrenceNoEndDate}</span> : null}
+                      </label>
                     </div>
-                  ) : null}
-
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-600">
-                    <input
-                      type="checkbox"
-                      checked={paymentMethodForm.isPrimary}
-                      onChange={(e) =>
-                        setPaymentMethodForm((prev) => ({ ...prev, isPrimary: e.target.checked }))
-                      }
-                      className="h-4 w-4 rounded border-[var(--border)]"
-                    />
-                    {t.finance.setPrimary ?? "Definir como principal"}
-                  </label>
-
-                  {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
-                  <div className="flex flex-wrap justify-end gap-2">
-                    {editingPaymentMethod ? (
-                      <Button
-                        variant="secondary"
-                        onClick={() => handleDeletePaymentMethod(editingPaymentMethod)}
-                        disabled={isSaving}
-                      >
-                        {t.finance.deleteAction ?? t.calendar.deleteAction}
-                      </Button>
-                    ) : null}
-                    <Button variant="secondary" onClick={() => setPaymentMethodModalOpen(false)}>
-                      {t.finance.cancel}
-                    </Button>
-                    <Button onClick={handleSavePaymentMethod} disabled={isSaving}>
-                      {isSaving ? t.finance.saving : t.finance.save}
-                    </Button>
                   </div>
                 </div>
-              </Card>
+
+                {/* Footer */}
+                <div className="shrink-0 border-t [border-color:var(--border)] px-5 py-4">
+                  {formError ? <p className="mb-3 text-sm text-[var(--expense)]">{formError}</p> : null}
+                  <div className="flex justify-end gap-2">
+                    <Button variant="secondary" onClick={() => setRecurringModalOpen(false)} disabled={isSaving}>{t.finance.cancel}</Button>
+                    <Button onClick={handleSaveRecurring} disabled={isSaving}>{isSaving ? t.finance.saving : t.finance.save}</Button>
+                  </div>
+                </div>
               </div>
-            </div>
+              </div>
+            </>,
+            document.body
           ) : null}
 
+          {/* Bill payment modal */}
           {billModalOpen ? (
             <div className="modal-overlay fixed inset-0 z-50 overflow-y-auto">
-              <button
-                type="button"
-                className="fixed inset-0 bg-black/40"
-                onClick={() => setBillModalOpen(false)}
-              />
+              <button type="button" className="fixed inset-0 bg-black/40" onClick={() => setBillModalOpen(false)} />
               <div className="flex min-h-full items-center justify-center px-4 py-4">
               <Card className="modal-content relative z-10 w-full max-w-lg">
                 <div className="grid gap-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">
-                      {t.finance.billTitle ?? "Pagamento de fatura"}
-                    </h3>
-                    <Button variant="secondary" onClick={() => setBillModalOpen(false)}>
-                      {t.finance.close ?? t.calendar.closeAction}
-                    </Button>
+                    <h3 className="text-lg font-semibold">{t.finance.billTitle ?? 'Pagamento de fatura'}</h3>
+                    <Button variant="secondary" onClick={() => setBillModalOpen(false)}>{t.finance.close ?? t.calendar.closeAction}</Button>
                   </div>
                   {billTarget ? (
                     <div>
-                      <p className="text-sm font-semibold text-[var(--foreground)]">
-                        {billTarget.name}
-                      </p>
+                      <p className="text-sm font-semibold">{billTarget.name}</p>
                       {cardBills[billTarget.id] ? (
-                        <p className="text-xs text-zinc-500">
-                          {t.finance.billRemaining ?? "Saldo"}: {" "}
-                          {formatCurrency(
-                            cardBills[billTarget.id].remainingAmount,
-                            billTarget.currency,
-                          )}
+                        <p className="text-xs text-[var(--foreground)]/50">
+                          {t.finance.billRemaining ?? 'Saldo'}: {formatCurrency(cardBills[billTarget.id].remainingAmount, billTarget.currency)}
                         </p>
                       ) : null}
                     </div>
                   ) : null}
-                  <Input
-                    label={t.finance.billAmountLabel ?? t.finance.amountLabel}
-                    value={billAmount}
-                    onChange={(event) => setBillAmount(event.target.value)}
-                  />
-                  {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
+                  <Input label={t.finance.billAmountLabel ?? t.finance.amountLabel} value={billAmount} onChange={(e) => setBillAmount(e.target.value)} />
+                  {formError ? <p className="text-sm text-[var(--expense)]">{formError}</p> : null}
                   <div className="flex justify-end gap-2">
-                    <Button variant="secondary" onClick={() => setBillModalOpen(false)}>
-                      {t.finance.cancel}
-                    </Button>
-                    <Button onClick={handlePayBill} disabled={isSaving}>
-                      {t.finance.billPay ?? t.finance.save}
-                    </Button>
+                    <Button variant="secondary" onClick={() => setBillModalOpen(false)}>{t.finance.cancel}</Button>
+                    <Button onClick={handlePayBill} disabled={isSaving}>{t.finance.billPay ?? t.finance.save}</Button>
                   </div>
                 </div>
               </Card>
@@ -2988,58 +1765,43 @@ export default function FinanceClient({
             </div>
           ) : null}
 
-          {/* Invest Withdraw Modal */}
+          {/* Invest withdraw modal */}
           {investWithdrawModalOpen && investWithdrawTarget ? (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
               <div className="w-full max-w-sm">
                 <Card>
-                  <div className="flex-flex-col gap-4">
+                  <div className="grid gap-4">
                     <div className="flex items-center justify-between">
                       <h2 className="text-base font-semibold">
                         {t.finance.investWithdraw ?? 'Resgatar'} — {investWithdrawTarget.name}
                       </h2>
-                      <button
-                        type="button"
-                        aria-label="Fechar"
-                        onClick={() => setInvestWithdrawModalOpen(false)}
-                        className="text-zinc-400 hover:text-[var(--foreground)]"
-                      >
-                        ✕
-                      </button>
+                      <button type="button" aria-label="Fechar" onClick={() => setInvestWithdrawModalOpen(false)}
+                        className="text-[var(--foreground)]/40 hover:text-[var(--foreground)]">✕</button>
                     </div>
-                    <p className="text-sm text-zinc-500">
-                      {t.finance.balanceLabel ?? 'Saldo disponível'}:{' '}
-                      <span className="font-semibold text-blue-600">
+                    <p className="text-sm text-[var(--foreground)]/50">
+                      {t.finance.balanceLabel ?? 'Saldo'}:{' '}
+                      <span className="font-semibold text-[var(--sidebar)]">
                         {formatCurrency(investWithdrawTarget.balance ?? 0, investWithdrawTarget.currency)}
                       </span>
                     </p>
-                    <label className="mt-3 flex flex-col gap-2 text-sm">
+                    <label className="flex flex-col gap-2 text-sm">
                       {t.finance.amountLabel ?? 'Valor a resgatar'}
-                      <input
-                        type="text"
-                        value={investWithdrawAmount}
-                        onChange={(event) => setInvestWithdrawAmount(formatCurrencyInput(event.target.value.replace(/\D/g, ''), investWithdrawTarget.currency ?? 'BRL'))}
+                      <input type="text" value={investWithdrawAmount}
+                        onChange={(e) => setInvestWithdrawAmount(formatCurrencyInput(e.target.value.replace(/\D/g, ''), investWithdrawTarget.currency ?? 'BRL'))}
                         placeholder="0,00"
-                        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-                      />
+                        className="rounded-xl border [border-color:var(--border)] bg-[var(--surface)] px-3 py-2 text-sm" />
                     </label>
-                    {investWithdrawError ? (
-                      <p className="text-sm text-red-600">{investWithdrawError}</p>
-                    ) : null}
-                    <div className="mt-3 flex justify-end gap-2">
-                      <Button variant="secondary" onClick={() => setInvestWithdrawModalOpen(false)}>
-                        {t.finance.cancel}
-                      </Button>
-                      <Button onClick={handleInvestWithdraw} disabled={isSaving}>
-                        {t.finance.investWithdraw ?? 'Resgatar'}
-                      </Button>
+                    {investWithdrawError ? <p className="text-sm text-[var(--expense)]">{investWithdrawError}</p> : null}
+                    <div className="flex justify-end gap-2">
+                      <Button variant="secondary" onClick={() => setInvestWithdrawModalOpen(false)}>{t.finance.cancel}</Button>
+                      <Button onClick={handleInvestWithdraw} disabled={isSaving}>{t.finance.investWithdraw ?? 'Resgatar'}</Button>
                     </div>
                   </div>
                 </Card>
               </div>
             </div>
           ) : null}
-
         </div>
       );
     }
+

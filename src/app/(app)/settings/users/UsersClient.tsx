@@ -37,6 +37,51 @@ type MemberRow = {
   roleKeys: string[];
 };
 
+// Role badge colours by key
+function getRoleBadgeClass(roleKey: string): string {
+  const key = roleKey.toUpperCase();
+  if (key === "ADMIN" || key === "OWNER") return "bg-blue-500/10 text-blue-600";
+  if (key === "RH" || key === "HR") return "bg-emerald-500/10 text-emerald-600";
+  if (key === "VIEWER") return "bg-amber-500/10 text-amber-600";
+  return "bg-[var(--surface-muted)] text-[var(--foreground)]/60 border border-[var(--border)]";
+}
+
+// Status dot colours
+function getStatusDot(status: string): { dotClass: string; label: string } {
+  const s = status.toUpperCase();
+  if (s === "ACTIVE") return { dotClass: "bg-emerald-500", label: "active" };
+  if (s === "PENDING") return { dotClass: "bg-amber-400", label: "pending" };
+  return { dotClass: "bg-zinc-400", label: "inactive" };
+}
+
+function EmptyPeopleIcon() {
+  return (
+    <svg
+      width="48"
+      height="48"
+      viewBox="0 0 48 48"
+      fill="none"
+      aria-hidden="true"
+      className="text-[var(--foreground)]/20"
+    >
+      <circle cx="18" cy="16" r="7" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M6 38c0-6.627 5.373-12 12-12h0c2.21 0 4.282.596 6.065 1.635"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <circle cx="32" cy="20" r="5" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M22 40c0-5.523 4.477-10 10-10s10 4.477 10 10"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export default function UsersClient() {
   const { t } = useLanguage();
   const [rows, setRows] = useState<MemberRow[]>([]);
@@ -297,14 +342,14 @@ export default function UsersClient() {
         userId: user.id,
         status: "ACTIVE",
       });
-      setInviteSuccess("Usuário encontrado e compartilhamento enviado com sucesso.");
+      setInviteSuccess(t.members.inviteSuccess);
       setInviteEmail("");
       await loadMembers();
     } catch (err) {
       const apiError = err as ApiError;
       if (apiError.statusCode === 404) {
         setInviteNotFound(true);
-        setInviteError("Usuário não encontrado. Envie o convite abaixo.");
+        setInviteError(t.members.inviteError);
       } else if (err instanceof ApiError) {
         setInviteError(err.message);
       } else {
@@ -340,7 +385,7 @@ export default function UsersClient() {
       const origin = window.location.origin;
       const link = `${origin}/register?invite=${invite.token}&email=${encodeURIComponent(invite.email)}`;
       setInviteLink(link);
-      setInviteSuccess("Convite enviado por e-mail.");
+      setInviteSuccess(t.members.inviteSuccess);
       setInviteSentOpen(true);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -358,148 +403,229 @@ export default function UsersClient() {
 
     try {
       await navigator.clipboard.writeText(inviteLink);
-      setInviteSuccess("Link do convite copiado.");
+      setInviteSuccess(t.members.inviteSuccess);
     } catch {
-      setInviteError("Não foi possível copiar o link.");
+      setInviteError(t.members.inviteError);
     }
   };
 
+  const memberCount = filteredRows.length;
+  const memberCountLabel =
+    memberCount === 1
+      ? t.members.count.replace("{n}", String(memberCount))
+      : t.members.countPlural.replace("{n}", String(memberCount));
+
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      {/* Page header */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold">{t.members.title}</h2>
-          <p className="text-sm text-zinc-600">{t.members.subtitle}</p>
+          <h2 className="text-2xl font-semibold text-[var(--foreground)]">
+            {t.members.title}
+          </h2>
+          <p className="mt-0.5 text-sm text-[var(--foreground)]/50">{t.members.subtitle}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button
-            onClick={() => {
-              setInviteOpen(true);
-              setInviteEmail("");
-              setInviteError(null);
-              setInviteSuccess(null);
-              setInviteNotFound(false);
-              setInviteLink(null);
-            }}
-            disabled={!canManage}
-          >
-            {t.members.inviteAction}
-          </Button>
-          {!canManage ? (
-            <span className="text-xs text-zinc-500">{t.members.inviteBlocked}</span>
-          ) : null}
+          {canManage && (
+            <Button
+              onClick={() => {
+                setInviteOpen(true);
+                setInviteEmail("");
+                setInviteError(null);
+                setInviteSuccess(null);
+                setInviteNotFound(false);
+                setInviteLink(null);
+              }}
+            >
+              + {t.members.inviteAction}
+            </Button>
+          )}
+          {!canManage && (
+            <span className="text-xs text-[var(--foreground)]/40">{t.members.inviteBlocked}</span>
+          )}
         </div>
       </div>
 
-      <Card>
-        <div className="flex flex-wrap items-center gap-3">
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t.members.searchPlaceholder}
-          />
-          <select
-            value={roleFilter}
-            onChange={(event) => setRoleFilter(event.target.value)}
-            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"
-          >
-            <option value="all">{t.members.filterAll}</option>
-            {roles.map((role) => (
-              <option key={role.id} value={role.id}>
-                {role.key}
-              </option>
-            ))}
-          </select>
+      <Card className="p-0 overflow-hidden">
+        {/* Search bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b [border-color:var(--border)] px-5 py-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t.members.searchPlaceholder}
+              className="w-64"
+            />
+            <select
+              value={roleFilter}
+              onChange={(event) => setRoleFilter(event.target.value)}
+              className="rounded-xl border [border-color:var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)]"
+            >
+              <option value="all">{t.members.filterAll}</option>
+              {roles.map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.key}
+                </option>
+              ))}
+            </select>
+          </div>
+          {!isLoading && (
+            <span className="text-xs text-[var(--foreground)]/40">{memberCountLabel}</span>
+          )}
         </div>
 
-        {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
-        {isLoading ? (
-          <p className="mt-4 text-sm text-zinc-500">{t.members.loading}</p>
-        ) : null}
+        {error && <p className="px-5 py-4 text-sm text-red-500">{error}</p>}
 
-        {!isLoading && filteredRows.length === 0 ? (
-          <p className="mt-6 text-sm text-zinc-500">{t.members.empty}</p>
-        ) : null}
+        {isLoading && (
+          <p className="px-5 py-6 text-sm text-[var(--foreground)]/40">{t.members.loading}</p>
+        )}
 
-        {!isLoading && filteredRows.length > 0 ? (
-          <div className="mt-6 overflow-x-auto">
-            <div className="min-w-[940px] divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)]">
-              <div className="grid grid-cols-[40px_1.4fr_1fr_1.2fr_1fr_120px_60px] gap-4 bg-[var(--surface-muted)] px-4 py-3 text-xs font-semibold uppercase text-zinc-500">
+        {/* Empty state */}
+        {!isLoading && filteredRows.length === 0 && (
+          <div className="flex flex-col items-center gap-4 py-16 text-center">
+            <EmptyPeopleIcon />
+            <div>
+              <p className="text-sm font-semibold text-[var(--foreground)]">{t.members.emptyTitle}</p>
+              <p className="mt-1 text-xs text-[var(--foreground)]/40">{t.members.emptySubtitle}</p>
+            </div>
+            {canManage && (
+              <Button
+                onClick={() => {
+                  setInviteOpen(true);
+                  setInviteEmail("");
+                  setInviteError(null);
+                  setInviteSuccess(null);
+                  setInviteNotFound(false);
+                  setInviteLink(null);
+                }}
+              >
+                + {t.members.inviteAction}
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Table */}
+        {!isLoading && filteredRows.length > 0 && (
+          <div className="overflow-x-auto">
+            <div className="min-w-[700px]">
+              {/* Header */}
+              <div className="grid grid-cols-[40px_2fr_1fr_1fr_140px_60px] gap-4 bg-[var(--surface-muted)] px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--foreground)]/40">
                 <span>#</span>
-                <span>{t.members.tableName}</span>
-                <span>{t.members.tableRole}</span>
-                <span>{t.members.tableEmail}</span>
-                <span>{t.members.tablePhone}</span>
-                <span>{t.members.tableStatus}</span>
+                <span>{t.members.columnMember}</span>
+                <span>{t.members.columnRole}</span>
+                <span>{t.members.columnPhone}</span>
+                <span>{t.members.columnStatus}</span>
                 <span />
               </div>
-              {filteredRows.map((row, index) => (
-                <div
-                  key={row.id}
-                  className="grid grid-cols-[40px_1.4fr_1fr_1.2fr_1fr_120px_60px] items-center gap-4 px-4 py-3 text-sm"
-                >
-                  <span className="text-zinc-500">{index + 1}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-zinc-200 text-xs font-semibold">
-                      {row.photoUrl ? (
-                        <Image
-                          src={row.photoUrl}
-                          alt={row.name}
-                          width={36}
-                          height={36}
-                          className="h-full w-full object-cover"
-                          unoptimized
-                        />
-                      ) : row.name !== "-" ? (
-                        row.name.slice(0, 2).toUpperCase()
-                      ) : row.email !== "-" ? (
-                        row.email.slice(0, 2).toUpperCase()
-                      ) : (
-                        "👤"
-                      )}
-                    </span>
-                    <div>
-                      <p className="font-semibold text-[var(--foreground)]">
-                        {row.name}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {row.roleKeys.length ? (
-                      row.roleKeys.map((role) => (
-                        <span
-                          key={`${row.id}-${role}`}
-                          className="rounded-full border border-[var(--border)] bg-[var(--surface-muted)] px-2 py-0.5 text-[11px]"
-                        >
-                          {role}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-xs text-zinc-500">
-                        {t.members.rolesEmpty}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-zinc-600">{row.email}</span>
-                  <span className="text-zinc-600">{row.phone}</span>
-                  <span className="text-xs text-zinc-500">{row.status}</span>
-                  <div className="flex items-center justify-end">
-                    <Button
-                      variant="ghost"
-                      onClick={() => openPermissions(row)}
-                      className="h-8 w-8 p-0"
+              {/* Rows */}
+              <div className="divide-y [border-color:var(--border)]">
+                {filteredRows.map((row, index) => {
+                  const { dotClass, label } = getStatusDot(row.status);
+                  const statusLabel =
+                    label === "active"
+                      ? t.members.statusActive
+                      : label === "pending"
+                        ? t.members.statusPending
+                        : t.members.statusInactive;
+                  const displayName =
+                    row.name !== "-" && row.name !== row.email ? row.name : null;
+                  const initials = displayName
+                    ? displayName.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("")
+                    : row.email !== "-"
+                      ? row.email.slice(0, 2).toUpperCase()
+                      : "?";
+
+                  return (
+                    <div
+                      key={row.id}
+                      className="grid grid-cols-[40px_2fr_1fr_1fr_140px_60px] items-center gap-4 px-5 py-3.5 text-sm transition-colors duration-100 hover:bg-[var(--surface-muted)]"
                     >
-                      ✏️
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                      <span className="text-xs text-[var(--foreground)]/30">{index + 1}</span>
+
+                      {/* Member cell: avatar + name + email */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[var(--surface-muted)] text-xs font-semibold text-[var(--foreground)]/70">
+                          {row.photoUrl ? (
+                            <Image
+                              src={row.photoUrl}
+                              alt={displayName ?? row.email}
+                              width={36}
+                              height={36}
+                              className="h-full w-full object-cover"
+                              unoptimized
+                            />
+                          ) : (
+                            initials
+                          )}
+                        </span>
+                        <div className="min-w-0">
+                          {displayName ? (
+                            <>
+                              <p className="truncate font-semibold text-[var(--foreground)]">
+                                {displayName}
+                              </p>
+                              <p className="truncate text-xs text-[var(--foreground)]/40">{row.email}</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="truncate font-semibold text-[var(--foreground)]">
+                                {row.email !== "-" ? row.email : "—"}
+                              </p>
+                              <p className="truncate text-xs text-[var(--foreground)]/40 italic">
+                                {t.members.noNameSet}
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Role badges */}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {row.roleKeys.length ? (
+                          row.roleKeys.map((roleKey) => (
+                            <span
+                              key={`${row.id}-${roleKey}`}
+                              className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${getRoleBadgeClass(roleKey)}`}
+                            >
+                              {roleKey}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-[var(--foreground)]/30">{t.members.rolesEmpty}</span>
+                        )}
+                      </div>
+
+                      {/* Phone */}
+                      <span className="text-xs text-[var(--foreground)]/50">{row.phone}</span>
+
+                      {/* Status dot */}
+                      <div className="flex items-center gap-2">
+                        <span className={`h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
+                        <span className="text-xs text-[var(--foreground)]/60">{statusLabel}</span>
+                      </div>
+
+                      {/* Edit */}
+                      <div className="flex items-center justify-end">
+                        <button
+                          type="button"
+                          onClick={() => openPermissions(row)}
+                          className="text-xs font-semibold text-[var(--sidebar)] underline-offset-2 hover:underline"
+                        >
+                          {t.members.editAction}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        ) : null}
+        )}
       </Card>
 
-      {inviteOpen ? (
+      {/* Invite modal */}
+      {inviteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <button
             type="button"
@@ -510,66 +636,60 @@ export default function UsersClient() {
             <div className="grid gap-4">
               <div>
                 <h3 className="text-lg font-semibold">{t.members.inviteTitle}</h3>
-                <p className="text-sm text-zinc-600">{t.members.inviteSubtitle}</p>
+                <p className="text-sm text-[var(--foreground)]/50">{t.members.inviteSubtitle}</p>
               </div>
               <Input
                 value={inviteEmail}
                 onChange={(event) => setInviteEmail(event.target.value)}
                 placeholder={t.members.invitePlaceholder}
               />
-              {inviteError ? (
-                <p className="text-sm text-red-600">{inviteError}</p>
-              ) : null}
-              {inviteSuccess ? (
-                <p className="text-sm text-emerald-600">{inviteSuccess}</p>
-              ) : null}
+              {inviteError && <p className="text-sm text-red-500">{inviteError}</p>}
+              {inviteSuccess && <p className="text-sm text-emerald-600">{inviteSuccess}</p>}
               <div className="flex flex-wrap gap-2">
                 <Button
                   onClick={handleInviteLookup}
                   disabled={inviteLoading || !canManage}
                   variant="secondary"
                 >
-                  {inviteLoading ? "Buscando..." : "Buscar"}
+                  {inviteLoading ? t.members.savingAction : t.members.inviteAction}
                 </Button>
                 <Button variant="secondary" onClick={() => setInviteOpen(false)}>
                   {t.members.cancelAction}
                 </Button>
               </div>
-              {inviteNotFound ? (
-                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-200 bg-[var(--surface-muted)] p-3 text-sm text-zinc-700">
-                  <span className="font-medium">
-                    {inviteEmail.trim().toLowerCase()}
-                  </span>
+              {inviteNotFound && (
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border [border-color:var(--border)] bg-[var(--surface-muted)] p-3 text-sm text-[var(--foreground)]/70">
+                  <span className="font-medium">{inviteEmail.trim().toLowerCase()}</span>
                   <Button onClick={handleInviteSend} disabled={inviteLoading || !canManage}>
-                    {inviteLoading ? "Enviando..." : "Enviar e-mail"}
+                    {inviteLoading ? t.members.savingAction : "Send email"}
                   </Button>
                 </div>
-              ) : null}
+              )}
             </div>
           </Card>
         </div>
-      ) : null}
+      )}
 
-      {inviteSentOpen ? (
+      {/* Invite sent modal */}
+      {inviteSentOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
-            <h3 className="text-lg font-semibold text-zinc-100">Convite enviado</h3>
-            <p className="mt-2 text-sm text-zinc-400">
-              O e-mail foi enviado para o destinatário com o convite para cadastro.
-            </p>
+          <div className="w-full max-w-md rounded-2xl border [border-color:var(--border)] bg-[var(--surface)] p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-[var(--foreground)]">{t.members.inviteTitle}</h3>
+            <p className="mt-2 text-sm text-[var(--foreground)]/50">{t.members.inviteSuccess}</p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Button onClick={handleCopyInviteLink} disabled={!inviteLink}>
-                Copiar link do convite
+                Copy invite link
               </Button>
               <Button variant="secondary" onClick={() => setInviteSentOpen(false)}>
-                Fechar
+                {t.members.cancelAction}
               </Button>
             </div>
           </div>
         </div>
-      ) : null}
+      )}
 
-      {permissionsOpen && permissionsTarget ? (
+      {/* Permissions modal */}
+      {permissionsOpen && permissionsTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <button
             type="button"
@@ -580,14 +700,14 @@ export default function UsersClient() {
             <div className="grid gap-4">
               <div>
                 <h3 className="text-lg font-semibold">{t.members.permissionsTitle}</h3>
-                <p className="text-sm text-zinc-600">{permissionsTarget.name}</p>
+                <p className="text-sm text-[var(--foreground)]/50">{permissionsTarget.name}</p>
               </div>
               <div className="grid gap-2">
                 {roles.length ? (
                   roles.map((role) => (
                     <label
                       key={role.id}
-                      className="flex items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
+                      className="flex cursor-pointer items-center gap-2 rounded-xl border [border-color:var(--border)] px-3 py-2 text-sm hover:bg-[var(--surface-muted)]"
                     >
                       <input
                         type="checkbox"
@@ -598,14 +718,10 @@ export default function UsersClient() {
                     </label>
                   ))
                 ) : (
-                  <p className="text-sm text-zinc-500">
-                    {t.members.rolesEmpty}
-                  </p>
+                  <p className="text-sm text-[var(--foreground)]/40">{t.members.rolesEmpty}</p>
                 )}
               </div>
-              {permissionsError ? (
-                <p className="text-sm text-red-600">{permissionsError}</p>
-              ) : null}
+              {permissionsError && <p className="text-sm text-red-500">{permissionsError}</p>}
               <div className="flex justify-end gap-2">
                 <Button variant="secondary" onClick={() => setPermissionsOpen(false)}>
                   {t.members.cancelAction}
@@ -617,7 +733,7 @@ export default function UsersClient() {
             </div>
           </Card>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

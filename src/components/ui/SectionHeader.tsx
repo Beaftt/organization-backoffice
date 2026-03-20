@@ -8,14 +8,14 @@ export function SectionHeader({ title, description, eyebrow }: SectionHeaderProp
   return (
     <div className="flex flex-col gap-3">
       {eyebrow ? (
-        <span className="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500">
+        <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--foreground)]/60">
           {eyebrow}
         </span>
       ) : null}
-      <h2 className="text-2xl font-semibold text-zinc-900 sm:text-3xl">
+      <h2 className="text-2xl font-semibold text-[var(--foreground)] sm:text-3xl">
         {title}
       </h2>
-      <p className="max-w-3xl text-base text-zinc-600 sm:text-lg">
+      <p className="max-w-3xl text-base text-[var(--foreground)]/70 sm:text-lg">
         {description}
       </p>
     </div>
