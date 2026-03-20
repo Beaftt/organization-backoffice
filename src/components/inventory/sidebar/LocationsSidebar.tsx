@@ -103,14 +103,18 @@ export function LocationsSidebar({
               placeholder="Nome..."
             />
             <button
+              type="button"
               onClick={onAddLocation}
               disabled={isAddingLocation || !newLocationName.trim()}
+              aria-label={labels.save}
               className="rounded-lg bg-[var(--sidebar)] px-2.5 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
             >
               {isAddingLocation ? '…' : '✓'}
             </button>
             <button
+              type="button"
               onClick={onToggleNewLocation}
+              aria-label={labels.cancel}
               className="rounded-lg px-2 py-1.5 text-xs text-zinc-400 hover:text-[var(--foreground)]"
             >
               ✕

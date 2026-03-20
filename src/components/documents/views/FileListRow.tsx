@@ -27,7 +27,7 @@ export function FileListRow({
   onLink,
   onDelete,
 }: Props) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLTableCellElement>(null);
   const folderName = doc.folderId ? (folderMap[doc.folderId]?.name ?? '—') : '—';
@@ -67,7 +67,7 @@ export function FileListRow({
         <FileTypeBadge type={doc.type} />
       </td>
       <td className="hidden px-4 py-2.5 text-sm text-[var(--foreground)]/60 lg:table-cell">
-        {new Date(doc.updatedAt).toLocaleDateString('pt-BR')}
+        {new Date(doc.updatedAt).toLocaleDateString(language === 'pt' ? 'pt-BR' : 'en-US')}
       </td>
       <td className="relative py-2.5 pl-4 pr-3 text-right" ref={menuRef}>
         <button

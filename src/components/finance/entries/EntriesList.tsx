@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useLanguage } from '@/lib/i18n/language-context';
@@ -29,6 +30,11 @@ export function EntriesList({
 }: EntriesListProps) {
   const { t } = useLanguage();
 
+  const categoryById = useMemo(
+    () => new Map(categories.map((c) => [c.id, c])),
+    [categories],
+  );
+
   if (isLoading) {
     return (
       <div className="grid gap-3">
@@ -56,7 +62,7 @@ export function EntriesList({
   return (
     <div className="grid gap-3">
       {transactions.map((item, index) => {
-        const category = categories.find((c) => c.id === item.categoryId);
+        const category = item.categoryId ? categoryById.get(item.categoryId) : undefined;
         return (
           <EntryRow
             key={item.id}

@@ -70,20 +70,20 @@ export function LocationSidebarItem({
 
   return (
     <div
-      className={`group flex cursor-pointer items-center gap-2 border-l-2 py-2.5 pl-3 pr-2 transition-all ${
+      className={`group flex items-center gap-2 border-l-2 py-2.5 pl-3 pr-2 transition-all ${
         isSelected
           ? 'border-l-[var(--sidebar)] bg-[var(--surface)] shadow-sm'
           : 'border-l-transparent hover:bg-[var(--surface-muted)]'
       }`}
-      onClick={onSelect}
-      role="button"
-      tabIndex={0}
-      aria-selected={isSelected}
-      onKeyDown={(e) => e.key === 'Enter' && onSelect()}
     >
-      <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--foreground)]">
+      <button
+        type="button"
+        className="min-w-0 flex-1 truncate text-left text-sm font-medium text-[var(--foreground)]"
+        onClick={onSelect}
+        aria-pressed={isSelected}
+      >
         {location.icon ? `${location.icon} ` : ''}{location.name}
-      </span>
+      </button>
 
       <div className="flex shrink-0 items-center gap-1">
         {items !== undefined && lowCount > 0 && (
@@ -106,7 +106,7 @@ export function LocationSidebarItem({
           <button
             type="button"
             title={labels.edit}
-            onClick={(e) => { e.stopPropagation(); onEditStart(); }}
+            onClick={onEditStart}
             className="rounded p-1 text-zinc-400 hover:bg-[var(--border)] hover:text-[var(--foreground)]"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -114,7 +114,7 @@ export function LocationSidebarItem({
           <button
             type="button"
             title={labels.delete}
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            onClick={onDelete}
             className="rounded p-1 text-zinc-400 hover:bg-rose-500/10 hover:text-rose-500"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>

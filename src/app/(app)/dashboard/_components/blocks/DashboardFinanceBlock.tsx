@@ -41,7 +41,7 @@ export function DashboardFinanceBlock({
     finance && finance.income > 0
       ? Math.min(100, (finance.expenses / finance.income) * 100)
       : 0;
-  const savingsPct = Math.max(0, 100 - expensePct);
+  const savingsPct = finance && finance.income > 0 ? Math.max(0, 100 - expensePct) : 0;
 
   return (
     <Card className="flex flex-col gap-5 p-5">
