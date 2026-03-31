@@ -88,6 +88,50 @@ export default function FinanceClient({
   const { t } = useLanguage();
   const chartMonthRange = 6;
   const chartFutureRange = 6;
+
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+
+  const dateFrom = useMemo(() => {
+    return new Date(selectedYear, selectedMonth, 1).toISOString().slice(0, 10);
+  }, [selectedYear, selectedMonth]);
+
+  const dateTo = useMemo(() => {
+    return new Date(selectedYear, selectedMonth + 1, 0).toISOString().slice(0, 10);
+  }, [selectedYear, selectedMonth]);
+
+  const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
+
+  const handleMonthPrev = () => {
+    if (selectedMonth === 0) {
+      setSelectedYear((y) => y - 1);
+      setSelectedMonth(11);
+    } else {
+      setSelectedMonth((m) => m - 1);
+    }
+  };
+
+  const handleMonthNext = () => {
+    if (selectedMonth === 11) {
+      setSelectedYear((y) => y + 1);
+      setSelectedMonth(0);
+    } else {
+      setSelectedMonth((m) => m + 1);
+    }
+  };
+
+  const handleMonthReset = () => {
+    const n = new Date();
+    setSelectedYear(n.getFullYear());
+    setSelectedMonth(n.getMonth());
+  };
+
+  const monthLabel = new Date(selectedYear, selectedMonth).toLocaleDateString('pt-BR', {
+    month: 'long',
+    year: 'numeric',
+  });
+
   const [query, setQuery] = useState(initialQuery);
   const [groupFilter, setGroupFilter] = useState(initialGroup);
   const [typeFilter, setTypeFilter] = useState(initialType);
@@ -314,6 +358,8 @@ export default function FinanceClient({
             group: groupFilter !== "all" ? (groupFilter as "INCOME" | "EXPENSE") : undefined,
             status: statusFilter !== "all" ? (statusFilter as "PAID" | "PENDING") : undefined,
             categoryId: typeFilter !== "all" ? typeFilter : undefined,
+            from: dateFrom,
+            to: dateTo,
           });
           setTransactions(response);
         } catch (err) {
@@ -323,7 +369,7 @@ export default function FinanceClient({
             setError(t.finance.loadError);
           }
         }
-      }, [query, groupFilter, statusFilter, typeFilter, t]);
+      }, [query, groupFilter, statusFilter, typeFilter, dateFrom, dateTo, t]);
 
       useEffect(() => {
         void loadBase();
@@ -1275,7 +1321,40 @@ export default function FinanceClient({
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-2xl font-semibold">{t.modules.finance}</h2>
-              <p className="text-sm text-[var(--foreground)]/60">{t.finance.subtitle}</p>
+              <div className="mt-1 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleMonthPrev}
+                  className="rounded p-1 text-[var(--foreground)]/50 hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)] transition"
+                  aria-label="Mês anterior"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleMonthReset}
+                  className="text-sm font-medium text-[var(--foreground)]/60 hover:text-[var(--foreground)] transition capitalize"
+                >
+                  {monthLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleMonthNext}
+                  className="rounded p-1 text-[var(--foreground)]/50 hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)] transition"
+                  aria-label="Próximo mês"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                </button>
+                {!isCurrentMonth && (
+                  <button
+                    type="button"
+                    onClick={handleMonthReset}
+                    className="rounded-full bg-[var(--sidebar)] px-2.5 py-0.5 text-[10px] font-semibold text-white transition hover:opacity-80"
+                  >
+                    Hoje
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
