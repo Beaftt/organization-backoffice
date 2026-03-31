@@ -85,7 +85,7 @@ export default function FinanceClient({
   initialPage = 1,
 }: FinanceClientProps) {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const chartMonthRange = 6;
   const chartFutureRange = 6;
 
@@ -94,11 +94,13 @@ export default function FinanceClient({
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
 
   const dateFrom = useMemo(() => {
-    return new Date(selectedYear, selectedMonth, 1).toISOString().slice(0, 10);
+    const d = new Date(selectedYear, selectedMonth, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, [selectedYear, selectedMonth]);
 
   const dateTo = useMemo(() => {
-    return new Date(selectedYear, selectedMonth + 1, 0).toISOString().slice(0, 10);
+    const d = new Date(selectedYear, selectedMonth + 1, 0);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, [selectedYear, selectedMonth]);
 
   const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
@@ -127,7 +129,7 @@ export default function FinanceClient({
     setSelectedMonth(n.getMonth());
   };
 
-  const monthLabel = new Date(selectedYear, selectedMonth).toLocaleDateString('pt-BR', {
+  const monthLabel = new Date(selectedYear, selectedMonth).toLocaleDateString(language === 'en' ? 'en-US' : 'pt-BR', {
     month: 'long',
     year: 'numeric',
   });
@@ -1326,7 +1328,7 @@ export default function FinanceClient({
                   type="button"
                   onClick={handleMonthPrev}
                   className="rounded p-1 text-[var(--foreground)]/50 hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)] transition"
-                  aria-label="Mês anterior"
+                  aria-label={t.finance.prev}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
                 </button>
@@ -1341,7 +1343,7 @@ export default function FinanceClient({
                   type="button"
                   onClick={handleMonthNext}
                   className="rounded p-1 text-[var(--foreground)]/50 hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)] transition"
-                  aria-label="Próximo mês"
+                  aria-label={t.finance.next}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
                 </button>
@@ -1351,7 +1353,7 @@ export default function FinanceClient({
                     onClick={handleMonthReset}
                     className="rounded-full bg-[var(--sidebar)] px-2.5 py-0.5 text-[10px] font-semibold text-white transition hover:opacity-80"
                   >
-                    Hoje
+                    {t.finance.prev === 'Anterior' ? 'Hoje' : 'Today'}
                   </button>
                 )}
               </div>
@@ -1726,7 +1728,7 @@ export default function FinanceClient({
               {/* Overlay */}
               <button
                 type="button"
-                aria-label="Fechar"
+                aria-label={t.finance.close}
                 className="modal-overlay fixed inset-0 z-40 bg-black/40"
                 onClick={() => setRecurringModalOpen(false)}
               />
@@ -1852,7 +1854,7 @@ export default function FinanceClient({
                       <h2 className="text-base font-semibold">
                         {t.finance.investWithdraw ?? 'Resgatar'} — {investWithdrawTarget.name}
                       </h2>
-                      <button type="button" aria-label="Fechar" onClick={() => setInvestWithdrawModalOpen(false)}
+                      <button type="button" aria-label={t.finance.close} onClick={() => setInvestWithdrawModalOpen(false)}
                         className="text-[var(--foreground)]/40 hover:text-[var(--foreground)]">✕</button>
                     </div>
                     <p className="text-sm text-[var(--foreground)]/50">

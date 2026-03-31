@@ -833,6 +833,11 @@ function rgbToHex(rgb) {
 
 // ─── HTML Report ─────────────────────────────────────────────────────────────
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function generateReport() {
   logSection('Generating HTML Report');
 
@@ -908,7 +913,7 @@ ${phases.map(phase => {
   const phaseResults = results.filter(r => r.phase === phase);
   return `<div class="phase"><h2>Phase ${phase} — ${phaseNames[phase] || 'Other'}</h2>
 <table><thead><tr><th>Test</th><th>Result</th><th>Details</th></tr></thead><tbody>
-${phaseResults.map(r => `<tr class="${r.pass ? 'pass' : 'fail'}"><td>${r.label}</td><td><span class="badge ${r.pass ? 'pass' : 'fail'}">${r.pass ? 'PASS' : 'FAIL'}</span></td><td>${r.detail || '-'}</td></tr>`).join('\n')}
+${phaseResults.map(r => `<tr class="${r.pass ? 'pass' : 'fail'}"><td>${escapeHtml(r.label)}</td><td><span class="badge ${r.pass ? 'pass' : 'fail'}">${r.pass ? 'PASS' : 'FAIL'}</span></td><td>${escapeHtml(r.detail) || '-'}</td></tr>`).join('\n')}
 </tbody></table></div>`;
 }).join('\n')}
 ${consoleErrorsHtml}

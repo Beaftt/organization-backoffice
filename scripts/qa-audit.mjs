@@ -210,8 +210,7 @@ async function phaseAuth() {
 
   // 0.2 — Login page loads for unauthenticated user
   logEndpoint('GET', '/login (no auth)');
-  const loginPage = await pageFetch('/login', { extraHeaders: {} });
-  // Override: request without cookies
+  // Request without cookies
   const loginPageNoAuth = await fetch(`${CFG.frontendUrl}/login`, { redirect: 'manual' }).then(async r => ({
     status: r.status, ms: 0, location: r.headers.get('location'),
     body: r.status < 400 ? await r.text() : '',
@@ -758,9 +757,9 @@ async function phaseI18n() {
   addResult({
     label: 'i18n infrastructure present', module: 'i18n', phase: 6,
     status: loginRes.status, ms: 0,
-    pass: loginRes.status === 200, // Just checking the page loads
-    detail: loginRes.status === 200 ? undefined : `Login page returned ${loginRes.status}`,
-    issues: [],
+    pass: loginRes.status === 200 && hasI18nInfra,
+    detail: loginRes.status !== 200 ? `Login page returned ${loginRes.status}` : !hasI18nInfra ? 'No i18n infrastructure detected in page HTML' : undefined,
+    issues: !hasI18nInfra ? [{ severity: 'P2', msg: 'No i18n keywords found in login page HTML' }] : [],
   });
 
   // Check that pages accept Accept-Language header without crashing

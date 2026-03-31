@@ -11,7 +11,7 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
-import { join, dirname, basename } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -41,7 +41,7 @@ function loadJson(dir, filename) {
 
 function findHtmlReport(dir, prefix) {
   if (!existsSync(dir)) return null;
-  const files = readdirSync(dir).filter(f => f.startsWith(prefix) && f.endsWith('.html'));
+  const files = readdirSync(dir).filter(f => f.startsWith(prefix) && f.endsWith('.html')).sort();
   return files.length > 0 ? files[files.length - 1] : null;
 }
 
@@ -49,6 +49,11 @@ const httpSummary = loadJson(httpDir, 'summary.json');
 const e2eSummary = loadJson(e2eDir, 'e2e-summary.json');
 const httpReport = findHtmlReport(httpDir, 'report-');
 const e2eReport = findHtmlReport(e2eDir, 'e2e-report-');
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 
 const date = new Date().toISOString().slice(0, 10);
 const now = new Date().toISOString();
@@ -147,8 +152,8 @@ const html = `<!DOCTYPE html>
   </div>
 
   <div class="links">
-    ${httpReport ? `<a href="${httpReport}">📄 HTTP Audit Report</a>` : ''}
-    ${e2eReport ? `<a href="${e2eReport}">🖥️ E2E Report</a>` : ''}
+    ${httpReport ? `<a href="${escapeHtml(httpReport)}">📄 HTTP Audit Report</a>` : ''}
+    ${e2eReport ? `<a href="${escapeHtml(e2eReport)}">🖥️ E2E Report</a>` : ''}
     <a href="screenshots/">📸 Screenshots</a>
   </div>
 
@@ -157,9 +162,9 @@ const html = `<!DOCTYPE html>
     <h2>❌ Failures (${allFailures.length})</h2>
     ${allFailures.map(f => `
     <div class="failure-item">
-      <span class="source">${f.source}</span>
-      <strong>${f.label}</strong>
-      ${f.detail ? `<div class="detail">${f.detail}</div>` : ''}
+      <span class="source">${escapeHtml(f.source)}</span>
+      <strong>${escapeHtml(f.label)}</strong>
+      ${f.detail ? `<div class="detail">${escapeHtml(f.detail)}</div>` : ''}
     </div>`).join('')}
   </div>` : '<div style="text-align:center;color:var(--green);font-size:1.2rem;margin:2rem 0;">✅ All tests passed!</div>'}
 
