@@ -1351,9 +1351,9 @@ export default function FinanceClient({
                   <button
                     type="button"
                     onClick={handleMonthReset}
-                    className="rounded-full bg-[var(--sidebar)] px-2.5 py-0.5 text-[10px] font-semibold text-white transition hover:opacity-80"
+                    className="rounded-full bg-[var(--sidebar)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--sidebar-text)] transition hover:opacity-80"
                   >
-                    {t.finance.prev === 'Anterior' ? 'Hoje' : 'Today'}
+                    {language === 'pt' ? 'Hoje' : 'Today'}
                   </button>
                 )}
               </div>

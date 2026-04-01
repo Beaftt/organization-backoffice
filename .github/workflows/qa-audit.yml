@@ -66,7 +66,7 @@ jobs:
           QA_FRONTEND_URL: ${{ vars.QA_FRONTEND_URL || 'https://organization.beaftt.com' }}
           QA_API_URL: ${{ vars.QA_API_URL || 'https://organization-api.beaftt.com' }}
           QA_GITHUB_TOKEN: ${{ secrets.QA_GITHUB_TOKEN }}
-          QA_CREATE_ISSUES: ${{ inputs.create_issues || 'false' }}
+          QA_CREATE_ISSUES: ${{ github.event.inputs.create_issues || 'false' }}
         run: node scripts/qa-audit.mjs --ci || true
 
       - name: Upload HTTP report

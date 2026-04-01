@@ -196,7 +196,7 @@ async function phaseAuth() {
     accessToken = loginData.accessToken;
     refreshToken = loginData.refreshToken;
     workspaceId = loginData.defaultWorkspaceId || '';
-    cookies = `access_token=${accessToken}; refresh_token=${refreshToken}; org.workspace.active=${workspaceId}`;
+    cookies = `access_token=${accessToken}; refresh_token=${refreshToken}; workspace_id=${workspaceId}; org.workspace.active=${workspaceId}`;
     addResult({ label: 'API Login', module: 'Auth', phase: 0, status: 200, ms: loginRes.ms, pass: true, issues: [] });
     log(`   Token obtained, workspace: ${workspaceId}`, C.dim);
   } else {
@@ -258,7 +258,7 @@ async function phaseAuth() {
   const refreshData = unwrap(refreshRes.body);
   if (refreshRes.status === 200 && refreshData?.accessToken) {
     accessToken = refreshData.accessToken;
-    cookies = `access_token=${accessToken}; refresh_token=${refreshToken}; org.workspace.active=${workspaceId}`;
+    cookies = `access_token=${accessToken}; refresh_token=${refreshToken}; workspace_id=${workspaceId}; org.workspace.active=${workspaceId}`;
     addResult({ label: 'Token refresh', module: 'Auth', phase: 0, status: 200, ms: refreshRes.ms, pass: true, issues: [] });
   } else {
     addResult({
