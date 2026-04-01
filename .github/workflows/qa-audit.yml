@@ -1,0 +1,194 @@
+name: QA Audit — Backoffice
+
+on:
+  # Run after Vercel deployment completes (triggered via webhook or on push to main)
+  push:
+    branches: [main]
+
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      create_issues:
+        description: 'Create GitHub issues for failures'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: qa-audit-backoffice
+  cancel-in-progress: false
+
+jobs:
+  qa-http:
+    name: HTTP Audit (Pages, Security, A11y)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Wait for Vercel deployment
+        run: |
+          echo "Waiting 120s for Vercel deployment to propagate..."
+          sleep 120
+
+      - name: Health check — wait for frontend
+        run: |
+          for i in $(seq 1 20); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.QA_FRONTEND_URL || 'https://organization.beaftt.com' }}" || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "Frontend is responding (HTTP $HTTP_CODE)"
+              break
+            fi
+            echo "Attempt $i: Frontend returned $HTTP_CODE, waiting 15s..."
+            sleep 15
+          done
+
+      - name: Run HTTP Audit
+        env:
+          QA_EMAIL: ${{ secrets.QA_EMAIL }}
+          QA_PASSWORD: ${{ secrets.QA_PASSWORD }}
+          QA_FRONTEND_URL: ${{ vars.QA_FRONTEND_URL || 'https://organization.beaftt.com' }}
+          QA_API_URL: ${{ vars.QA_API_URL || 'https://organization-api.beaftt.com' }}
+          QA_GITHUB_TOKEN: ${{ secrets.QA_GITHUB_TOKEN }}
+          QA_CREATE_ISSUES: ${{ github.event.inputs.create_issues || 'false' }}
+        run: node scripts/qa-audit.mjs --ci || true
+
+      - name: Upload HTTP report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-http-report-${{ github.run_number }}
+          path: docs/qa/
+          retention-days: 90
+
+  qa-e2e:
+    name: E2E Browser Simulation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Yarn Classic
+        run: npm i -g yarn@1.22.22
+
+      - name: Configure registry
+        run: yarn config set registry "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Wait for Vercel deployment
+        run: |
+          echo "Waiting 120s for Vercel deployment to propagate..."
+          sleep 120
+
+      - name: Health check — wait for frontend
+        run: |
+          for i in $(seq 1 20); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.QA_FRONTEND_URL || 'https://organization.beaftt.com' }}" || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "Frontend is responding (HTTP $HTTP_CODE)"
+              break
+            fi
+            echo "Attempt $i: Frontend returned $HTTP_CODE, waiting 15s..."
+            sleep 15
+          done
+
+      - name: Run E2E Audit
+        env:
+          QA_EMAIL: ${{ secrets.QA_EMAIL }}
+          QA_PASSWORD: ${{ secrets.QA_PASSWORD }}
+          QA_FRONTEND_URL: ${{ vars.QA_FRONTEND_URL || 'https://organization.beaftt.com' }}
+          QA_API_URL: ${{ vars.QA_API_URL || 'https://organization-api.beaftt.com' }}
+        run: node scripts/e2e-audit.mjs --ci || true
+
+      - name: Upload E2E report + screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-e2e-report-${{ github.run_number }}
+          path: |
+            docs/qa/e2e-report-*.html
+            docs/qa/screenshots/
+            docs/qa/e2e-summary.json
+          retention-days: 90
+
+  publish-report:
+    name: Combine & Publish Reports
+    needs: [qa-http, qa-e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download HTTP report
+        uses: actions/download-artifact@v4
+        with:
+          name: qa-http-report-${{ github.run_number }}
+          path: report/http/
+
+      - name: Download E2E report
+        uses: actions/download-artifact@v4
+        with:
+          name: qa-e2e-report-${{ github.run_number }}
+          path: report/e2e/
+
+      - name: Build combined dashboard
+        run: |
+          mkdir -p report/combined
+          node scripts/qa-dashboard.mjs \
+            --http-dir=report/http \
+            --e2e-dir=report/e2e \
+            --out=report/combined/index.html
+
+      - name: Copy all reports into pages root
+        run: |
+          mkdir -p pages
+          cp -r report/combined/* pages/ 2>/dev/null || true
+          cp -r report/http/* pages/ 2>/dev/null || true
+          cp -r report/e2e/* pages/ 2>/dev/null || true
+
+      - name: Upload combined report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-full-report-${{ github.run_number }}
+          path: pages/
+          retention-days: 90
+
+      - name: Deploy to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages/
+
+      - name: Publish GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
