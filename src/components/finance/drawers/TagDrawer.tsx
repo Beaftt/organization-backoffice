@@ -10,6 +10,7 @@ interface TagDrawerProps {
   name: string;
   formError: string | null;
   isSaving: boolean;
+  title?: string;
   onClose: () => void;
   onNameChange: (value: string) => void;
   onSave: () => void;
@@ -20,11 +21,13 @@ export function TagDrawer({
   name,
   formError,
   isSaving,
+  title,
   onClose,
   onNameChange,
   onSave,
 }: TagDrawerProps) {
   const { t } = useLanguage();
+  const dialogTitle = title ?? t.finance.addTagAction ?? 'Nova tag';
 
   if (!open) return null;
 
@@ -33,7 +36,7 @@ export function TagDrawer({
       {/* Overlay */}
       <button
         type="button"
-        aria-label="Fechar"
+        aria-label={t.finance.close ?? 'Close'}
         className="modal-overlay fixed inset-0 z-40 bg-black/40"
         onClick={onClose}
       />
@@ -45,13 +48,11 @@ export function TagDrawer({
         style={{ maxHeight: '90vh', overflow: 'hidden' }}
         role="dialog"
         aria-modal="true"
-        aria-label={t.finance.addTagAction ?? 'Nova tag'}
+        aria-label={dialogTitle}
       >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b [border-color:var(--border)] px-5 py-4">
-          <h2 className="text-base font-semibold text-[var(--foreground)]">
-            {t.finance.addTagAction ?? 'Nova tag'}
-          </h2>
+          <h2 className="text-base font-semibold text-[var(--foreground)]">{dialogTitle}</h2>
           <button
             type="button"
             onClick={onClose}

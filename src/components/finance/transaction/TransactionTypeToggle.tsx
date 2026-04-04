@@ -1,5 +1,7 @@
 'use client';
 
+import { useLanguage } from '@/lib/i18n/language-context';
+
 export type TransactionEffectiveType = 'INCOME' | 'EXPENSE' | 'INVEST';
 
 interface TransactionTypeToggleProps {
@@ -38,10 +40,12 @@ export function TransactionTypeToggle({
   expenseLabel,
   investLabel,
 }: TransactionTypeToggleProps) {
+  const { language } = useLanguage();
   const labels = { income: incomeLabel, expense: expenseLabel, invest: investLabel };
+  const ariaLabel = language === 'pt' ? 'Tipo de lançamento' : 'Transaction type';
 
   return (
-    <div className="grid grid-cols-3 gap-2" role="group" aria-label="Transaction type">
+    <div className="grid grid-cols-3 gap-2" role="group" aria-label={ariaLabel}>
       {(['INCOME', 'EXPENSE', 'INVEST'] as TransactionEffectiveType[]).map((type) => {
         const cfg = TYPE_CONFIG[type];
         return (

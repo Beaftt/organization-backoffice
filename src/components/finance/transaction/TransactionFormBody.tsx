@@ -58,8 +58,6 @@ interface TransactionFormBodyProps {
   parseCurrencyInput: (value: string) => number;
 }
 
-const SUGGESTED_TAGS = ['Mercado', 'Compras', 'Eventos'];
-
 export function TransactionFormBody({
   form,
   activeTab,
@@ -80,7 +78,9 @@ export function TransactionFormBody({
   onTagSuggest,
   formatCurrencyInput,
 }: TransactionFormBodyProps) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
+  const isPt = language === 'pt';
+  const suggestedTags = isPt ? ['Casa', 'Mercado', 'Trabalho'] : ['Home', 'Groceries', 'Work'];
 
   // Derive effective type from group + selected payment method
   const isInvestSelected = investMethods.some((m) => m.id === form.paymentMethodId);
@@ -326,8 +326,8 @@ export function TransactionFormBody({
               draft={tagDraft}
               addLabel={t.finance.addTagAction}
               placeholderLabel={t.finance.tagsPlaceholder}
-              emptyLabel={t.finance.tagsEmpty}
-              suggested={SUGGESTED_TAGS}
+              emptyLabel={isPt ? 'Use tags curtas para lembrar depois.' : 'Use short tags for quick context.'}
+              suggested={suggestedTags}
               onToggle={onTagToggle}
               onDraftChange={onTagDraftChange}
               onAdd={onTagAdd}

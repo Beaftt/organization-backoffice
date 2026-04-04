@@ -12,12 +12,21 @@ interface EntryRowProps {
   item: FinanceTransaction;
   index: number;
   category?: FinanceCategory;
+  isActive?: boolean;
   disabled?: boolean;
   onEdit: (item: FinanceTransaction) => void;
   onDelete: (item: FinanceTransaction) => void;
 }
 
-export function EntryRow({ item, index, category, disabled, onEdit, onDelete }: EntryRowProps) {
+export function EntryRow({
+  item,
+  index,
+  category,
+  isActive,
+  disabled,
+  onEdit,
+  onDelete,
+}: EntryRowProps) {
   const { t } = useLanguage();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const isIncome = item.group === 'INCOME';
@@ -25,7 +34,11 @@ export function EntryRow({ item, index, category, disabled, onEdit, onDelete }: 
 
   return (
     <div
-      className="list-item-animate flex flex-wrap items-center justify-between gap-4 rounded-2xl border [border-color:var(--border)] px-4 py-3 transition-colors hover:bg-[var(--surface-muted)]"
+      className={`list-item-animate flex flex-wrap items-center justify-between gap-4 rounded-2xl border px-4 py-3 transition-colors hover:bg-[var(--surface-muted)] ${
+        isActive
+          ? 'border-[var(--sidebar)] bg-[var(--surface-muted)]'
+          : '[border-color:var(--border)]'
+      }`}
       style={{ animationDelay: `${index * 30}ms` }}
     >
       <div className="flex items-center gap-3">

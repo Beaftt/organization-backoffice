@@ -21,26 +21,36 @@ const accountTypeColors: Record<string, string> = {
 interface AccountsListProps {
   accounts: FinanceAccount[];
   isSaving?: boolean;
+  showAddAction?: boolean;
   onAdd: () => void;
   onEdit: (account: FinanceAccount) => void;
   onDelete: (account: FinanceAccount) => void;
 }
 
-export function AccountsList({ accounts, isSaving, onAdd, onEdit, onDelete }: AccountsListProps) {
+export function AccountsList({
+  accounts,
+  isSaving,
+  showAddAction = true,
+  onAdd,
+  onEdit,
+  onDelete,
+}: AccountsListProps) {
   const { t } = useLanguage();
 
   if (accounts.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed [border-color:var(--border)] px-6 py-10 text-center">
+      <div className="rounded-2xl border border-dashed [border-color:var(--border)] px-5 py-6">
         <p className="text-sm font-semibold text-[var(--foreground)]/60">
           {t.finance.accountEmpty ?? t.finance.empty}
         </p>
-        <p className="mt-1 text-xs text-[var(--foreground)]/40">
+        <p className="mt-1 text-xs text-[var(--foreground)]/45">
           {t.finance.accountAddMore ?? 'Adicione suas contas para visualizar o saldo unificado.'}
         </p>
-        <Button className="mt-4" onClick={onAdd}>
-          {t.finance.newAccount ?? t.finance.accountLabel}
-        </Button>
+        {showAddAction ? (
+          <Button className="mt-4" onClick={onAdd}>
+            {t.finance.newAccount ?? t.finance.accountLabel}
+          </Button>
+        ) : null}
       </div>
     );
   }
@@ -99,11 +109,13 @@ export function AccountsList({ accounts, isSaving, onAdd, onEdit, onDelete }: Ac
         );
       })}
 
-      <div className="flex justify-center pt-1">
-        <Button variant="secondary" onClick={onAdd}>
-          + {t.finance.newAccount ?? t.finance.accountLabel}
-        </Button>
-      </div>
+      {showAddAction ? (
+        <div className="flex justify-end pt-1">
+          <Button variant="secondary" onClick={onAdd}>
+            + {t.finance.newAccount ?? t.finance.accountLabel}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

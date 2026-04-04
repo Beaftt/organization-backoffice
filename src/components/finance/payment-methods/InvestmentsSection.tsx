@@ -8,21 +8,25 @@ import type { FinancePaymentMethod } from '@/lib/api/finance';
 interface InvestmentsSectionProps {
   investMethods: FinancePaymentMethod[];
   isSaving?: boolean;
+  showAddAction?: boolean;
   onAdd: () => void;
   onEdit: (method: FinancePaymentMethod) => void;
   onDelete: (method: FinancePaymentMethod) => void;
   onDeposit: (method: FinancePaymentMethod) => void;
   onWithdraw: (method: FinancePaymentMethod) => void;
+  onTransfer?: (method: FinancePaymentMethod) => void;
 }
 
 export function InvestmentsSection({
   investMethods,
   isSaving,
+  showAddAction = true,
   onAdd,
   onEdit,
   onDelete,
   onDeposit,
   onWithdraw,
+  onTransfer,
 }: InvestmentsSectionProps) {
   const { t } = useLanguage();
   const total = investMethods.reduce((sum, m) => sum + (m.balance ?? 0), 0);
@@ -33,14 +37,16 @@ export function InvestmentsSection({
         <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--foreground)]/50">
           {t.finance.investmentsTitle}
         </p>
-        <Button variant="ghost" onClick={onAdd}>
-          + {t.finance.paymentMethodAdd ?? 'Adicionar'}
-        </Button>
+        {showAddAction ? (
+          <Button variant="ghost" onClick={onAdd}>
+            + {t.finance.paymentMethodAdd ?? 'Adicionar'}
+          </Button>
+        ) : null}
       </div>
 
       {investMethods.length === 0 ? (
-        <div className="rounded-2xl border border-dashed [border-color:var(--border)] px-4 py-8 text-center">
-          <p className="text-sm text-[var(--foreground)]/50">
+        <div className="rounded-2xl border border-dashed [border-color:var(--border)] px-4 py-5">
+          <p className="text-sm text-[var(--foreground)]/55">
             {t.finance.cardsEmpty ?? t.finance.empty}
           </p>
         </div>
@@ -78,6 +84,15 @@ export function InvestmentsSection({
                 >
                   {t.finance.investWithdraw ?? 'Resgatar'}
                 </button>
+                {onTransfer ? (
+                  <button
+                    type="button"
+                    onClick={() => onTransfer(method)}
+                    className="inline-flex items-center justify-center rounded-full border [border-color:var(--border)] bg-[var(--surface-muted)] px-4 py-1.5 text-xs font-semibold text-[var(--foreground)]/75 transition-colors hover:bg-[var(--surface)]"
+                  >
+                    {t.finance.transferLabel ?? 'Transferir'}
+                  </button>
+                ) : null}
                 <Button
                   variant="ghost"
                   onClick={() => onEdit(method)}
