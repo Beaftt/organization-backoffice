@@ -82,7 +82,7 @@ export function TransactionDrawer({
       {/* Overlay */}
       <button
         type="button"
-        aria-label="Fechar"
+        aria-label={t.finance.close ?? 'Close'}
         className="modal-overlay fixed inset-0 z-40 bg-black/40"
         onClick={onClose}
       />

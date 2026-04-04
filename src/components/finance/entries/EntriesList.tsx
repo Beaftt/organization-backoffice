@@ -13,6 +13,7 @@ interface EntriesListProps {
   isLoading: boolean;
   hasMore: boolean;
   isSaving?: boolean;
+  activeId?: string | null;
   onEdit: (item: FinanceTransaction) => void;
   onDelete: (item: FinanceTransaction) => void;
   onLoadMore: () => void;
@@ -24,6 +25,7 @@ export function EntriesList({
   isLoading,
   hasMore,
   isSaving,
+  activeId,
   onEdit,
   onDelete,
   onLoadMore,
@@ -68,6 +70,7 @@ export function EntriesList({
             item={item}
             index={index}
             category={category}
+            isActive={activeId === item.id}
             disabled={isSaving}
             onEdit={onEdit}
             onDelete={onDelete}

@@ -1,4 +1,9 @@
-import FinanceClient from "./FinanceClient";
+import { redirect } from 'next/navigation';
+
+import {
+  buildFinanceHref,
+  parseFinanceRouteState,
+} from '@/lib/navigation/finance-route-state';
 
 type SearchParams = {
   q?: string;
@@ -7,6 +12,8 @@ type SearchParams = {
   status?: string;
   sort?: string;
   page?: string;
+  month?: string;
+  tab?: string;
 };
 
 export default async function FinancePage({
@@ -15,14 +22,6 @@ export default async function FinancePage({
   searchParams: Promise<SearchParams>;
 }) {
   const resolvedParams = await searchParams;
-  return (
-    <FinanceClient
-      initialQuery={resolvedParams?.q ?? ""}
-      initialGroup={resolvedParams?.group ?? "all"}
-      initialType={resolvedParams?.type ?? "all"}
-      initialStatus={resolvedParams?.status ?? "all"}
-      initialSort={resolvedParams?.sort ?? "date"}
-      initialPage={Number(resolvedParams?.page ?? 1)}
-    />
-  );
+
+  redirect(buildFinanceHref('desk', parseFinanceRouteState(resolvedParams, 'desk')));
 }

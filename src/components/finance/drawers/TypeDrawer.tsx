@@ -11,6 +11,7 @@ interface TypeDrawerProps {
   group: 'INCOME' | 'EXPENSE';
   formError: string | null;
   isSaving: boolean;
+  title?: string;
   onClose: () => void;
   onNameChange: (value: string) => void;
   onGroupChange: (value: 'INCOME' | 'EXPENSE') => void;
@@ -23,12 +24,14 @@ export function TypeDrawer({
   group,
   formError,
   isSaving,
+  title,
   onClose,
   onNameChange,
   onGroupChange,
   onSave,
 }: TypeDrawerProps) {
   const { t } = useLanguage();
+  const dialogTitle = title ?? t.finance.newType;
 
   if (!open) return null;
 
@@ -37,7 +40,7 @@ export function TypeDrawer({
       {/* Overlay */}
       <button
         type="button"
-        aria-label="Fechar"
+        aria-label={t.finance.close ?? 'Close'}
         className="modal-overlay fixed inset-0 z-40 bg-black/40"
         onClick={onClose}
       />
@@ -49,11 +52,11 @@ export function TypeDrawer({
         style={{ maxHeight: '90vh', overflow: 'hidden' }}
         role="dialog"
         aria-modal="true"
-        aria-label={t.finance.newType}
+        aria-label={dialogTitle}
       >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b [border-color:var(--border)] px-5 py-4">
-          <h2 className="text-base font-semibold text-[var(--foreground)]">{t.finance.newType}</h2>
+          <h2 className="text-base font-semibold text-[var(--foreground)]">{dialogTitle}</h2>
           <button
             type="button"
             onClick={onClose}

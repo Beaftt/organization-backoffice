@@ -2,59 +2,56 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useLanguage } from "@/lib/i18n/language-context";
+import { useFinanceCompatibilityRouteState } from '@/components/finance/hooks/useFinanceCompatibilityRouteState';
 import { FinanceStatsRow } from "@/components/finance/FinanceStatsRow";
 import { RecurringBillsChecklist } from "@/components/finance/RecurringBillsChecklist";
 import { FinanceCategoriesPanel } from "@/components/finance/FinanceCategoriesPanel";
-import { EntriesSearchBar } from "@/components/finance/entries/EntriesSearchBar";
-import { EntriesSummaryRow } from "@/components/finance/entries/EntriesSummaryRow";
-import { EntriesList } from "@/components/finance/entries/EntriesList";
+import { FinanceTransactionsWorkspace } from "@/components/finance/entries/FinanceTransactionsWorkspace";
+import { FinanceModeHeader } from "@/components/finance/scaffold/FinanceModeHeader";
+import { FinancePageRail } from "@/components/finance/scaffold/FinancePageRail";
 import { AccountsList } from "@/components/finance/accounts/AccountsList";
 import { InvestmentsSection } from "@/components/finance/payment-methods/InvestmentsSection";
 import { CardsSection } from "@/components/finance/payment-methods/CardsSection";
-import { TransactionDrawer } from "@/components/finance/transaction/TransactionDrawer";
 import { AccountDrawer } from "@/components/finance/drawers/AccountDrawer";
 import { PaymentMethodDrawer } from "@/components/finance/drawers/PaymentMethodDrawer";
 import { TypeDrawer } from "@/components/finance/drawers/TypeDrawer";
 import { TagDrawer } from "@/components/finance/drawers/TagDrawer";
 import { ManageRecordsModal } from "@/components/finance/drawers/ManageRecordsModal";
 import { ApiError } from "@/lib/api/client";
+import {
+  loadFinanceBaseSnapshot,
+  loadFinanceCardBillsSnapshot,
+  loadFinanceTransactionsSnapshot,
+  payFinanceCardBillAction,
+  runFinanceInvestmentMovement,
+} from '@/lib/finance/finance-action-adapter';
+import type {
+  FinanceCompatibilitySurface,
+  FinanceRouteState,
+} from '@/lib/navigation/finance-route-state';
 import { getWorkspaceId } from "@/lib/storage/workspace";
 import { getWorkspaceMemberships } from "@/lib/api/workspace-memberships";
 import { getMyProfile } from "@/lib/api/user-profile";
-import { createCalendarEvent } from "@/lib/api/calendar";
 import {
   createFinanceAccount,
   createFinanceCategory,
   createFinancePaymentMethod,
   createFinanceRecurring,
   createFinanceTag,
-  createFinanceTransaction,
   deleteFinanceCategory,
-  deleteFinanceRecurring,
   deleteFinanceTag,
-  deleteFinanceTransaction,
   deleteFinanceAccount,
   deleteFinancePaymentMethod,
-  getFinanceCardBill,
-  listFinanceAccounts,
-  listFinanceCategories,
-  listFinancePaymentMethods,
   listFinanceRecurring,
-  listFinanceTags,
-  listFinanceTransactions,
-  payFinanceCardBill,
   toggleFinanceRecurring,
   updateFinanceAccount,
   updateFinanceCategory,
   updateFinancePaymentMethod,
-  updateFinanceRecurring,
   updateFinanceTag,
-  updateFinanceTransaction,
   type FinanceCardBill,
   type FinanceAccount,
   type FinanceCategory,
@@ -68,30 +65,43 @@ import {
 const pageSize = 6;
 
 type FinanceClientProps = {
-  initialQuery?: string;
-  initialGroup?: string;
-  initialType?: string;
-  initialStatus?: string;
-  initialSort?: string;
-  initialPage?: number;
+  initialRouteState?: FinanceRouteState;
+  surface?: FinanceCompatibilitySurface;
 };
 
 export default function FinanceClient({
-  initialQuery = "",
-  initialGroup = "all",
-  initialType = "all",
-  initialStatus = "all",
-  initialSort = "date",
-  initialPage = 1,
+  initialRouteState,
+  surface = 'legacy',
 }: FinanceClientProps) {
-  const router = useRouter();
   const { t, language } = useLanguage();
   const chartMonthRange = 6;
   const chartFutureRange = 6;
+  const {
+    activeTab,
+    groupFilter,
+    handleMonthNext,
+    handleMonthPrev,
+    handleMonthReset,
+    page,
+    query,
+    selectedMonth,
+    selectedYear,
+    setActiveTab,
+    setGroupFilter,
+    setPage,
+    setQuery,
+    setSortBy,
+    setStatusFilter,
+    setTypeFilter,
+    sortBy,
+    statusFilter,
+    typeFilter,
+  } = useFinanceCompatibilityRouteState({
+    surface,
+    initialRouteState,
+  });
 
   const now = new Date();
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
 
   const dateFrom = useMemo(() => {
     const d = new Date(selectedYear, selectedMonth, 1);
@@ -105,41 +115,11 @@ export default function FinanceClient({
 
   const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
 
-  const handleMonthPrev = () => {
-    if (selectedMonth === 0) {
-      setSelectedYear((y) => y - 1);
-      setSelectedMonth(11);
-    } else {
-      setSelectedMonth((m) => m - 1);
-    }
-  };
-
-  const handleMonthNext = () => {
-    if (selectedMonth === 11) {
-      setSelectedYear((y) => y + 1);
-      setSelectedMonth(0);
-    } else {
-      setSelectedMonth((m) => m + 1);
-    }
-  };
-
-  const handleMonthReset = () => {
-    const n = new Date();
-    setSelectedYear(n.getFullYear());
-    setSelectedMonth(n.getMonth());
-  };
-
   const monthLabel = new Date(selectedYear, selectedMonth).toLocaleDateString(language === 'en' ? 'en-US' : 'pt-BR', {
     month: 'long',
     year: 'numeric',
   });
 
-  const [query, setQuery] = useState(initialQuery);
-  const [groupFilter, setGroupFilter] = useState(initialGroup);
-  const [typeFilter, setTypeFilter] = useState(initialType);
-  const [statusFilter, setStatusFilter] = useState(initialStatus);
-  const [sortBy, setSortBy] = useState(initialSort);
-  const [page, setPage] = useState(initialPage);
   const [tags, setTags] = useState<FinanceTag[]>([]);
   const [categories, setCategories] = useState<FinanceCategory[]>([]);
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
@@ -149,9 +129,6 @@ export default function FinanceClient({
   const [recurring, setRecurring] = useState<FinanceRecurring[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [transactionModalOpen, setTransactionModalOpen] = useState(false);
-  const [transactionTab, setTransactionTab] = useState<"details" | "recurrence">("details");
-  const [linkedRecurringId, setLinkedRecurringId] = useState<string | null>(null);
   const [recurringModalOpen, setRecurringModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
@@ -163,30 +140,8 @@ export default function FinanceClient({
   const [billAmount, setBillAmount] = useState("");
   const [cardDetailOpen, setCardDetailOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState<FinancePaymentMethod | null>(null);
-  const [editingTransaction, setEditingTransaction] = useState<FinanceTransaction | null>(null);
   const [members, setMembers] = useState<{ userId: string; label: string; photoUrl: string | null }[]>([]);
   const [currentUserId, setCurrentUserId] = useState("");
-  const [transactionForm, setTransactionForm] = useState({
-    title: "",
-    amount: "",
-    currency: "BRL" as "BRL" | "USD",
-    group: "INCOME" as "INCOME" | "EXPENSE",
-    status: "PAID" as "PAID" | "PENDING",
-    occurredAt: "",
-    accountId: "",
-    paymentMethodId: "",
-    categoryId: "",
-    tagIds: [] as string[],
-    participantIds: [] as string[],
-    description: "",
-    isRecurring: false,
-    addToCalendar: false,
-    recurrenceFrequency: "MONTHLY" as "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY" | "SEMIANNUAL",
-    recurrenceInterval: "1",
-    recurrenceEndDate: "",
-    installments: 1,
-    isInstallmentValue: false,
-  });
   const [recurringForm, setRecurringForm] = useState({
     title: "",
     amount: "",
@@ -220,170 +175,115 @@ export default function FinanceClient({
     balance: "",
     isPrimary: false,
   });
-  const [tagDraft, setTagDraft] = useState("");
   const [tagModalOpen, setTagModalOpen] = useState(false);
   const [tagName, setTagName] = useState("");
   const [manageRecordsOpen, setManageRecordsOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [cardMonthIndex, setCardMonthIndex] = useState(() => chartMonthRange - 1);
-  const [activeTab, setActiveTab] = useState<'overview' | 'entries' | 'accounts' | 'paymentMethods'>('overview');
   const [investWithdrawModalOpen, setInvestWithdrawModalOpen] = useState(false);
   const [investWithdrawTarget, setInvestWithdrawTarget] = useState<FinancePaymentMethod | null>(null);
   const [investWithdrawAmount, setInvestWithdrawAmount] = useState('');
   const [investWithdrawError, setInvestWithdrawError] = useState<string | null>(null);
+  const [investMovementMode, setInvestMovementMode] = useState<'deposit' | 'withdraw'>('withdraw');
+
+  const loadMembers = useCallback(async () => {
+    const workspaceId = getWorkspaceId();
+    if (!workspaceId) return;
+
+    try {
+      const [membershipsResult, myProfileResult] = await Promise.allSettled([
+        getWorkspaceMemberships(workspaceId),
+        getMyProfile(),
+      ]);
+
+      const myProfile =
+        myProfileResult.status === 'fulfilled' ? myProfileResult.value : null;
+      if (myProfile?.userId) {
+        setCurrentUserId(myProfile.userId);
+      }
+
+      const memberships =
+        membershipsResult.status === 'fulfilled' ? membershipsResult.value : null;
+      setMembers(
+        (memberships?.items ?? []).map((member) => ({
+          userId: member.userId,
+          label: member.displayName || `${member.userId.slice(0, 8)}...`,
+          photoUrl: member.photoUrl,
+        })),
+      );
+    } catch {
+      // Members are optional — failures are non-fatal
+    }
+  }, []);
+
+  const loadCardBills = useCallback(async (methods: FinancePaymentMethod[]) => {
+    const nextCardBills = await loadFinanceCardBillsSnapshot(methods);
+    setCardBills(nextCardBills);
+  }, []);
+
+  const loadBase = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const snapshot = await loadFinanceBaseSnapshot();
+
+      setTags(snapshot.tags);
+      setCategories(snapshot.categories);
+      setAccounts(snapshot.accounts);
+      setPaymentMethods(snapshot.paymentMethods);
+      setRecurring(snapshot.recurring);
+      setCardBills(snapshot.cardBills);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError(t.finance.loadError);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [t]);
+
+  const loadTransactions = useCallback(async () => {
+    try {
+      const response = await loadFinanceTransactionsSnapshot({
+        q: query || undefined,
+        group: groupFilter !== 'all' ? (groupFilter as 'INCOME' | 'EXPENSE') : undefined,
+        status:
+          statusFilter !== 'all'
+            ? (statusFilter as 'PAID' | 'PENDING')
+            : undefined,
+        categoryId: typeFilter !== 'all' ? typeFilter : undefined,
+        from: dateFrom,
+        to: dateTo,
+      });
+      setTransactions(response);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError(t.finance.loadError);
+      }
+    }
+  }, [query, groupFilter, statusFilter, typeFilter, dateFrom, dateTo, t]);
 
   useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        if (query) {
-          params.set("q", query);
-        } else {
-          params.delete("q");
-        }
-        if (groupFilter !== "all") {
-          params.set("group", groupFilter);
-        } else {
-          params.delete("group");
-        }
-        if (typeFilter !== "all") {
-          params.set("type", typeFilter);
-        } else {
-          params.delete("type");
-        }
-        if (statusFilter !== "all") {
-          params.set("status", statusFilter);
-        } else {
-          params.delete("status");
-        }
-        if (sortBy !== "date") {
-          params.set("sort", sortBy);
-        } else {
-          params.delete("sort");
-        }
-        if (page !== 1) {
-          params.set("page", String(page));
-        } else {
-          params.delete("page");
-        }
+    void loadBase();
+  }, [loadBase]);
 
-        const queryString = params.toString();
-        router.replace(`/finance${queryString ? `?${queryString}` : ""}`);
-      }, [query, groupFilter, typeFilter, statusFilter, sortBy, page, router]);
+  useEffect(() => {
+    void loadMembers();
+  }, [loadMembers]);
 
-      const loadMembers = useCallback(async () => {
-        const workspaceId = getWorkspaceId();
-        if (!workspaceId) return;
-        try {
-          const [membershipsResult, myProfileResult] = await Promise.allSettled([
-            getWorkspaceMemberships(workspaceId),
-            getMyProfile(),
-          ]);
-          const myProfile = myProfileResult.status === "fulfilled" ? myProfileResult.value : null;
-          if (myProfile?.userId) setCurrentUserId(myProfile.userId);
-          const memberships =
-            membershipsResult.status === "fulfilled" ? membershipsResult.value : null;
-          setMembers(
-            (memberships?.items ?? []).map((m) => ({
-              userId: m.userId,
-              label: m.displayName || `${m.userId.slice(0, 8)}...`,
-              photoUrl: m.photoUrl,
-            })),
-          );
-        } catch {
-          // Members are optional — failures are non-fatal
-        }
-      }, []);
+  useEffect(() => {
+    void loadCardBills(paymentMethods);
+  }, [loadCardBills, paymentMethods]);
 
-      const loadCardBills = useCallback(async (methods: FinancePaymentMethod[]) => {
-        const creditMethods = methods.filter((method) => method.type === "CREDIT");
-        if (creditMethods.length === 0) {
-          setCardBills({});
-          return;
-        }
-        const results = await Promise.allSettled(
-          creditMethods.map((method) =>
-            getFinanceCardBill({ paymentMethodId: method.id }),
-          ),
-        );
-        const map: Record<string, FinanceCardBill> = {};
-        results.forEach((result, index) => {
-          if (result.status === "fulfilled") {
-            map[creditMethods[index].id] = result.value;
-          }
-        });
-        setCardBills(map);
-      }, []);
-
-      const loadBase = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-          const [
-            tagsResult,
-            categoriesResult,
-            accountsResult,
-            paymentMethodsResult,
-            recurringResult,
-          ] = await Promise.all([
-            listFinanceTags(),
-            listFinanceCategories(),
-            listFinanceAccounts(),
-            listFinancePaymentMethods(),
-            listFinanceRecurring(),
-          ]);
-
-          setTags(tagsResult);
-          setCategories(categoriesResult);
-          setAccounts(accountsResult);
-          setPaymentMethods(paymentMethodsResult);
-          setRecurring(recurringResult);
-          void loadCardBills(paymentMethodsResult);
-        } catch (err) {
-          if (err instanceof ApiError) {
-            setError(err.message);
-          } else {
-            setError(t.finance.loadError);
-          }
-        } finally {
-          setIsLoading(false);
-        }
-      }, [loadCardBills, t]);
-
-      useEffect(() => {
-        void loadCardBills(paymentMethods);
-      }, [loadCardBills, paymentMethods]);
-
-      const loadTransactions = useCallback(async () => {
-        try {
-          const response = await listFinanceTransactions({
-            q: query || undefined,
-            group: groupFilter !== "all" ? (groupFilter as "INCOME" | "EXPENSE") : undefined,
-            status: statusFilter !== "all" ? (statusFilter as "PAID" | "PENDING") : undefined,
-            categoryId: typeFilter !== "all" ? typeFilter : undefined,
-            from: dateFrom,
-            to: dateTo,
-          });
-          setTransactions(response);
-        } catch (err) {
-          if (err instanceof ApiError) {
-            setError(err.message);
-          } else {
-            setError(t.finance.loadError);
-          }
-        }
-      }, [query, groupFilter, statusFilter, typeFilter, dateFrom, dateTo, t]);
-
-      useEffect(() => {
-        void loadBase();
-      }, [loadBase]);
-
-      useEffect(() => {
-        void loadMembers();
-      }, [loadMembers]);
-
-      useEffect(() => {
-        void loadTransactions();
-      }, [loadTransactions]);
+  useEffect(() => {
+    void loadTransactions();
+  }, [loadTransactions]);
 
       const sortedTransactions = useMemo(() => {
         const items = [...transactions];
@@ -497,14 +397,6 @@ export default function FinanceClient({
         return max || 1;
       }, [cardMonthlyTotals]);
 
-      const resolveNowForInput = () => {
-        const now = new Date();
-        now.setSeconds(0, 0);
-        return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-          .toISOString()
-          .slice(0, 16);
-      };
-
       const formatCurrencyInput = (digits: string, currency: string) => {
         if (!digits) return "";
         const value = Number(digits) / 100;
@@ -562,45 +454,6 @@ export default function FinanceClient({
         return date.toISOString().slice(0, 10);
       };
 
-      const findRecurringById = (recurringId?: string | null) =>
-        recurringId ? recurring.find((item) => item.id === recurringId) ?? null : null;
-
-      const handleOpenTransaction = (item?: FinanceTransaction) => {
-        setEditingTransaction(item ?? null);
-        setFormError(null);
-        setTransactionTab("details");
-        const matchedRecurring = item ? findRecurringById(item.recurringId) : null;
-        setLinkedRecurringId(matchedRecurring?.id ?? item?.recurringId ?? null);
-        setTransactionForm({
-          title: item?.title ?? "",
-          amount: item
-            ? formatCurrencyInput(
-                String(Math.round(item.amount * (item.installmentTotal && item.installmentTotal > 1 ? item.installmentTotal : 1) * 100)),
-                item.currency ?? "BRL",
-              )
-            : "",
-          currency: (item?.currency ?? "BRL") as "BRL" | "USD",
-          group: item?.group ?? "INCOME",
-          status: item?.status ?? "PAID",
-          occurredAt: item?.occurredAt ?? resolveNowForInput(),
-          accountId: item?.accountId ?? "",
-          paymentMethodId: item?.paymentMethodId ?? "",
-          categoryId: item?.categoryId ?? "",
-          tagIds: item?.tagIds ?? [],
-          participantIds: item ? (item.participantIds ?? []) : (currentUserId ? [currentUserId] : []),
-          description: item?.description ?? "",
-          isRecurring: Boolean(matchedRecurring ?? item?.recurringId),
-          addToCalendar: false,
-          recurrenceFrequency: matchedRecurring?.frequency ?? "MONTHLY",
-          recurrenceInterval: String(matchedRecurring?.interval ?? 1),
-          recurrenceEndDate: matchedRecurring?.endDate ?? "",
-          // Installment fields
-          installments: item?.installmentTotal ?? 1,
-          isInstallmentValue: false,
-        });
-        setTransactionModalOpen(true);
-      };
-
       const handleOpenBill = (method: FinancePaymentMethod) => {
         setBillTarget(method);
         setBillAmount("");
@@ -619,45 +472,43 @@ export default function FinanceClient({
       };
 
       const handleOpenInvestWithdraw = (method: FinancePaymentMethod) => {
+        setInvestMovementMode('withdraw');
         setInvestWithdrawTarget(method);
         setInvestWithdrawAmount('');
         setInvestWithdrawError(null);
         setInvestWithdrawModalOpen(true);
       };
 
-      const handleInvestWithdraw = async () => {
+      const handleInvestMovement = async () => {
         if (!investWithdrawTarget) return;
         const amount = parseCurrencyInput(investWithdrawAmount);
         if (!amount || amount <= 0) {
-          setInvestWithdrawError(t.finance.amountRequired ?? 'Informe um valor válido');
+          setInvestWithdrawError(t.finance.amountRequired ?? 'Informe um valor valido');
           return;
         }
         const currentBalance = investWithdrawTarget.balance ?? 0;
-        if (amount > currentBalance) {
+        if (investMovementMode === 'withdraw' && amount > currentBalance) {
           setInvestWithdrawError(t.finance.insufficientBalance ?? 'Saldo insuficiente');
           return;
         }
         setIsSaving(true);
         setInvestWithdrawError(null);
         try {
-          const updated = await updateFinancePaymentMethod({
-            id: investWithdrawTarget.id,
-            balance: currentBalance - amount,
+          const movement = await runFinanceInvestmentMovement({
+            mode: investMovementMode,
+            paymentMethod: investWithdrawTarget,
+            amount,
+            occurredAt: new Date().toISOString().slice(0, 10),
           });
           setPaymentMethods((prev) =>
-            prev.map((m) => (m.id === updated.id ? updated : m)),
+            prev.map((method) =>
+              method.id === movement.updatedPaymentMethod.id
+                ? movement.updatedPaymentMethod
+                : method,
+            ),
           );
-          if (investWithdrawTarget.accountId) {
-            const tx = await createFinanceTransaction({
-              accountId: investWithdrawTarget.accountId,
-              paymentMethodId: investWithdrawTarget.id,
-              group: 'INCOME',
-              amount,
-              status: 'PAID',
-              occurredAt: new Date().toISOString().slice(0, 10),
-              title: `Resgate — ${investWithdrawTarget.name}`,
-            });
-            setTransactions((prev) => [tx, ...prev]);
+          if (movement.movementTransaction) {
+            await loadTransactions();
           }
           setInvestWithdrawModalOpen(false);
           setInvestWithdrawTarget(null);
@@ -673,22 +524,18 @@ export default function FinanceClient({
       };
 
       const handleInvestDeposit = (method: FinancePaymentMethod) => {
-        // Open the transaction modal pre-filled for an INVEST deposit
-        handleOpenTransaction();
-        setTransactionForm((prev) => ({
-          ...prev,
-          group: 'EXPENSE',
-          paymentMethodId: method.id,
-          accountId: method.accountId ?? prev.accountId,
-          title: `Depósito — ${method.name}`,
-        }));
+        setInvestMovementMode('deposit');
+        setInvestWithdrawTarget(method);
+        setInvestWithdrawAmount('');
+        setInvestWithdrawError(null);
+        setInvestWithdrawModalOpen(true);
       };
 
       const handlePayBill = async () => {
         if (!billTarget) return;
         const amount = billAmount ? parseCurrencyInput(billAmount) : undefined;
         try {
-          const updated = await payFinanceCardBill({
+          const updated = await payFinanceCardBillAction({
             paymentMethodId: billTarget.id,
             amount,
             paidAt: new Date().toISOString().slice(0, 10),
@@ -702,194 +549,6 @@ export default function FinanceClient({
           } else {
             setFormError(t.finance.saveError);
           }
-        }
-      };
-
-      const handleSaveTransaction = async () => {
-        if (!transactionForm.title.trim()) {
-          setFormError(t.finance.titleRequired ?? t.finance.titleLabel);
-          return;
-        }
-        if (!transactionForm.amount) {
-          setFormError(t.finance.amountRequired ?? t.finance.amountLabel);
-          return;
-        }
-        if (!transactionForm.occurredAt) {
-          setFormError(t.finance.dateRequired ?? t.finance.dateLabel);
-          return;
-        }
-
-        setIsSaving(true);
-        setFormError(null);
-
-        try {
-          const payload = {
-            title: transactionForm.title.trim(),
-            amount: parseCurrencyInput(transactionForm.amount),
-            currency: transactionForm.currency,
-            group: transactionForm.group,
-            status: transactionForm.status,
-            occurredAt: transactionForm.occurredAt,
-            accountId: transactionForm.accountId || null,
-            paymentMethodId: transactionForm.paymentMethodId || null,
-            categoryId: transactionForm.categoryId || null,
-            tagIds: transactionForm.tagIds,
-            participantIds: transactionForm.participantIds.length > 0 ? transactionForm.participantIds : null,
-            description: transactionForm.description.trim() || null,
-          };
-
-          const selectedTagNames = tags
-            .filter((tag) => payload.tagIds?.includes(tag.id))
-            .map((tag) => tag.name);
-
-          const nextDue = transactionForm.occurredAt.slice(0, 10);
-          const isTxSemiannual = transactionForm.recurrenceFrequency === "SEMIANNUAL";
-          const resolvedFrequency = (
-            isTxSemiannual ? "MONTHLY" : transactionForm.recurrenceFrequency
-          ) as "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
-          const resolvedInterval = isTxSemiannual ? 6 : (Number(transactionForm.recurrenceInterval) || 1);
-          const resolvedEndDate = transactionForm.recurrenceEndDate || null;
-
-          if (editingTransaction) {
-            let nextRecurringId = linkedRecurringId;
-            if (transactionForm.isRecurring) {
-              if (linkedRecurringId) {
-                await updateFinanceRecurring({
-                  id: linkedRecurringId,
-                  title: payload.title,
-                  amount: payload.amount,
-                  currency: transactionForm.currency,
-                  group: payload.group,
-                  frequency: resolvedFrequency,
-                  interval: resolvedInterval,
-                  nextDue,
-                  endDate: resolvedEndDate,
-                  accountId: payload.accountId,
-                  categoryId: payload.categoryId,
-                  tagIds: payload.tagIds,
-                });
-              } else {
-                const created = await createFinanceRecurring({
-                  title: payload.title,
-                  amount: payload.amount,
-                  currency: transactionForm.currency,
-                  group: payload.group,
-                  frequency: resolvedFrequency,
-                  interval: resolvedInterval,
-                  nextDue,
-                  endDate: resolvedEndDate,
-                  accountId: payload.accountId,
-                  categoryId: payload.categoryId,
-                  tagIds: payload.tagIds,
-                });
-                nextRecurringId = created.id;
-              }
-            } else if (linkedRecurringId) {
-              await deleteFinanceRecurring({ id: linkedRecurringId });
-              nextRecurringId = null;
-            }
-
-            await updateFinanceTransaction({
-              id: editingTransaction.id,
-              ...payload,
-              recurringId: nextRecurringId,
-              installmentTotal:
-                editingTransaction.installmentTotal && editingTransaction.installmentTotal > 1
-                  ? transactionForm.installments
-                  : undefined,
-              isInstallmentValue:
-                editingTransaction.installmentTotal && editingTransaction.installmentTotal > 1
-                  ? transactionForm.isInstallmentValue
-                  : undefined,
-            });
-          } else {
-            const selectedMethod = paymentMethods.find(
-              (m) => m.id === transactionForm.paymentMethodId,
-            );
-            const isCreditInstallment =
-              selectedMethod?.type === "CREDIT" &&
-              transactionForm.group === "EXPENSE" &&
-              transactionForm.installments > 1;
-
-            let recurringId: string | null = null;
-            if (!isCreditInstallment && transactionForm.isRecurring) {
-              const created = await createFinanceRecurring({
-                title: payload.title,
-                amount: payload.amount,
-                currency: transactionForm.currency,
-                group: payload.group,
-                frequency: resolvedFrequency,
-                interval: resolvedInterval,
-                nextDue,
-                endDate: resolvedEndDate,
-                accountId: payload.accountId,
-                categoryId: payload.categoryId,
-                tagIds: payload.tagIds,
-              });
-              recurringId = created.id;
-            }
-
-            await createFinanceTransaction({
-              ...payload,
-              recurringId,
-              ...(isCreditInstallment
-                ? {
-                    installments: transactionForm.installments,
-                    isInstallmentValue: transactionForm.isInstallmentValue,
-                  }
-                : {}),
-            });
-
-            if (!isCreditInstallment && transactionForm.isRecurring && transactionForm.addToCalendar) {
-              const startAt = new Date(transactionForm.occurredAt);
-              const endAt = new Date(startAt.getTime() + 60 * 60 * 1000);
-              await createCalendarEvent({
-                title: payload.title,
-                description: payload.description ?? null,
-                startAt: startAt.toISOString(),
-                endAt: endAt.toISOString(),
-                allDay: false,
-                tags: selectedTagNames.length ? selectedTagNames : null,
-                recurrence: {
-                  frequency: resolvedFrequency,
-                  interval: resolvedInterval,
-                },
-              });
-            }
-          }
-
-          setTransactionModalOpen(false);
-          await loadTransactions();
-          const updatedRecurring = await listFinanceRecurring();
-          setRecurring(updatedRecurring);
-        } catch (err) {
-          if (err instanceof ApiError) {
-            setFormError(err.message);
-          } else {
-            setFormError(t.finance.saveError ?? t.finance.loadError);
-          }
-        } finally {
-          setIsSaving(false);
-        }
-      };
-
-      const handleDeleteTransaction = async (item: FinanceTransaction) => {
-        setIsSaving(true);
-        setFormError(null);
-        try {
-          await deleteFinanceTransaction({ id: item.id });
-          if (item.recurringId) {
-            await deleteFinanceRecurring({ id: item.recurringId });
-          }
-          await loadTransactions();
-        } catch (err) {
-          if (err instanceof ApiError) {
-            setFormError(err.message);
-          } else {
-            setFormError(t.finance.deleteError ?? t.finance.loadError);
-          }
-        } finally {
-          setIsSaving(false);
         }
       };
 
@@ -938,53 +597,6 @@ export default function FinanceClient({
       const handleDeleteCategoryRecord = async (id: string) => {
         await deleteFinanceCategory({ id });
         setCategories((prev) => prev.filter((cat) => cat.id !== id));
-      };
-
-      const handleCreateTag = async () => {
-        const value = tagDraft.trim();
-        if (!value) return;
-        try {
-          const created = await createFinanceTag({ name: value });
-          setTags((prev) => [...prev, created]);
-          setTransactionForm((prev) => ({
-            ...prev,
-            tagIds: [...prev.tagIds, created.id],
-          }));
-          setTagDraft("");
-        } catch (err) {
-          if (err instanceof ApiError) {
-            setFormError(err.message);
-          } else {
-            setFormError(t.finance.tagError ?? t.finance.loadError);
-          }
-        }
-      };
-
-      const handleSuggestedTag = async (name: string) => {
-        const existing = tags.find((tag) => tag.name.toLowerCase() === name.toLowerCase());
-        if (existing) {
-          setTransactionForm((prev) => ({
-            ...prev,
-            tagIds: prev.tagIds.includes(existing.id)
-              ? prev.tagIds.filter((item) => item !== existing.id)
-              : [...prev.tagIds, existing.id],
-          }));
-          return;
-        }
-        try {
-          const created = await createFinanceTag({ name });
-          setTags((prev) => [...prev, created]);
-          setTransactionForm((prev) => ({
-            ...prev,
-            tagIds: [...prev.tagIds, created.id],
-          }));
-        } catch (err) {
-          if (err instanceof ApiError) {
-            setFormError(err.message);
-          } else {
-            setFormError(t.finance.tagError ?? t.finance.loadError);
-          }
-        }
       };
 
       const handleSaveRecurring = async () => {
@@ -1317,244 +929,214 @@ export default function FinanceClient({
           .map((item) => item.id),
       );
 
+      const showOverview = surface === 'insights' || activeTab === 'overview';
+      const showEntries = surface !== 'insights' && activeTab === 'entries';
+      const showAccounts = surface !== 'insights' && activeTab === 'accounts';
+      const showPaymentMethods =
+        surface !== 'insights' && activeTab === 'paymentMethods';
+      const showRail = surface !== 'insights';
+      const railMode =
+        surface === 'setup'
+          ? 'setup'
+          : surface === 'legacy'
+            ? 'full'
+            : 'activity';
+      const showMonthControls =
+        showRail && (activeTab === 'overview' || activeTab === 'entries');
+
       return (
         <div className="flex flex-col gap-6">
-          {/* Header */}
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-semibold">{t.modules.finance}</h2>
-              <div className="mt-1 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleMonthPrev}
-                  className="rounded p-1 text-[var(--foreground)]/50 hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)] transition"
-                  aria-label={t.finance.prev}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleMonthReset}
-                  className="text-sm font-medium text-[var(--foreground)]/60 hover:text-[var(--foreground)] transition capitalize"
-                >
-                  {monthLabel}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleMonthNext}
-                  className="rounded p-1 text-[var(--foreground)]/50 hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)] transition"
-                  aria-label={t.finance.next}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-                </button>
-                {!isCurrentMonth && (
-                  <button
-                    type="button"
-                    onClick={handleMonthReset}
-                    className="rounded-full bg-[var(--sidebar)] px-2.5 py-0.5 text-[10px] font-semibold text-[var(--sidebar-text)] transition hover:opacity-80"
-                  >
-                    {language === 'pt' ? 'Hoje' : 'Today'}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Stats row */}
-          <FinanceStatsRow
-            totalIncome={totalIncome}
-            totalExpense={totalExpense}
-            investmentsTotal={investMethods.reduce((s, m) => s + (m.balance ?? 0), 0)}
-            investmentsCount={investMethods.length}
-          />
-
-          {/* Tab navigation */}
-          <div className="flex items-center gap-1 border-b [border-color:var(--border)]">
-            {([
-              { id: 'overview', label: t.finance.tabsOverview ?? 'Visão Geral' },
-              { id: 'entries', label: t.finance.tabsEntries ?? 'Lançamentos' },
-              { id: 'accounts', label: t.finance.tabsAccounts ?? t.finance.accountsTitle ?? 'Contas' },
-              { id: 'paymentMethods', label: t.finance.tabsPaymentMethods ?? 'Métodos de Pagamento' },
-            ] as const).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${
-                  activeTab === tab.id
-                    ? 'border-[var(--sidebar)] text-[var(--sidebar)]'
-                    : 'border-transparent text-[var(--foreground)]/50 hover:text-[var(--foreground)]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-            <div className="ml-auto flex gap-2 pb-1">
-              {activeTab === 'overview' ? (
-                <>
-                  <Button variant="secondary" onClick={handleOpenTagModal}>
-                    + {t.finance.addTagAction ?? 'Nova tag'}
-                  </Button>
-                  <Button variant="secondary" onClick={() => setCategoryModalOpen(true)}>
-                    {t.finance.newType}
-                  </Button>
-                  <Button variant="secondary" onClick={() => setManageRecordsOpen(true)}>
-                    {t.finance.manageRecords ?? 'Gerenciar'}
-                  </Button>
-                  <Button variant="secondary" onClick={() => setRecurringModalOpen(true)}>
-                    + {t.finance.recurringTitle}
-                  </Button>
-                </>
-              ) : activeTab === 'entries' ? (
-                <Button onClick={() => handleOpenTransaction()}>
-                  {t.finance.newTransaction}
-                </Button>
-              ) : activeTab === 'accounts' ? (
-                <Button variant="secondary" onClick={() => handleOpenAccount()}>
-                  + {t.finance.newAccount ?? t.finance.accountLabel}
-                </Button>
-              ) : (
-                <Button variant="secondary" onClick={() => handleOpenPaymentMethod()}>
-                  + {t.finance.paymentMethodAdd ?? 'Adicionar'}
-                </Button>
-              )}
-            </div>
-          </div>
+          {showRail ? (
+            <FinancePageRail
+              activeTab={activeTab}
+              mode={railMode}
+              monthLabel={monthLabel}
+              isCurrentMonth={isCurrentMonth}
+              showMonthControls={showMonthControls}
+              onTabChange={setActiveTab}
+              onMonthPrev={handleMonthPrev}
+              onMonthNext={handleMonthNext}
+              onMonthReset={handleMonthReset}
+              todayLabel={language === 'pt' ? 'Hoje' : 'Today'}
+            />
+          ) : null}
 
           {error ? <p className="text-sm text-[var(--expense)]">{error}</p> : null}
 
           {/* Overview tab */}
-          {activeTab === 'overview' ? (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Card>
-                <RecurringBillsChecklist
-                  recurring={recurring}
-                  categories={categories}
-                  paidIds={paidIds}
-                  disabled={isSaving}
-                  onToggle={handleToggleRecurringPayment}
-                  onAdd={() => setRecurringModalOpen(true)}
-                />
-              </Card>
-              <FinanceCategoriesPanel transactions={transactions} categories={categories} />
+          {showOverview ? (
+            <div className="grid gap-4">
+              <FinanceModeHeader
+                eyebrow={t.finance.activityGroupLabel ?? 'Atividade'}
+                title={t.finance.tabsOverview ?? 'Visão Geral'}
+                meta={[
+                  `${recurring.length} ${recurring.length === 1 ? 'recorrência ativa' : 'recorrências ativas'}`,
+                  `${categories.length} ${categories.length === 1 ? 'categoria' : 'categorias'}`,
+                ]}
+                actions={
+                  <>
+                    <Button variant="secondary" onClick={() => setManageRecordsOpen(true)}>
+                      {t.finance.manageRecords ?? 'Gerenciar base'}
+                    </Button>
+                    <Button variant="secondary" onClick={handleOpenTagModal}>
+                      + {t.finance.addTagAction ?? 'Nova tag'}
+                    </Button>
+                    <Button variant="secondary" onClick={() => setCategoryModalOpen(true)}>
+                      {t.finance.newType}
+                    </Button>
+                    <Button onClick={() => setRecurringModalOpen(true)}>
+                      + {t.finance.recurringTitle}
+                    </Button>
+                  </>
+                }
+              />
+
+              <FinanceStatsRow
+                totalIncome={totalIncome}
+                totalExpense={totalExpense}
+                investmentsTotal={investMethods.reduce((s, m) => s + (m.balance ?? 0), 0)}
+                investmentsCount={investMethods.length}
+              />
+
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+                <Card>
+                  <RecurringBillsChecklist
+                    recurring={recurring}
+                    categories={categories}
+                    paidIds={paidIds}
+                    disabled={isSaving}
+                    onToggle={handleToggleRecurringPayment}
+                    onAdd={() => setRecurringModalOpen(true)}
+                  />
+                </Card>
+                <FinanceCategoriesPanel transactions={transactions} categories={categories} />
+              </div>
             </div>
           ) : null}
 
           {/* Entries tab */}
-          {activeTab === 'entries' ? (
-            <Card className="grid gap-4">
-              <EntriesSearchBar
-                query={query}
-                groupFilter={groupFilter}
-                typeFilter={typeFilter}
-                statusFilter={statusFilter}
-                sortBy={sortBy}
-                categories={categories}
-                onQuery={(v) => { setQuery(v); setPage(1); }}
-                onGroup={(v) => { setGroupFilter(v); setPage(1); }}
-                onType={(v) => { setTypeFilter(v); setPage(1); }}
-                onStatus={(v) => { setStatusFilter(v); setPage(1); }}
-                onSort={setSortBy}
-                onNew={() => handleOpenTransaction()}
-              />
-              {!isLoading && sortedTransactions.length > 0 ? (
-                <EntriesSummaryRow
-                  total={sortedTransactions.length}
-                  totalIncome={totalIncome}
-                  totalExpense={totalExpense}
-                />
-              ) : null}
-              <EntriesList
-                transactions={paged}
-                categories={categories}
-                isLoading={isLoading}
-                hasMore={hasMoreTransactions}
-                isSaving={isSaving}
-                onEdit={handleOpenTransaction}
-                onDelete={handleDeleteTransaction}
-                onLoadMore={() => setPage((prev) => prev + 1)}
-              />
-            </Card>
+          {showEntries ? (
+            <FinanceTransactionsWorkspace
+              query={query}
+              groupFilter={groupFilter}
+              typeFilter={typeFilter}
+              statusFilter={statusFilter}
+              sortBy={sortBy}
+              categories={categories}
+              accounts={accounts}
+              paymentMethods={paymentMethods}
+              tags={tags}
+              recurring={recurring}
+              members={members}
+              currentUserId={currentUserId}
+              totalTransactions={sortedTransactions.length}
+              visibleTransactions={paged}
+              totalIncome={totalIncome}
+              totalExpense={totalExpense}
+              isLoading={isLoading}
+              hasMore={hasMoreTransactions}
+              onQuery={(value) => {
+                setQuery(value);
+                setPage(1);
+              }}
+              onGroup={(value) => {
+                setGroupFilter(value);
+                setPage(1);
+              }}
+              onType={(value) => {
+                setTypeFilter(value);
+                setPage(1);
+              }}
+              onStatus={(value) => {
+                setStatusFilter(value);
+                setPage(1);
+              }}
+              onSort={setSortBy}
+              onLoadMore={() => setPage((prev) => prev + 1)}
+              reloadTransactions={loadTransactions}
+              onTagsUpdated={(next) => setTags(next)}
+              onRecurringUpdated={(next) => setRecurring(next)}
+            />
           ) : null}
 
           {/* Accounts tab */}
-          {activeTab === 'accounts' ? (
-            <Card>
-              <AccountsList
-                accounts={accounts}
-                isSaving={isSaving}
-                onAdd={() => handleOpenAccount()}
-                onEdit={handleOpenAccount}
-                onDelete={handleDeleteAccount}
+          {showAccounts ? (
+            <div className="grid gap-4">
+              <FinanceModeHeader
+                eyebrow={t.finance.setupGroupLabel ?? 'Configuração'}
+                title={t.finance.tabsAccounts ?? t.finance.accountsTitle ?? 'Contas'}
+                meta={[
+                  `${accounts.length} ${accounts.length === 1 ? 'conta cadastrada' : 'contas cadastradas'}`,
+                  `${accounts.filter((account) => account.isPrimary).length} ${accounts.filter((account) => account.isPrimary).length === 1 ? 'principal' : 'principais'}`,
+                ]}
+                actions={
+                  <Button onClick={() => handleOpenAccount()}>
+                    + {t.finance.newAccount ?? t.finance.accountLabel}
+                  </Button>
+                }
               />
-            </Card>
-          ) : null}
 
-          {/* Payment methods tab */}
-          {activeTab === 'paymentMethods' ? (
-            <div className="grid gap-6">
               <Card>
-                <InvestmentsSection
-                  investMethods={investMethods}
+                <AccountsList
+                  accounts={accounts}
                   isSaving={isSaving}
-                  onAdd={() => handleOpenPaymentMethod()}
-                  onEdit={handleOpenPaymentMethod}
-                  onDelete={handleDeletePaymentMethod}
-                  onDeposit={handleInvestDeposit}
-                  onWithdraw={handleOpenInvestWithdraw}
-                />
-              </Card>
-              <Card>
-                <CardsSection
-                  cardMethods={cardMethods}
-                  cardBills={cardBills}
-                  isSaving={isSaving}
-                  onAdd={() => handleOpenPaymentMethod()}
-                  onEdit={handleOpenPaymentMethod}
-                  onDelete={handleDeletePaymentMethod}
-                  onPayBill={handleOpenBill}
-                  onViewDetails={handleOpenCardDetails}
+                  showAddAction={false}
+                  onAdd={() => handleOpenAccount()}
+                  onEdit={handleOpenAccount}
+                  onDelete={handleDeleteAccount}
                 />
               </Card>
             </div>
           ) : null}
 
-          {/* === DRAWERS === */}
+          {/* Payment methods tab */}
+          {showPaymentMethods ? (
+            <div className="grid gap-4">
+              <FinanceModeHeader
+                eyebrow={t.finance.setupGroupLabel ?? 'Configuração'}
+                title={t.finance.tabsPaymentMethods ?? 'Métodos de Pagamento'}
+                meta={[
+                  `${paymentMethods.length} ${paymentMethods.length === 1 ? 'método ativo' : 'métodos ativos'}`,
+                  `${investMethods.length} ${investMethods.length === 1 ? 'investimento' : 'investimentos'}`,
+                ]}
+                actions={
+                  <Button onClick={() => handleOpenPaymentMethod()}>
+                    + {t.finance.paymentMethodAdd ?? 'Adicionar'}
+                  </Button>
+                }
+              />
 
-          {/* Transaction drawer (right side) */}
-          <TransactionDrawer
-            open={transactionModalOpen}
-            editing={editingTransaction}
-            form={transactionForm}
-            activeTab={transactionTab}
-            accounts={accounts}
-            paymentMethods={paymentMethods}
-            categories={categories}
-            tags={tags}
-            members={members}
-            tagDraft={tagDraft}
-            cardMethods={cardMethods}
-            investMethods={investMethods}
-            formError={formError}
-            isSaving={isSaving}
-            onClose={() => setTransactionModalOpen(false)}
-            onChange={(patch) => setTransactionForm((prev) => ({ ...prev, ...patch }))}
-            onTabChange={setTransactionTab}
-            onTagDraftChange={setTagDraft}
-            onTagToggle={(tagId) =>
-              setTransactionForm((prev) => ({
-                ...prev,
-                tagIds: prev.tagIds.includes(tagId)
-                  ? prev.tagIds.filter((id) => id !== tagId)
-                  : [...prev.tagIds, tagId],
-              }))
-            }
-            onTagAdd={handleCreateTag}
-            onTagSuggest={handleSuggestedTag}
-            onSave={handleSaveTransaction}
-            formatCurrencyInput={formatCurrencyInput}
-            parseCurrencyInput={parseCurrencyInput}
-          />
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] xl:items-start">
+                <Card>
+                  <CardsSection
+                    cardMethods={cardMethods}
+                    cardBills={cardBills}
+                    isSaving={isSaving}
+                    showAddAction={false}
+                    onAdd={() => handleOpenPaymentMethod()}
+                    onEdit={handleOpenPaymentMethod}
+                    onDelete={handleDeletePaymentMethod}
+                    onPayBill={handleOpenBill}
+                    onViewDetails={handleOpenCardDetails}
+                  />
+                </Card>
+                <Card>
+                  <InvestmentsSection
+                    investMethods={investMethods}
+                    isSaving={isSaving}
+                    showAddAction={false}
+                    onAdd={() => handleOpenPaymentMethod()}
+                    onEdit={handleOpenPaymentMethod}
+                    onDelete={handleDeletePaymentMethod}
+                    onDeposit={handleInvestDeposit}
+                    onWithdraw={handleOpenInvestWithdraw}
+                  />
+                </Card>
+              </div>
+            </div>
+          ) : null}
+
+          {/* === DRAWERS === */}
 
           {/* Account drawer */}
           <AccountDrawer
@@ -1852,7 +1434,10 @@ export default function FinanceClient({
                   <div className="grid gap-4">
                     <div className="flex items-center justify-between">
                       <h2 className="text-base font-semibold">
-                        {t.finance.investWithdraw ?? 'Resgatar'} — {investWithdrawTarget.name}
+                        {investMovementMode === 'deposit'
+                          ? t.finance.investDeposit ?? 'Depositar'
+                          : t.finance.investWithdraw ?? 'Resgatar'}{' '}
+                        — {investWithdrawTarget.name}
                       </h2>
                       <button type="button" aria-label={t.finance.close} onClick={() => setInvestWithdrawModalOpen(false)}
                         className="text-[var(--foreground)]/40 hover:text-[var(--foreground)]">✕</button>
@@ -1864,7 +1449,9 @@ export default function FinanceClient({
                       </span>
                     </p>
                     <label className="flex flex-col gap-2 text-sm">
-                      {t.finance.amountLabel ?? 'Valor a resgatar'}
+                      {investMovementMode === 'deposit'
+                        ? t.finance.investDepositAmount ?? t.finance.amountLabel ?? 'Valor a depositar'
+                        : t.finance.amountLabel ?? 'Valor a resgatar'}
                       <input type="text" value={investWithdrawAmount}
                         onChange={(e) => setInvestWithdrawAmount(formatCurrencyInput(e.target.value.replace(/\D/g, ''), investWithdrawTarget.currency ?? 'BRL'))}
                         placeholder="0,00"
@@ -1873,7 +1460,11 @@ export default function FinanceClient({
                     {investWithdrawError ? <p className="text-sm text-[var(--expense)]">{investWithdrawError}</p> : null}
                     <div className="flex justify-end gap-2">
                       <Button variant="secondary" onClick={() => setInvestWithdrawModalOpen(false)}>{t.finance.cancel}</Button>
-                      <Button onClick={handleInvestWithdraw} disabled={isSaving}>{t.finance.investWithdraw ?? 'Resgatar'}</Button>
+                      <Button onClick={handleInvestMovement} disabled={isSaving}>
+                        {investMovementMode === 'deposit'
+                          ? t.finance.investDeposit ?? 'Depositar'
+                          : t.finance.investWithdraw ?? 'Resgatar'}
+                      </Button>
                     </div>
                   </div>
                 </Card>

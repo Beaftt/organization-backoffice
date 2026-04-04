@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/Button';
 import { useLanguage } from '@/lib/i18n/language-context';
-import { formatCurrency } from '@/lib/utils/currency';
+import { formatCurrencyForLanguage } from '@/lib/i18n/locale';
 import type { FinancePaymentMethod, FinanceCardBill } from '@/lib/api/finance';
 
 const typeLabel = (type: FinancePaymentMethod['type'], t: Record<string, string>) => {
@@ -16,84 +16,107 @@ interface CardsSectionProps {
   cardMethods: FinancePaymentMethod[];
   cardBills: Record<string, FinanceCardBill>;
   isSaving?: boolean;
+  showAddAction?: boolean;
   onAdd: () => void;
   onEdit: (method: FinancePaymentMethod) => void;
   onDelete: (method: FinancePaymentMethod) => void;
-  onPayBill: (method: FinancePaymentMethod) => void;
-  onViewDetails: (method: FinancePaymentMethod) => void;
+  onPayBill?: (method: FinancePaymentMethod) => void;
+  onViewDetails?: (method: FinancePaymentMethod) => void;
 }
 
 export function CardsSection({
   cardMethods,
   cardBills,
   isSaving,
+  showAddAction = true,
   onAdd,
   onEdit,
   onDelete,
   onPayBill,
   onViewDetails,
 }: CardsSectionProps) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
+  const isPt = language === 'pt';
   const creditCards = cardMethods.filter((m) => m.type === 'CREDIT');
   const otherCards = cardMethods.filter((m) => m.type !== 'CREDIT');
   const creditTotal = creditCards.reduce(
     (sum, m) => sum + (cardBills[m.id]?.remainingAmount ?? 0),
     0,
   );
+  const cycleOpenLabel = isPt ? 'Em aberto no ciclo' : 'Still open in cycle';
+  const creditMonthLabel = isPt ? 'Crédito do mês' : 'Month credit';
+  const otherMethodsLabel = isPt ? 'Outros métodos' : 'Other methods';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accessing t.finance as any for dynamic lookup
   const ft = t.finance as any;
 
   if (cardMethods.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed [border-color:var(--border)] px-6 py-10 text-center">
+      <div className="rounded-2xl border border-dashed [border-color:var(--border)] px-5 py-6">
         <p className="text-sm font-semibold text-[var(--foreground)]/60">
           {t.finance.cardsEmpty ?? t.finance.empty}
         </p>
-        <p className="mt-1 text-xs text-[var(--foreground)]/40">
+        <p className="mt-1 text-xs text-[var(--foreground)]/45">
           {t.finance.cardsEmptyHint ?? 'Adicione um cartão para rastrear gastos automaticamente.'}
         </p>
-        <Button className="mt-4" onClick={onAdd}>
-          {t.finance.paymentMethodAdd ?? 'Adicionar'}
-        </Button>
+        {showAddAction ? (
+          <Button className="mt-4" onClick={onAdd}>
+            {t.finance.paymentMethodAdd ?? 'Adicionar'}
+          </Button>
+        ) : null}
       </div>
     );
   }
 
   const renderMethod = (method: FinancePaymentMethod) => {
     const bill = cardBills[method.id];
+    const content = (
+      <>
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--surface-muted)] text-xs font-bold text-[var(--sidebar)]">
+          {method.type.slice(0, 2)}
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-[var(--foreground)]">
+            {method.name} {method.isPrimary ? '⭐' : ''}
+          </p>
+          <p className="text-xs text-[var(--foreground)]/50">
+            {typeLabel(method.type, ft)} · {method.currency ?? 'BRL'}
+            {method.type === 'CREDIT' && bill ? (
+              <>
+                {' '}·{' '}
+                <span className="text-[var(--expense)]">
+                  {cycleOpenLabel}:{' '}
+                  {formatCurrencyForLanguage(
+                    language,
+                    bill.remainingAmount,
+                    method.currency ?? 'BRL',
+                  )}
+                </span>
+              </>
+            ) : null}
+          </p>
+        </div>
+      </>
+    );
+
     return (
       <div
         key={method.id}
         className="flex flex-wrap items-center justify-between gap-3 border-b [border-color:var(--border)] px-4 py-3 last:border-b-0"
       >
-        <button
-          type="button"
-          onClick={() => onViewDetails(method)}
-          className="flex items-center gap-3 text-left"
-        >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--surface-muted)] text-xs font-bold text-[var(--sidebar)]">
-            {method.type.slice(0, 2)}
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-[var(--foreground)]">
-              {method.name} {method.isPrimary ? '⭐' : ''}
-            </p>
-            <p className="text-xs text-[var(--foreground)]/50">
-              {typeLabel(method.type, ft)} · {method.currency ?? 'BRL'}
-              {method.type === 'CREDIT' && bill ? (
-                <>
-                  {' '}·{' '}
-                  <span className="text-[var(--expense)]">
-                    {t.finance.billRemaining ?? 'Fatura'}: {formatCurrency(bill.remainingAmount, method.currency ?? 'BRL')}
-                  </span>
-                </>
-              ) : null}
-            </p>
-          </div>
-        </button>
+        {onViewDetails ? (
+          <button
+            type="button"
+            onClick={() => onViewDetails(method)}
+            className="flex items-center gap-3 text-left"
+          >
+            {content}
+          </button>
+        ) : (
+          <div className="flex items-center gap-3 text-left">{content}</div>
+        )}
 
         <div className="flex items-center gap-2">
-          {method.type === 'CREDIT' ? (
+          {method.type === 'CREDIT' && onPayBill ? (
             <Button variant="secondary" onClick={() => onPayBill(method)} className="text-xs">
               {t.finance.billPay ?? 'Pagar'}
             </Button>
@@ -126,7 +149,7 @@ export function CardsSection({
         <div>
           <div className="mb-2 flex items-center justify-between">
             <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--foreground)]/50">
-              {t.finance.paymentMethodCredit ?? 'Cartões de Crédito'} ({creditCards.length})
+              {creditMonthLabel} ({creditCards.length})
             </p>
           </div>
           <div className="overflow-hidden rounded-2xl border [border-color:var(--border)]">
@@ -136,7 +159,7 @@ export function CardsSection({
                 {t.finance.paymentMethodsTotal ?? 'Total'}
               </span>
               <span className="text-sm font-bold text-[var(--expense)]">
-                -{formatCurrency(creditTotal, 'BRL')}
+                -{formatCurrencyForLanguage(language, creditTotal, 'BRL')}
               </span>
             </div>
           </div>
@@ -146,7 +169,7 @@ export function CardsSection({
       {otherCards.length > 0 ? (
         <div>
           <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--foreground)]/50">
-            {t.finance.paymentMethodDebit ?? 'Outros Métodos'} ({otherCards.length})
+            {otherMethodsLabel} ({otherCards.length})
           </p>
           <div className="overflow-hidden rounded-2xl border [border-color:var(--border)]">
             {otherCards.map(renderMethod)}
@@ -154,9 +177,11 @@ export function CardsSection({
         </div>
       ) : null}
 
-      <Button variant="secondary" onClick={onAdd}>
-        + {t.finance.paymentMethodAdd ?? 'Adicionar método'}
-      </Button>
+      {showAddAction ? (
+        <Button variant="secondary" onClick={onAdd}>
+          + {t.finance.paymentMethodAdd ?? 'Adicionar método'}
+        </Button>
+      ) : null}
     </div>
   );
 }
