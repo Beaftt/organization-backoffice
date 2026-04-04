@@ -2,7 +2,7 @@
 
 import { Card } from '@/components/ui/Card';
 import { useLanguage } from '@/lib/i18n/language-context';
-import { formatCurrency } from '@/lib/utils/currency';
+import { formatCurrencyForLanguage } from '@/lib/i18n/locale';
 
 type InsightBreakdownItem = {
   id: string;
@@ -75,7 +75,7 @@ export function FinanceInsightsBreakdownPanel({
                   />
                 </div>
                 <p className="text-sm font-semibold text-[var(--foreground)]">
-                  {formatCurrency(Math.abs(item.amount), 'BRL')}
+                  {formatCurrencyForLanguage(language, Math.abs(item.amount), 'BRL')}
                 </p>
               </div>
             </div>

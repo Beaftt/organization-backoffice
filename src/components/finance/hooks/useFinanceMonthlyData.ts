@@ -75,8 +75,13 @@ export function useFinanceMonthlyData(
   const [error, setError] = useState<string | null>(null);
 
   const dateRange = useMemo(() => {
-    const from = new Date(routeState.month.year, routeState.month.month, 1);
-    const to = new Date(routeState.month.year, routeState.month.month + 1, 0);
+    const from = new Date(
+      Date.UTC(routeState.month.year, routeState.month.month, 1),
+    );
+    const to = new Date(
+      Date.UTC(routeState.month.year, routeState.month.month + 1, 0),
+    );
+
     return {
       from: from.toISOString().slice(0, 10),
       to: to.toISOString().slice(0, 10),

@@ -34,7 +34,7 @@ describe('SetupClient', () => {
           status: 'all',
           sort: 'date',
           page: 1,
-          month: { year: 2026, month: 3 },
+          month: { year: 2026, month: 2 },
           tab: 'accounts',
         }}
       />,
@@ -55,12 +55,33 @@ describe('SetupClient', () => {
           status: 'all',
           sort: 'date',
           page: 1,
-          month: { year: 2026, month: 3 },
+          month: { year: 2026, month: 2 },
           tab: 'accounts',
         }}
       />,
     );
 
     expect(screen.getByText('March 2026')).toBeInTheDocument();
+  });
+
+  it('renders January correctly without shifting to the previous year', () => {
+    mockLanguage.current = 'pt';
+
+    render(
+      <SetupClient
+        initialRouteState={{
+          query: '',
+          group: 'all',
+          type: 'all',
+          status: 'all',
+          sort: 'date',
+          page: 1,
+          month: { year: 2026, month: 0 },
+          tab: 'accounts',
+        }}
+      />,
+    );
+
+    expect(screen.getByText('janeiro de 2026')).toBeInTheDocument();
   });
 });

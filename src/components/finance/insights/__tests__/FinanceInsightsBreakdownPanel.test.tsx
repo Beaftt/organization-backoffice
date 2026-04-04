@@ -4,16 +4,20 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { FinanceInsightsBreakdownPanel } from '@/components/finance/insights/FinanceInsightsBreakdownPanel';
 
+const mockLanguage = { current: 'pt' as 'pt' | 'en' };
+
 vi.mock('@/lib/i18n/language-context', () => ({
   useLanguage: () => ({
     t: {},
-    language: 'pt',
+    language: mockLanguage.current,
     setLanguage: vi.fn(),
   }),
 }));
 
 describe('FinanceInsightsBreakdownPanel', () => {
   it('renders the empty state when there are no breakdown items', () => {
+    mockLanguage.current = 'pt';
+
     render(
       <FinanceInsightsBreakdownPanel
         eyebrow="Where money went"
@@ -31,6 +35,7 @@ describe('FinanceInsightsBreakdownPanel', () => {
   });
 
   it('opens evidence for the selected breakdown item when requested', async () => {
+    mockLanguage.current = 'pt';
     const user = userEvent.setup();
     const onOpenEvidence = vi.fn();
 
@@ -53,5 +58,23 @@ describe('FinanceInsightsBreakdownPanel', () => {
       amount: 240,
       count: 3,
     });
+  });
+
+  it('formats amounts with the active language locale', () => {
+    mockLanguage.current = 'en';
+
+    render(
+      <FinanceInsightsBreakdownPanel
+        eyebrow="How money moved"
+        title="How money moved"
+        description="Read the category weight for the month first."
+        emptyLabel="No movements."
+        items={[{ id: 'pix', label: 'Pix', amount: 240, count: 3 }]}
+        onOpenEvidence={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'View entries' })).toBeInTheDocument();
+    expect(screen.getByText('R$240.00')).toBeInTheDocument();
   });
 });

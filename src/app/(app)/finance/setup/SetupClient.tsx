@@ -16,7 +16,7 @@ export function SetupClient({ initialRouteState }: SetupClientProps) {
   const setup = useFinanceSetupState();
   const monthLabel = formatMonthLabelForLanguage(
     language,
-    new Date(initialRouteState.month.year, initialRouteState.month.month - 1, 1),
+    new Date(initialRouteState.month.year, initialRouteState.month.month, 1),
   );
 
   return (
