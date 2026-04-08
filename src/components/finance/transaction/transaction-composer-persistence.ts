@@ -4,6 +4,7 @@ import {
   createFinanceTransaction,
   deleteFinanceRecurring,
   deleteFinanceTransaction,
+  type FinanceRecurring,
   updateFinanceRecurring,
   updateFinanceTransaction,
   type FinanceTag,
@@ -14,12 +15,16 @@ import {
   resolveProgrammedChargeEndDate,
 } from '@/lib/finance/programmed-charge';
 
-import { parseCurrencyInput } from './transaction-editor-model';
+import {
+  parseCurrencyInput,
+  resolveRecurringPaymentMethodId,
+} from './transaction-editor-model';
 import type { FinanceTransactionComposerForm } from './transaction-composer-model';
 
 type SaveFinanceComposerTransactionParams = {
   editingTransaction: FinanceTransaction | null;
   form: FinanceTransactionComposerForm;
+  linkedRecurring: FinanceRecurring | null;
   linkedRecurringId: string | null;
   tags: FinanceTag[];
 };
@@ -27,6 +32,7 @@ type SaveFinanceComposerTransactionParams = {
 export async function saveFinanceComposerTransaction({
   editingTransaction,
   form,
+  linkedRecurring,
   linkedRecurringId,
   tags,
 }: SaveFinanceComposerTransactionParams) {
@@ -80,7 +86,9 @@ export async function saveFinanceComposerTransaction({
     interval: cadence.interval,
     nextDue: form.occurredAt,
     endDate: resolvedEndDate || null,
+    isSubscription: form.isSubscription,
     accountId: payload.accountId,
+    paymentMethodId: resolveRecurringPaymentMethodId(form, linkedRecurring),
     categoryId: payload.categoryId,
     tagIds: payload.tagIds,
   };

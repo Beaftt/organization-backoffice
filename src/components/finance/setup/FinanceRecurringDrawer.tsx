@@ -6,6 +6,7 @@ import { useLanguage } from '@/lib/i18n/language-context';
 import type {
   FinanceAccount,
   FinanceCategory,
+  FinancePaymentMethod,
   FinanceRecurring,
   FinanceTag,
 } from '@/lib/api/finance';
@@ -19,6 +20,7 @@ type FinanceRecurringDrawerProps = {
   editing: FinanceRecurring | null;
   form: RecurringFormState;
   accounts: FinanceAccount[];
+  paymentMethods: FinancePaymentMethod[];
   categories: FinanceCategory[];
   tags: FinanceTag[];
   formError: string | null;
@@ -35,6 +37,7 @@ export function FinanceRecurringDrawer({
   editing,
   form,
   accounts,
+  paymentMethods,
   categories,
   tags,
   formError,
@@ -54,6 +57,17 @@ export function FinanceRecurringDrawer({
   const intervalLabel = t.finance.recurrenceIntervalLabel ?? (language === 'pt' ? 'Intervalo' : 'Interval');
   const endDateLabel = t.finance.recurrenceEndDateLabel ?? (language === 'pt' ? 'Data final' : 'End date');
   const activeLabel = t.finance.activeLabel ?? (language === 'pt' ? 'Manter esta cobrança ativa' : 'Keep this charge active');
+  const subscriptionLabel = t.finance.subscriptionToggleLabel ?? (language === 'pt' ? 'É uma assinatura?' : 'Is this a subscription?');
+  const subscriptionHint = t.finance.subscriptionToggleHint ?? (language === 'pt' ? 'Use isso para destacar cobranças recorrentes como serviços e plataformas.' : 'Use this to highlight recurring charges such as services and platforms.');
+  const availablePaymentMethods = paymentMethods.filter(
+    (paymentMethod) => form.group === 'EXPENSE' || paymentMethod.type !== 'CREDIT',
+  );
+  const paymentMethodTypeLabel: Record<FinancePaymentMethod['type'], string> = {
+    CREDIT: t.finance.paymentMethodCredit ?? (language === 'pt' ? 'Crédito' : 'Credit'),
+    DEBIT: t.finance.paymentMethodDebit ?? (language === 'pt' ? 'Débito' : 'Debit'),
+    PIX: t.finance.paymentMethodPix ?? 'Pix',
+    INVEST: t.finance.paymentMethodInvest ?? (language === 'pt' ? 'Investimento' : 'Investment'),
+  };
 
   return (
     <FinanceOverlayShell
@@ -87,7 +101,19 @@ export function FinanceRecurringDrawer({
           <Input label={t.finance.amountLabel} type="number" value={form.amount} onChange={(event) => onChange({ amount: event.target.value })} />
           <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--foreground)]/60">
             {t.finance.groupLabel}
-            <select value={form.group} onChange={(event) => onChange({ group: event.target.value as 'INCOME' | 'EXPENSE', categoryId: '' })} className="rounded-xl border [border-color:var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm">
+            <select value={form.group} onChange={(event) => {
+              const nextGroup = event.target.value as 'INCOME' | 'EXPENSE';
+              const selectedMethod = paymentMethods.find(
+                (paymentMethod) => paymentMethod.id === form.paymentMethodId,
+              );
+              const canKeepMethod =
+                nextGroup === 'EXPENSE' || selectedMethod?.type !== 'CREDIT';
+              onChange({
+                group: nextGroup,
+                categoryId: '',
+                paymentMethodId: canKeepMethod ? form.paymentMethodId : '',
+              });
+            }} className="rounded-xl border [border-color:var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm">
               <option value="INCOME">{t.finance.groupIncome}</option>
               <option value="EXPENSE">{t.finance.groupExpense}</option>
             </select>
@@ -139,13 +165,43 @@ export function FinanceRecurringDrawer({
           Sem fim ela continua ativa. Com data ou quantidade definida, passa a ser uma cobrança programada com término.
         </div>
 
+        <div className="rounded-2xl border [border-color:var(--border)] bg-[var(--surface-muted)]/35 px-4 py-3">
+          <label className="flex items-start gap-3 text-sm text-[var(--foreground)]/75">
+            <input aria-label={subscriptionLabel} type="checkbox" checked={form.isSubscription} onChange={(event) => onChange({ isSubscription: event.target.checked })} className="mt-0.5 h-4 w-4 rounded accent-[var(--sidebar)]" />
+            <span className="grid gap-1">
+              <span className="font-medium text-[var(--foreground)]/90">{subscriptionLabel}</span>
+              <span className="text-xs text-[var(--foreground)]/58">{subscriptionHint}</span>
+            </span>
+          </label>
+        </div>
+
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--foreground)]/60">
             {t.finance.accountLabel}
-            <select value={form.accountId} onChange={(event) => onChange({ accountId: event.target.value })} className="rounded-xl border [border-color:var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm">
+            <select value={form.accountId} onChange={(event) => onChange({ accountId: event.target.value, paymentMethodId: '' })} className="rounded-xl border [border-color:var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm">
               <option value="">{t.finance.none}</option>
               {accounts.map((account) => (
                 <option key={account.id} value={account.id}>{account.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--foreground)]/60">
+            {t.finance.methodLabel}
+            <select value={form.paymentMethodId} onChange={(event) => {
+              const paymentMethodId = event.target.value;
+              const selectedMethod = paymentMethods.find(
+                (paymentMethod) => paymentMethod.id === paymentMethodId,
+              );
+              onChange({
+                paymentMethodId,
+                accountId: selectedMethod?.accountId ?? form.accountId,
+              });
+            }} className="rounded-xl border [border-color:var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm">
+              <option value="">{t.finance.none}</option>
+              {availablePaymentMethods.map((paymentMethod) => (
+                <option key={paymentMethod.id} value={paymentMethod.id}>
+                  {`${paymentMethod.name} · ${paymentMethodTypeLabel[paymentMethod.type]}`}
+                </option>
               ))}
             </select>
           </label>

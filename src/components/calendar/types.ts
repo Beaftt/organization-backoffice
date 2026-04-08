@@ -2,6 +2,13 @@ import type { CalendarEvent, CalendarRecurrence, CalendarShare } from '@/lib/api
 
 export type { CalendarEvent, CalendarRecurrence, CalendarShare };
 
+export type CalendarDisplayEvent = CalendarEvent & {
+  source: 'calendar' | 'finance-subscription';
+  readOnly?: boolean;
+  recurringId?: string | null;
+  sourceLabel?: string;
+};
+
 export type MemberOption = {
   userId: string;
   label: string;

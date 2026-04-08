@@ -306,11 +306,26 @@ export function TransactionEditorPanel({
               {canShowRecurring ? (
                 <div className="grid gap-3 rounded-2xl bg-[var(--surface-muted)] px-4 py-3">
                   <label className="flex items-center gap-2 text-sm text-[var(--foreground)]/75">
-                    <input type="checkbox" checked={form.isRecurring} onChange={(event) => onFieldChange('isRecurring', event.target.checked)} />
+                    <input type="checkbox" checked={form.isRecurring} onChange={(event) => {
+                      onFieldChange('isRecurring', event.target.checked);
+                      if (!event.target.checked) {
+                        onFieldChange('isSubscription', false);
+                        onFieldChange('addToCalendar', false);
+                      }
+                    }} />
                     {t.finance.recurringLabel}
                   </label>
                   {form.isRecurring ? (
                     <>
+                      <div className="rounded-2xl border [border-color:var(--border)] bg-[var(--surface)]/65 px-4 py-3">
+                        <label className="flex items-start gap-2 text-sm text-[var(--foreground)]/75">
+                          <input aria-label={t.finance.subscriptionToggleLabel ?? 'Is this a subscription?'} type="checkbox" checked={form.isSubscription} onChange={(event) => onFieldChange('isSubscription', event.target.checked)} className="mt-0.5" />
+                          <span className="grid gap-1">
+                            <span className="font-medium text-[var(--foreground)]/90">{t.finance.subscriptionToggleLabel ?? 'Is this a subscription?'}</span>
+                            <span className="text-xs text-[var(--foreground)]/58">{t.finance.subscriptionToggleHint ?? 'Use this to highlight charges that repeat as subscriptions.'}</span>
+                          </span>
+                        </label>
+                      </div>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <label className="flex flex-col gap-2 text-sm text-[var(--foreground)]/70">
                           <span className="font-medium text-[var(--foreground)]/90">{t.finance.recurrenceFrequencyLabel}</span>

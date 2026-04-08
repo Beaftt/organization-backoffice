@@ -102,7 +102,9 @@ export type FinanceRecurring = {
   nextDue: string;
   endDate: string | null;
   active: boolean;
+  isSubscription?: boolean;
   accountId: string | null;
+  paymentMethodId?: string | null;
   categoryId: string | null;
   tagIds: string[] | null;
   createdAt: string;
@@ -580,7 +582,9 @@ export const createFinanceRecurring = (input: {
   nextDue: string;
   endDate?: string | null;
   active?: boolean;
+  isSubscription?: boolean;
   accountId?: string | null;
+  paymentMethodId?: string | null;
   categoryId?: string | null;
   tagIds?: string[] | null;
 }) => {
@@ -598,7 +602,9 @@ export const createFinanceRecurring = (input: {
       nextDue: input.nextDue,
       endDate: input.endDate ?? null,
       active: input.active,
+      isSubscription: input.isSubscription,
       accountId: input.accountId ?? null,
+      paymentMethodId: input.paymentMethodId ?? null,
       categoryId: input.categoryId ?? null,
       tagIds: input.tagIds ?? null,
     }),
@@ -617,30 +623,37 @@ export const updateFinanceRecurring = (input: {
   nextDue?: string;
   endDate?: string | null;
   active?: boolean;
+  isSubscription?: boolean;
   accountId?: string | null;
+  paymentMethodId?: string | null;
   categoryId?: string | null;
   tagIds?: string[] | null;
 }) => {
   const resolved = workspacePath(input.workspaceId);
+
+  const body: Record<string, unknown> = {};
+
+  if (input.title !== undefined) body.title = input.title;
+  if (input.amount !== undefined) body.amount = input.amount;
+  if (input.currency !== undefined) body.currency = input.currency;
+  if (input.group !== undefined) body.group = input.group;
+  if (input.frequency !== undefined) body.frequency = input.frequency;
+  if (input.interval !== undefined) body.interval = input.interval;
+  if (input.nextDue !== undefined) body.nextDue = input.nextDue;
+  if (input.endDate !== undefined) body.endDate = input.endDate;
+  if (input.active !== undefined) body.active = input.active;
+  if (input.isSubscription !== undefined) body.isSubscription = input.isSubscription;
+  if (input.accountId !== undefined) body.accountId = input.accountId;
+  if (input.paymentMethodId !== undefined) body.paymentMethodId = input.paymentMethodId;
+  if (input.categoryId !== undefined) body.categoryId = input.categoryId;
+  if (input.tagIds !== undefined) body.tagIds = input.tagIds;
+
   return apiFetch<FinanceRecurring>(
     `/workspaces/${resolved}/finance/recurring/${input.id}`,
     {
       method: "PUT",
       workspaceId: resolved,
-      body: JSON.stringify({
-        title: input.title,
-        amount: input.amount,
-        currency: input.currency,
-        group: input.group,
-        frequency: input.frequency,
-        interval: input.interval,
-        nextDue: input.nextDue,
-        endDate: input.endDate,
-        active: input.active,
-        accountId: input.accountId ?? null,
-        categoryId: input.categoryId ?? null,
-        tagIds: input.tagIds ?? null,
-      }),
+      body: JSON.stringify(body),
     },
   );
 };
@@ -649,6 +662,7 @@ export const toggleFinanceRecurring = (input: {
   workspaceId?: string;
   id: string;
   paid: boolean;
+  status?: 'PAID' | 'PENDING';
 }) => {
   const resolved = workspacePath(input.workspaceId);
   return apiFetch<FinanceRecurring>(
@@ -656,7 +670,7 @@ export const toggleFinanceRecurring = (input: {
     {
       method: 'PUT',
       workspaceId: resolved,
-      body: JSON.stringify({ paid: input.paid }),
+      body: JSON.stringify({ paid: input.paid, status: input.status }),
     },
   );
 };

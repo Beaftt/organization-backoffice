@@ -40,6 +40,8 @@ const financeText = {
   typeLabel: 'Categoria',
   typeAll: 'Todas',
   recurringLabel: 'Recorrência',
+  subscriptionToggleLabel: 'É uma assinatura?',
+  subscriptionToggleHint: 'Use isso para destacar serviços recorrentes.',
   recurrenceFrequencyLabel: 'Frequência',
   cadenceDaily: 'Diária',
   cadenceWeekly: 'Semanal',
@@ -189,5 +191,19 @@ describe('TransactionEditorPanel', () => {
 
     expect(screen.getAllByText('Nova transação').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Salvando...' })).toBeDisabled();
+  });
+
+  it('forwards subscription changes inside the recurring section', async () => {
+    const user = userEvent.setup();
+    const onFieldChange = vi.fn();
+    const form = createTransactionEditorForm('user-1');
+
+    form.isRecurring = true;
+
+    renderPanel({ form, onFieldChange });
+
+    await user.click(screen.getByLabelText('É uma assinatura?'));
+
+    expect(onFieldChange).toHaveBeenCalledWith('isSubscription', true);
   });
 });

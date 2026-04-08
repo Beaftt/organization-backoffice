@@ -18,7 +18,7 @@ vi.mock('@/components/finance/setup/useFinanceSetupState', () => ({
 }));
 
 vi.mock('@/components/finance/setup/FinanceSetupSurface', () => ({
-  FinanceSetupSurface: ({ monthLabel }: { monthLabel: string }) => <div>{monthLabel}</div>,
+  FinanceSetupSurface: ({ monthLabel }: { monthLabel: string; monthState: { year: number; month: number } }) => <div>{monthLabel}</div>,
 }));
 
 describe('SetupClient', () => {

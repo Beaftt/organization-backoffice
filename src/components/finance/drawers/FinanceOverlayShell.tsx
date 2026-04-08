@@ -56,6 +56,9 @@ export function FinanceOverlayShell({
   const panelClassName = isDrawer
     ? `h-full w-full ${drawerSizeClass[size]} border-l [border-color:var(--border)]`
     : `w-full ${modalSizeClass[size]} rounded-2xl`;
+  const viewportClassName = isDrawer
+    ? 'fixed inset-0 z-[82] flex justify-end pointer-events-none'
+    : 'fixed inset-0 z-[82] flex items-center justify-center p-4 pointer-events-none';
 
   return createPortal(
     <>
@@ -67,15 +70,13 @@ export function FinanceOverlayShell({
       />
 
       <div
-        className={`fixed inset-0 z-50 flex ${
-          isDrawer ? 'justify-end' : 'items-center justify-center p-4'
-        }`}
+        className={viewportClassName}
       >
         <div
           role="dialog"
           aria-modal="true"
           aria-label={ariaLabel ?? title}
-          className={`modal-content flex flex-col bg-[var(--surface)] shadow-2xl ${panelClassName}`}
+          className={`modal-content pointer-events-auto flex flex-col bg-[var(--surface)] shadow-2xl ${panelClassName}`}
           style={{ maxHeight: isDrawer ? '100vh' : '90vh', overflow: 'hidden' }}
         >
           <div className="flex shrink-0 items-start justify-between gap-4 border-b [border-color:var(--border)] px-5 py-4">

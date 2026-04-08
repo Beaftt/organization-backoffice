@@ -20,6 +20,6 @@ export function SetupClient({ initialRouteState }: SetupClientProps) {
   );
 
   return (
-    <FinanceSetupSurface monthLabel={monthLabel} setup={setup} />
+    <FinanceSetupSurface monthLabel={monthLabel} monthState={initialRouteState.month} setup={setup} />
   );
 }

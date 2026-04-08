@@ -7,6 +7,7 @@ import {
   financeText,
   sampleAccount,
   sampleCategory,
+  samplePaymentMethod,
   sampleRecurring,
   sampleTag,
 } from '@/components/finance/setup/__tests__/finance-test-data';
@@ -25,8 +26,9 @@ describe('FinanceRecurringDrawer', () => {
       <FinanceRecurringDrawer
         open
         editing={null}
-        form={{ title: '', amount: '', group: 'EXPENSE', occurrences: '', endMode: 'ongoing', frequency: 'MONTHLY', interval: '1', nextDue: '2026-03-10', endDate: '', accountId: '', categoryId: '', tagIds: [], active: true }}
+        form={{ title: '', amount: '', group: 'EXPENSE', occurrences: '', endMode: 'ongoing', frequency: 'MONTHLY', interval: '1', nextDue: '2026-03-10', endDate: '', accountId: '', paymentMethodId: '', isSubscription: false, categoryId: '', tagIds: [], active: true }}
         accounts={[sampleAccount]}
+        paymentMethods={[samplePaymentMethod]}
         categories={[sampleCategory]}
         tags={[sampleTag]}
         formError={null}
@@ -48,8 +50,9 @@ describe('FinanceRecurringDrawer', () => {
       <FinanceRecurringDrawer
         open
         editing={sampleRecurring}
-        form={{ title: sampleRecurring.title, amount: '1800', group: 'EXPENSE', occurrences: '', endMode: 'ongoing', frequency: 'MONTHLY', interval: '1', nextDue: '2026-03-10', endDate: '', accountId: sampleAccount.id, categoryId: sampleCategory.id, tagIds: [sampleTag.id], active: true }}
+        form={{ title: sampleRecurring.title, amount: '1800', group: 'EXPENSE', occurrences: '', endMode: 'ongoing', frequency: 'MONTHLY', interval: '1', nextDue: '2026-03-10', endDate: '', accountId: sampleAccount.id, paymentMethodId: samplePaymentMethod.id, isSubscription: true, categoryId: sampleCategory.id, tagIds: [sampleTag.id], active: true }}
         accounts={[sampleAccount]}
+        paymentMethods={[samplePaymentMethod]}
         categories={[sampleCategory]}
         tags={[sampleTag]}
         formError={null}
@@ -74,8 +77,9 @@ describe('FinanceRecurringDrawer', () => {
       <FinanceRecurringDrawer
         open
         editing={null}
-        form={{ title: '', amount: '', group: 'EXPENSE', occurrences: '', endMode: 'ongoing', frequency: 'MONTHLY', interval: '1', nextDue: '2026-03-10', endDate: '', accountId: '', categoryId: '', tagIds: [], active: true }}
+        form={{ title: '', amount: '', group: 'EXPENSE', occurrences: '', endMode: 'ongoing', frequency: 'MONTHLY', interval: '1', nextDue: '2026-03-10', endDate: '', accountId: '', paymentMethodId: '', isSubscription: false, categoryId: '', tagIds: [], active: true }}
         accounts={[sampleAccount]}
+        paymentMethods={[samplePaymentMethod]}
         categories={[sampleCategory]}
         tags={[sampleTag]}
         formError="Valor obrigatório"
@@ -87,9 +91,16 @@ describe('FinanceRecurringDrawer', () => {
         onToggleTag={onToggleTag}
       />,
     );
+          await user.click(screen.getByLabelText('É uma assinatura?'));
+          await user.selectOptions(screen.getByLabelText('Método de pagamento'), samplePaymentMethod.id);
 
     await user.type(screen.getByLabelText('Título'), 'Assinatura');
     await user.click(screen.getByRole('button', { name: 'Casa' }));
+          expect(onChange).toHaveBeenCalledWith({ isSubscription: true });
+          expect(onChange).toHaveBeenCalledWith({
+            paymentMethodId: samplePaymentMethod.id,
+            accountId: sampleAccount.id,
+          });
 
     expect(onChange).toHaveBeenCalled();
     expect(onToggleTag).toHaveBeenCalledWith(sampleTag.id);

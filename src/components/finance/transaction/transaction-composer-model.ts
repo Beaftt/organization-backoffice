@@ -72,6 +72,8 @@ export const applyComposerIntent = (
     paymentMethodId: intent === 'credit' ? current.paymentMethodId : '',
     categoryId: intent === 'transfer' ? '' : current.categoryId,
     isRecurring: intent === 'credit' || intent === 'transfer' ? false : current.isRecurring,
+    isSubscription:
+      intent === 'credit' || intent === 'transfer' ? false : current.isSubscription,
     installments: intent === 'credit' ? current.installments || 1 : 1,
     isInstallmentValue: intent === 'credit' ? current.isInstallmentValue : false,
   };
