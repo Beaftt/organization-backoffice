@@ -1,14 +1,14 @@
 'use client';
 
 import { useLanguage } from '@/lib/i18n/language-context';
-import type { CalendarEvent } from '../types';
+import type { CalendarDisplayEvent } from '../types';
 
 interface DayViewProps {
   dateLabel: string;
-  events: CalendarEvent[];
+  events: CalendarDisplayEvent[];
   dateKey: string;
   onAddEvent: (dateKey: string) => void;
-  onSelectEvent: (event: CalendarEvent) => void;
+  onSelectEvent: (event: CalendarDisplayEvent) => void;
   formatTime: (v: string) => string;
 }
 
@@ -40,6 +40,11 @@ export function DayView({ dateLabel, events, dateKey, onAddEvent, onSelectEvent,
               <span className="text-xs text-[var(--foreground)]/40">
                 {event.allDay ? t.calendar.allDayLabel : formatTime(event.startAt)}
               </span>
+              {event.sourceLabel ? (
+                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--sidebar)]">
+                  {event.sourceLabel}
+                </span>
+              ) : null}
               <span className="text-sm font-semibold text-[var(--foreground)]">{event.title}</span>
             </button>
           ))

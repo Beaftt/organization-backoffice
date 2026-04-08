@@ -4,6 +4,7 @@ import { ApiError } from '@/lib/api/client';
 import {
   createFinanceRecurring,
   deleteFinanceRecurring,
+  toggleFinanceRecurring,
   updateFinanceRecurring,
   type FinanceRecurring,
 } from '@/lib/api/finance';
@@ -51,6 +52,8 @@ export function useFinanceSetupRecurring({
         nextDue: item.nextDue,
         endDate: item.endDate ?? '',
         accountId: item.accountId ?? '',
+        paymentMethodId: item.paymentMethodId ?? '',
+        isSubscription: item.isSubscription ?? false,
         categoryId: item.categoryId ?? '',
         tagIds: item.tagIds ?? [],
         active: item.active,
@@ -121,7 +124,9 @@ export function useFinanceSetupRecurring({
       interval: cadence.interval,
       nextDue: recurringForm.nextDue,
       endDate: resolvedEndDate || null,
+      isSubscription: recurringForm.isSubscription,
       accountId: recurringForm.accountId || null,
+      paymentMethodId: recurringForm.paymentMethodId || null,
       categoryId: recurringForm.categoryId || null,
       tagIds: recurringForm.tagIds,
       active: recurringForm.active,
@@ -183,6 +188,30 @@ export function useFinanceSetupRecurring({
     }
   }, [setRecurring]);
 
+  const toggleRecurringPaid = useCallback(async (
+    item: FinanceRecurring,
+    paid: boolean,
+    status?: 'PAID' | 'PENDING',
+  ) => {
+    setIsSaving(true);
+    try {
+      const updated = await toggleFinanceRecurring({
+        id: item.id,
+        paid,
+        status,
+      });
+      setRecurring((current) =>
+        current.map((rule) => (rule.id === updated.id ? updated : rule)),
+      );
+    } catch (err) {
+      window.alert(
+        err instanceof ApiError ? err.message : t.finance.saveError ?? 'Unable to save.',
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }, [setRecurring, t]);
+
   return {
     closeRecurringDrawer,
     editingRecurring,
@@ -195,5 +224,6 @@ export function useFinanceSetupRecurring({
     saveRecurring,
     setRecurringForm,
     toggleRecurringActive,
+    toggleRecurringPaid,
   };
 }

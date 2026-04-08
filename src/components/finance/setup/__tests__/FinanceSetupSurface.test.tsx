@@ -52,7 +52,7 @@ function createSetupState(overrides: Partial<ReturnType<typeof useFinanceSetupSt
     paymentMethodFormError: null,
     recurring: [sampleRecurring],
     recurringDrawerOpen: false,
-    recurringForm: { title: '', amount: '', group: 'EXPENSE', occurrences: '', endMode: 'ongoing', frequency: 'MONTHLY', interval: '1', nextDue: '2026-03-10', endDate: '', accountId: '', categoryId: '', tagIds: [], active: true },
+    recurringForm: { title: '', amount: '', group: 'EXPENSE', occurrences: '', endMode: 'ongoing', frequency: 'MONTHLY', interval: '1', nextDue: '2026-03-10', endDate: '', accountId: '', paymentMethodId: '', isSubscription: false, categoryId: '', tagIds: [], active: true },
     recurringFormError: null,
     recurringStatus: vi.fn(() => 'active'),
     removeAccount: vi.fn(),
@@ -73,13 +73,14 @@ function createSetupState(overrides: Partial<ReturnType<typeof useFinanceSetupSt
     tags: [sampleTag],
     taxonomyOverlay: { kind: null, editingCategory: null, editingTag: null, name: '', group: 'EXPENSE', error: null },
     toggleRecurringActive: vi.fn(),
+    toggleRecurringPaid: vi.fn(),
     ...overrides,
   } as ReturnType<typeof useFinanceSetupState>;
 }
 
 describe('FinanceSetupSurface', () => {
   it('renders the setup sections with loaded data', () => {
-    render(<FinanceSetupSurface monthLabel="março de 2026" setup={createSetupState()} />);
+    render(<FinanceSetupSurface monthLabel="março de 2026" monthState={{ year: 2026, month: 2 }} setup={createSetupState()} />);
 
     expect(screen.getByRole('heading', { name: 'Ajustes' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /contas, meios de pagamento e investimentos/i })).toBeInTheDocument();
@@ -88,7 +89,7 @@ describe('FinanceSetupSurface', () => {
   });
 
   it('shows loading placeholders when setup is loading', () => {
-    render(<FinanceSetupSurface monthLabel="março de 2026" setup={createSetupState({ isLoading: true })} />);
+    render(<FinanceSetupSurface monthLabel="março de 2026" monthState={{ year: 2026, month: 2 }} setup={createSetupState({ isLoading: true })} />);
 
     expect(screen.queryByRole('heading', { name: 'Ajustes' })).not.toBeInTheDocument();
   });
@@ -97,6 +98,7 @@ describe('FinanceSetupSurface', () => {
     render(
       <FinanceSetupSurface
         monthLabel="março de 2026"
+        monthState={{ year: 2026, month: 2 }}
         setup={createSetupState({ accounts: [], categories: [], creditMethods: [], expenseCategories: [], immediateMethods: [], incomeCategories: [], investMethods: [], paymentMethods: [], recurring: [], tags: [] })}
       />,
     );
@@ -111,6 +113,7 @@ describe('FinanceSetupSurface', () => {
     render(
       <FinanceSetupSurface
         monthLabel="março de 2026"
+        monthState={{ year: 2026, month: 2 }}
         setup={createSetupState({ accounts: [], openAccountDrawer })}
       />,
     );

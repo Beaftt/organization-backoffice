@@ -14,10 +14,21 @@ import {
   type CalendarShare,
 } from '@/lib/api/calendar';
 import { listDocuments, type DocumentSummary } from '@/lib/api/documents';
+import { listFinanceRecurring, type FinanceRecurring } from '@/lib/api/finance';
 import { getWorkspaceMemberships } from '@/lib/api/workspace-memberships';
 import { getWorkspaceId } from '@/lib/storage/workspace';
 import { useLanguage } from '@/lib/i18n/language-context';
-import type { CalendarEvent, EventFormValues, MemberOption, ViewMode } from './types';
+import {
+  buildFinanceSubscriptionDisplayEvents,
+  mergeCalendarDisplayEvents,
+} from './calendar-display-events';
+import type {
+  CalendarDisplayEvent,
+  CalendarEvent,
+  EventFormValues,
+  MemberOption,
+  ViewMode,
+} from './types';
 import { CalendarTopbar } from './topbar/CalendarTopbar';
 import { MonthView } from './views/MonthView';
 import { WeekView } from './views/WeekView';
@@ -86,10 +97,11 @@ export function CalendarPage({
   initialTag = '',
 }: CalendarPageProps) {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
 
   // ── Data state ──────────────────────────────────────────────
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [financeRecurring, setFinanceRecurring] = useState<FinanceRecurring[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [share, setShare] = useState<CalendarShare | null>(null);
@@ -105,8 +117,8 @@ export function CalendarPage({
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<CalendarEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarDisplayEvent | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CalendarDisplayEvent | null>(null);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
   // ── Async loading state ───────────────────────────────────────
@@ -233,6 +245,14 @@ export function CalendarPage({
     }
   }, [t]);
 
+  const loadFinanceRecurringItems = useCallback(async () => {
+    try {
+      setFinanceRecurring(await listFinanceRecurring());
+    } catch {
+      setFinanceRecurring([]);
+    }
+  }, []);
+
   const loadEvents = useCallback(async () => {
     const workspaceId = getWorkspaceId();
     if (!workspaceId) return;
@@ -279,6 +299,7 @@ export function CalendarPage({
   }, [t]);
 
   useEffect(() => { void loadMembers(); }, [loadMembers]);
+  useEffect(() => { void loadFinanceRecurringItems(); }, [loadFinanceRecurringItems]);
   useEffect(() => { if (fromDate && toDate) void loadEvents(); }, [fromDate, toDate, selectedOwners, loadEvents]);
   useEffect(() => { void loadShare(); }, [loadShare]);
   useEffect(() => { if (isDrawerOpen) void loadDocuments(); }, [isDrawerOpen, loadDocuments]);
@@ -315,14 +336,14 @@ export function CalendarPage({
     }
   }, []);
 
-  const expandRecurringEvents = useCallback((event: CalendarEvent, rangeStart: Date, rangeEnd: Date) => {
-    if (!event.recurrence) return [event];
+  const expandRecurringEvents = useCallback((event: CalendarDisplayEvent, rangeStart: Date, rangeEnd: Date) => {
+    if (event.source !== 'calendar' || !event.recurrence) return [event];
     const start = new Date(event.startAt);
     if (Number.isNaN(start.getTime())) return [event];
     const duration = event.endAt ? new Date(event.endAt).getTime() - start.getTime() : 0;
     const until = event.recurrence.until ? new Date(event.recurrence.until) : null;
     const limit = until && until < rangeEnd ? until : rangeEnd;
-    const results: CalendarEvent[] = [];
+    const results: CalendarDisplayEvent[] = [];
 
     for (let cursor = new Date(rangeStart); cursor <= limit; cursor.setDate(cursor.getDate() + 1)) {
       if (!matchesRecurrence(cursor, start, event.recurrence)) continue;
@@ -335,11 +356,29 @@ export function CalendarPage({
   }, [matchesRecurrence]);
 
   // ── Derived event lists ───────────────────────────────────────
+  const subscriptionEvents = useMemo(() => {
+    if (!fromDate || !toDate) {
+      return [] as CalendarDisplayEvent[];
+    }
+
+    return buildFinanceSubscriptionDisplayEvents(financeRecurring, fromDate, toDate, {
+      language,
+      badgeLabel:
+        t.calendar.subscriptionBadge ??
+        (language === 'pt' ? 'Assinatura' : 'Subscription'),
+      descriptionLabel:
+        t.calendar.subscriptionDescription ??
+        (language === 'pt' ? 'Assinatura do Financeiro' : 'Finance subscription'),
+    });
+  }, [financeRecurring, fromDate, language, t.calendar, toDate]);
+
   const filteredEvents = useMemo(() => {
     const filter = tagFilter.trim().toLowerCase();
-    if (!filter) return events;
-    return events.filter((e) => (e.tags ?? []).some((tag) => tag.toLowerCase().includes(filter)));
-  }, [events, tagFilter]);
+    const mergedEvents = mergeCalendarDisplayEvents(events, subscriptionEvents);
+
+    if (!filter) return mergedEvents;
+    return mergedEvents.filter((e) => (e.tags ?? []).some((tag) => tag.toLowerCase().includes(filter)));
+  }, [events, subscriptionEvents, tagFilter]);
 
   const expandedEvents = useMemo(() => {
     if (!fromDate || !toDate) return filteredEvents;
@@ -349,7 +388,7 @@ export function CalendarPage({
   }, [filteredEvents, fromDate, toDate, expandRecurringEvents]);
 
   const eventsByDay = useMemo(() =>
-    expandedEvents.reduce<Record<string, CalendarEvent[]>>((acc, event) => {
+    expandedEvents.reduce<Record<string, CalendarDisplayEvent[]>>((acc, event) => {
       const key = toLocalDateKey(event.startAt);
       if (!key) return acc;
       (acc[key] ??= []).push(event);
@@ -459,7 +498,11 @@ export function CalendarPage({
     setIsDrawerOpen(true);
   };
 
-  const handleEditEvent = (event: CalendarEvent) => {
+  const handleEditEvent = (event: CalendarDisplayEvent) => {
+    if (event.readOnly) {
+      return;
+    }
+
     setFormError(null);
     setEditingEventId(event.id);
     const isSemi = event.recurrence?.frequency === 'MONTHLY' && event.recurrence.interval === 6;
@@ -555,7 +598,7 @@ export function CalendarPage({
 
   // ── Delete handler ────────────────────────────────────────────
   const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget || deleteTarget.readOnly) return;
     setIsDeleting(true);
     try {
       await deleteCalendarEvent({ id: deleteTarget.id });

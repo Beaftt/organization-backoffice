@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useLanguage } from '@/lib/i18n/language-context';
+import type { FinanceMonthState } from '@/lib/navigation/finance-route-state';
 
 import { FinanceInvestmentOverlay } from './FinanceInvestmentOverlay';
 import { FinanceRecurringDrawer } from './FinanceRecurringDrawer';
@@ -21,10 +22,11 @@ import { useFinanceSetupState } from './useFinanceSetupState';
 
 type FinanceSetupSurfaceProps = {
   monthLabel: string;
+  monthState: FinanceMonthState;
   setup: ReturnType<typeof useFinanceSetupState>;
 };
 
-export function FinanceSetupSurface({ monthLabel, setup }: FinanceSetupSurfaceProps) {
+export function FinanceSetupSurface({ monthLabel, monthState, setup }: FinanceSetupSurfaceProps) {
   const { language, t } = useLanguage();
   const isPt = language === 'pt';
   const navItems = [
@@ -94,7 +96,7 @@ export function FinanceSetupSurface({ monthLabel, setup }: FinanceSetupSurfacePr
       </Card>
 
       <Card id="setup-automation" className="p-6">
-        <FinanceSetupRecurringSection accounts={setup.accounts} categories={setup.categories} recurring={setup.recurring} recurringStatus={setup.recurringStatus} onAdd={() => setup.openRecurringDrawer()} onDelete={setup.removeRecurring} onEdit={setup.openRecurringDrawer} onToggleActive={setup.toggleRecurringActive} />
+        <FinanceSetupRecurringSection accounts={setup.accounts} paymentMethods={setup.paymentMethods} categories={setup.categories} recurring={setup.recurring} recurringStatus={setup.recurringStatus} selectedYear={monthState.year} selectedMonth={monthState.month} isSaving={setup.isSaving} onAdd={() => setup.openRecurringDrawer()} onDelete={setup.removeRecurring} onEdit={setup.openRecurringDrawer} onToggleActive={setup.toggleRecurringActive} onTogglePayment={setup.toggleRecurringPaid} />
       </Card>
 
       <Card id="setup-taxonomy" className="p-6">
@@ -105,7 +107,7 @@ export function FinanceSetupSurface({ monthLabel, setup }: FinanceSetupSurfacePr
       <PaymentMethodDrawer open={setup.paymentMethodDrawerOpen} editing={setup.editingPaymentMethod} form={setup.paymentMethodForm} accounts={setup.accounts} formError={setup.paymentMethodFormError} isSaving={setup.isSaving} presentation="drawer" onClose={setup.closePaymentMethodDrawer} onChange={(patch) => setup.setPaymentMethodForm((current) => ({ ...current, ...patch }))} onSave={setup.savePaymentMethod} onDelete={setup.removePaymentMethod} formatCurrencyInput={formatCurrencyDigits} />
       <TypeDrawer open={setup.taxonomyOverlay.kind === 'category'} title={setup.taxonomyOverlay.editingCategory ? t.finance.editAction ?? 'Edit category' : t.finance.newType ?? 'New category'} name={setup.taxonomyOverlay.name} group={setup.taxonomyOverlay.group} formError={setup.taxonomyOverlay.error} isSaving={setup.isSaving} onClose={setup.closeTaxonomyOverlay} onNameChange={(value) => setup.setTaxonomyOverlay((current) => ({ ...current, name: value }))} onGroupChange={(value) => setup.setTaxonomyOverlay((current) => ({ ...current, group: value }))} onSave={setup.saveTaxonomyOverlay} />
       <TagDrawer open={setup.taxonomyOverlay.kind === 'tag'} title={setup.taxonomyOverlay.editingTag ? t.finance.editAction ?? 'Edit tag' : t.finance.addTagAction ?? 'New tag'} name={setup.taxonomyOverlay.name} formError={setup.taxonomyOverlay.error} isSaving={setup.isSaving} onClose={setup.closeTaxonomyOverlay} onNameChange={(value) => setup.setTaxonomyOverlay((current) => ({ ...current, name: value }))} onSave={setup.saveTaxonomyOverlay} />
-      <FinanceRecurringDrawer open={setup.recurringDrawerOpen} editing={setup.editingRecurring} form={setup.recurringForm} accounts={setup.accounts} categories={setup.categories} tags={setup.tags} formError={setup.recurringFormError} isSaving={setup.isSaving} onClose={setup.closeRecurringDrawer} onChange={(patch) => setup.setRecurringForm((current) => ({ ...current, ...patch }))} onDelete={setup.removeRecurring} onSave={setup.saveRecurring} onToggleTag={(tagId) => setup.setRecurringForm((current) => ({ ...current, tagIds: current.tagIds.includes(tagId) ? current.tagIds.filter((item) => item !== tagId) : [...current.tagIds, tagId] }))} />
+      <FinanceRecurringDrawer open={setup.recurringDrawerOpen} editing={setup.editingRecurring} form={setup.recurringForm} accounts={setup.accounts} paymentMethods={setup.paymentMethods} categories={setup.categories} tags={setup.tags} formError={setup.recurringFormError} isSaving={setup.isSaving} onClose={setup.closeRecurringDrawer} onChange={(patch) => setup.setRecurringForm((current) => ({ ...current, ...patch }))} onDelete={setup.removeRecurring} onSave={setup.saveRecurring} onToggleTag={(tagId) => setup.setRecurringForm((current) => ({ ...current, tagIds: current.tagIds.includes(tagId) ? current.tagIds.filter((item) => item !== tagId) : [...current.tagIds, tagId] }))} />
       <FinanceInvestmentOverlay open={Boolean(setup.investmentAction.mode)} accounts={setup.accounts} investments={setup.investMethods} isSaving={setup.isSaving} state={setup.investmentAction} onBack={() => setup.setInvestmentAction((current) => ({ ...current, error: null, step: 1 }))} onChange={(patch) => setup.setInvestmentAction((current) => ({ ...current, ...patch }))} onClose={setup.closeInvestmentAction} onContinue={setup.continueInvestmentAction} onSubmit={setup.submitInvestmentAction} />
     </div>
   );

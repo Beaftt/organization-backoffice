@@ -2,13 +2,13 @@
 
 import { createPortal } from 'react-dom';
 import { useLanguage } from '@/lib/i18n/language-context';
-import type { CalendarEvent } from '../types';
+import type { CalendarDisplayEvent } from '../types';
 
 interface EventDetailModalProps {
-  event: CalendarEvent | null;
+  event: CalendarDisplayEvent | null;
   onClose: () => void;
-  onEdit: (event: CalendarEvent) => void;
-  onRequestDelete: (event: CalendarEvent) => void;
+  onEdit: (event: CalendarDisplayEvent) => void;
+  onRequestDelete: (event: CalendarDisplayEvent) => void;
   formatDateTime: (v: string) => string;
   formatTime: (v: string) => string;
 }
@@ -25,6 +25,8 @@ export function EventDetailModal({
 
   if (!event) return null;
 
+  const isReadOnly = event.readOnly === true;
+
   return createPortal(
     <div
       className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -36,6 +38,11 @@ export function EventDetailModal({
         {/* Header */}
         <div className="flex items-start justify-between border-b border-[var(--border)] px-5 py-4">
           <div className="min-w-0 flex-1 pr-4">
+            {event.sourceLabel ? (
+              <span className="inline-flex rounded-full border border-[var(--sidebar)]/20 bg-[var(--sidebar)]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--sidebar)]">
+                {event.sourceLabel}
+              </span>
+            ) : null}
             <h2 className="truncate text-base font-bold text-[var(--foreground)]">{event.title}</h2>
             <p className="mt-0.5 text-xs text-[var(--foreground)]/50">
               {event.allDay
@@ -54,6 +61,12 @@ export function EventDetailModal({
 
         {/* Body */}
         <div className="space-y-3 px-5 py-4">
+          {isReadOnly ? (
+            <p className="rounded-2xl border border-[var(--sidebar)]/20 bg-[var(--sidebar)]/8 px-3 py-2 text-xs text-[var(--foreground)]/70">
+              {t.calendar.subscriptionManagedInFinance ?? 'Manage this finance subscription in Finance > Setup.'}
+            </p>
+          ) : null}
+
           {event.description && (
             <p className="text-sm leading-relaxed text-[var(--foreground)]/70">{event.description}</p>
           )}
@@ -90,24 +103,28 @@ export function EventDetailModal({
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-[var(--border)] px-5 py-4">
-          <button
-            type="button"
-            onClick={() => onRequestDelete(event)}
-            className="rounded-xl border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
-          >
-            {t.calendar.deleteAction}
-          </button>
-          <div className="flex gap-2">
+          {isReadOnly ? <span /> : (
             <button
               type="button"
-              onClick={() => {
-                onClose();
-                onEdit(event);
-              }}
-              className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground)]/70 transition hover:bg-[var(--surface-muted)]"
+              onClick={() => onRequestDelete(event)}
+              className="rounded-xl border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
             >
-              {t.calendar.editAction}
+              {t.calendar.deleteAction}
             </button>
+          )}
+          <div className="flex gap-2">
+            {!isReadOnly ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEdit(event);
+                }}
+                className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs font-semibold text-[var(--foreground)]/70 transition hover:bg-[var(--surface-muted)]"
+              >
+                {t.calendar.editAction}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onClose}

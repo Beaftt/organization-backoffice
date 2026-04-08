@@ -41,6 +41,8 @@ export type RecurringFormState = {
   nextDue: string;
   endDate: string;
   accountId: string;
+  paymentMethodId: string;
+  isSubscription: boolean;
   categoryId: string;
   tagIds: string[];
   active: boolean;
@@ -106,6 +108,8 @@ export const emptyRecurringForm: RecurringFormState = {
   nextDue: '',
   endDate: '',
   accountId: '',
+  paymentMethodId: '',
+  isSubscription: false,
   categoryId: '',
   tagIds: [],
   active: true,

@@ -25,6 +25,7 @@ type UseFinanceTransactionComposerMutationsParams = {
   currentUserId: string;
   editingTransaction: FinanceTransaction | null;
   form: FinanceTransactionComposerForm;
+  linkedRecurring: FinanceRecurring | null;
   linkedRecurringId: string | null;
   onClose: () => void;
   onComposerStateChange: (next: FinanceComposerRouteState | null) => void;
@@ -44,6 +45,7 @@ export function useFinanceTransactionComposerMutations({
   currentUserId,
   editingTransaction,
   form,
+  linkedRecurring,
   linkedRecurringId,
   onClose,
   onComposerStateChange,
@@ -63,7 +65,13 @@ export function useFinanceTransactionComposerMutations({
   const save = async (mode: 'close' | 'add-more') => {
     setIsSaving(true);
     try {
-      await saveFinanceComposerTransaction({ editingTransaction, form, linkedRecurringId, tags });
+      await saveFinanceComposerTransaction({
+        editingTransaction,
+        form,
+        linkedRecurring,
+        linkedRecurringId,
+        tags,
+      });
       await reloadTransactions();
       setRecurring(await listFinanceRecurring());
       if (mode === 'add-more' && composerState?.mode === 'create') {

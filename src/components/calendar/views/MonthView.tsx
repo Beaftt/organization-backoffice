@@ -3,14 +3,14 @@
 import { useMemo } from 'react';
 import { useLanguage } from '@/lib/i18n/language-context';
 import { DayCell } from './DayCell';
-import type { CalendarCellDate, CalendarEvent } from '../types';
+import type { CalendarCellDate, CalendarDisplayEvent } from '../types';
 
 interface MonthViewProps {
   monthDate: Date;
   todayKey: string;
-  eventsByDay: Record<string, CalendarEvent[]>;
+  eventsByDay: Record<string, CalendarDisplayEvent[]>;
   onAddEvent: (dateKey: string) => void;
-  onSelectEvent: (event: CalendarEvent) => void;
+  onSelectEvent: (event: CalendarDisplayEvent) => void;
 }
 
 function toKey(date: Date): string {

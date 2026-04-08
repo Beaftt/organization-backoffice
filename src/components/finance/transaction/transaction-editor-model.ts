@@ -32,6 +32,7 @@ export type TransactionEditorForm = {
   participantIds: string[];
   description: string;
   isRecurring: boolean;
+  isSubscription: boolean;
   addToCalendar: boolean;
   programmedChargeCount: string;
   programmedChargeEndMode: ProgrammedChargeEndMode;
@@ -89,6 +90,7 @@ export const createTransactionEditorForm = (
   participantIds: currentUserId ? [currentUserId] : [],
   description: '',
   isRecurring: false,
+  isSubscription: false,
   addToCalendar: false,
   programmedChargeCount: '',
   programmedChargeEndMode: 'ongoing',
@@ -225,6 +227,7 @@ export const buildTransactionEditorForm = (input: {
       transaction.participantIds ?? (currentUserId ? [currentUserId] : []),
     description: transaction.description ?? '',
     isRecurring: Boolean(recurring ?? transaction.recurringId),
+    isSubscription: recurring?.isSubscription ?? false,
     addToCalendar: false,
     programmedChargeCount:
       transaction.installmentTotal && transaction.installmentTotal > 1
@@ -246,7 +249,22 @@ export const buildTransactionEditorForm = (input: {
   } satisfies TransactionEditorForm;
 };
 
+export const resolveRecurringPaymentMethodId = (
+  form: Pick<TransactionEditorForm, 'route' | 'immediateBehavior' | 'paymentMethodId'>,
+  linkedRecurring: FinanceRecurring | null,
+) => {
+  if (linkedRecurring?.paymentMethodId) {
+    return linkedRecurring.paymentMethodId;
+  }
+
+  if (form.route === 'IMMEDIATE' && form.immediateBehavior !== 'BALANCE') {
+    return form.paymentMethodId || null;
+  }
+
+  return null;
+};
+
 export const getDefaultExpandedSections = (editing: boolean) =>
   editing
-    ? (['core', 'details'] as TransactionEditorSection[])
+    ? (['core', 'schedule', 'details'] as TransactionEditorSection[])
     : (['core', 'route', 'schedule'] as TransactionEditorSection[]);

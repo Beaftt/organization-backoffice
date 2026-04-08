@@ -88,6 +88,13 @@ export function useFinanceTransactionComposer({
     [composerState, transactions],
   );
   const linkedRecurringId = editingTransaction?.recurringId ?? null;
+  const linkedRecurring = useMemo(
+    () =>
+      linkedRecurringId
+        ? recurring.find((item) => item.id === linkedRecurringId) ?? null
+        : null,
+    [linkedRecurringId, recurring],
+  );
   const composerSourceKey = getComposerSourceKey(composerState);
 
   const composerSeed = useMemo<ComposerDraftState>(() => {
@@ -179,6 +186,7 @@ export function useFinanceTransactionComposer({
     currentUserId,
     editingTransaction,
     form,
+    linkedRecurring,
     linkedRecurringId,
     onClose,
     onComposerStateChange,

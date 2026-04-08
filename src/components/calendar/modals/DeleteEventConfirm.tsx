@@ -2,10 +2,10 @@
 
 import { createPortal } from 'react-dom';
 import { useLanguage } from '@/lib/i18n/language-context';
-import type { CalendarEvent } from '../types';
+import type { CalendarDisplayEvent } from '../types';
 
 interface DeleteEventConfirmProps {
-  event: CalendarEvent | null;
+  event: CalendarDisplayEvent | null;
   isDeleting: boolean;
   onConfirm: () => void;
   onClose: () => void;
