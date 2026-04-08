@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { FinanceRecurring, FinanceTransaction } from '@/lib/api/finance';
-import type { FinanceTransaction } from '@/lib/api/finance';
 import * as financeApi from '@/lib/api/finance';
 
 import { createFinanceTransactionComposerForm } from '../transaction-composer-model';

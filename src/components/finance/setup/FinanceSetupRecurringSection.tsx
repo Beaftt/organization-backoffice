@@ -9,7 +9,10 @@ import {
 } from '@/lib/finance/finance-recurring-month-state';
 import { buildRecurringProjectionSummary } from '@/lib/finance/finance-recurring-insights';
 import { useLanguage } from '@/lib/i18n/language-context';
-import { formatCurrencyForLanguage } from '@/lib/i18n/locale';
+import {
+  formatCurrencyForLanguage,
+  getLocaleForLanguage,
+} from '@/lib/i18n/locale';
 import type {
   FinanceAccount,
   FinanceCategory,
@@ -45,8 +48,8 @@ const statusClassName: Record<RecurringStatus, string> = {
   'needs-review': 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300',
 };
 
-function formatDateLabel(value: string) {
-  return new Intl.DateTimeFormat('pt-BR', {
+function formatDateLabel(value: string, language: 'pt' | 'en') {
+  return new Intl.DateTimeFormat(getLocaleForLanguage(language), {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -87,15 +90,13 @@ export function FinanceSetupRecurringSection({
   );
   const [statusChoiceTargetId, setStatusChoiceTargetId] = useState<string | null>(null);
   const summary = useMemo(() => {
-    const today = new Date();
-
     return buildRecurringProjectionSummary(
       recurring,
       [],
-      today.getFullYear(),
-      today.getMonth(),
+      selectedYear,
+      selectedMonth,
     );
-  }, [recurring]);
+  }, [recurring, selectedMonth, selectedYear]);
   const summaryCurrency = recurring.find((item) => item.active)?.currency ?? 'BRL';
   const cadenceLabel = (item: FinanceRecurring) => {
     if (item.frequency === 'MONTHLY' && item.interval === 6) {
@@ -119,7 +120,7 @@ export function FinanceSetupRecurringSection({
   };
   const recurrenceLabel = (item: FinanceRecurring) => {
     const ending = item.endDate
-      ? `${language === 'pt' ? ' · até ' : ' · until '}${formatDateLabel(item.endDate)}`
+      ? `${language === 'pt' ? ' · até ' : ' · until '}${formatDateLabel(item.endDate, language)}`
       : `${language === 'pt' ? ' · sem fim' : ' · no end date'}`;
     return `${cadenceLabel(item)}${ending}`;
   };
@@ -281,7 +282,7 @@ export function FinanceSetupRecurringSection({
                       </span>
                     </div>
                     <p className="text-xs text-[var(--foreground)]/55">
-                      {recurrenceLabel(item)} · {groupLabel(item)} · {formatDateLabel(item.nextDue)}
+                      {recurrenceLabel(item)} · {groupLabel(item)} · {formatDateLabel(item.nextDue, language)}
                     </p>
                     {paymentMethodLabel ? (
                       <p className="text-xs text-[var(--foreground)]/45">{paymentMethodLabel}</p>
