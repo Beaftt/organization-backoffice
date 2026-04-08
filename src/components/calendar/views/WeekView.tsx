@@ -2,14 +2,14 @@
 
 import { useLanguage } from '@/lib/i18n/language-context';
 import { EventChip } from './EventChip';
-import type { CalendarEvent } from '../types';
+import type { CalendarDisplayEvent } from '../types';
 
 interface WeekViewProps {
   weekDays: Array<{ key: string; label: string; day: number }>;
   todayKey: string;
-  eventsByDay: Record<string, CalendarEvent[]>;
+  eventsByDay: Record<string, CalendarDisplayEvent[]>;
   onAddEvent: (dateKey: string) => void;
-  onSelectEvent: (event: CalendarEvent) => void;
+  onSelectEvent: (event: CalendarDisplayEvent) => void;
 }
 
 export function WeekView({ weekDays, todayKey, eventsByDay, onAddEvent, onSelectEvent }: WeekViewProps) {

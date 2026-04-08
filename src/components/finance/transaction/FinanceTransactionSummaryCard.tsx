@@ -126,6 +126,14 @@ export function FinanceTransactionSummaryCard({
           <span>{isPt ? 'Programado' : 'Scheduled'}</span>
           <strong className="text-[var(--foreground)]">{programmedLabel}</strong>
         </div>
+        {form.isRecurring && form.isSubscription ? (
+          <div className="flex items-center justify-between gap-4">
+            <span>{isPt ? 'Tipo recorrente' : 'Recurring type'}</span>
+            <strong className="text-[var(--foreground)]">
+              {isPt ? 'Assinatura' : 'Subscription'}
+            </strong>
+          </div>
+        ) : null}
       </div>
     </aside>
   );

@@ -2,14 +2,14 @@
 
 import { useLanguage } from '@/lib/i18n/language-context';
 import { EventChip } from './EventChip';
-import type { CalendarCellDate, CalendarEvent } from '../types';
+import type { CalendarCellDate, CalendarDisplayEvent } from '../types';
 
 interface DayCellProps {
   cellDate: CalendarCellDate;
-  events: CalendarEvent[];
+  events: CalendarDisplayEvent[];
   isToday: boolean;
   onAddEvent: (dateKey: string) => void;
-  onSelectEvent: (event: CalendarEvent) => void;
+  onSelectEvent: (event: CalendarDisplayEvent) => void;
 }
 
 export function DayCell({ cellDate, events, isToday, onAddEvent, onSelectEvent }: DayCellProps) {

@@ -22,6 +22,7 @@ import {
   getDefaultExpandedSections,
   getImmediateBehaviorOptions,
   parseCurrencyInput,
+  resolveRecurringPaymentMethodId,
   type TransactionEditorForm,
   type TransactionEditorSection,
   type TransactionImmediateBehaviorKind,
@@ -147,6 +148,7 @@ export function useFinanceTransactionsWorkspace({
             ...current,
             route,
             isRecurring: false,
+            isSubscription: false,
             immediateBehavior: 'BALANCE',
             paymentMethodId: selectedMethod?.type === 'CREDIT' ? current.paymentMethodId : '',
           };
@@ -214,6 +216,7 @@ export function useFinanceTransactionsWorkspace({
         paymentMethodId,
         accountId: selectedMethod?.accountId ?? current.accountId,
         isRecurring: false,
+        isSubscription: false,
       }));
     },
     [paymentMethods],
@@ -333,6 +336,9 @@ export function useFinanceTransactionsWorkspace({
       const resolvedInterval = isSemiannual ? 6 : Number(form.recurrenceInterval) || 1;
       const resolvedEndDate = form.recurrenceEndDate || null;
       const canPersistRecurring = form.isRecurring && form.route !== 'CREDIT';
+      const linkedRecurring = linkedRecurringId
+        ? recurring.find((item) => item.id === linkedRecurringId) ?? null
+        : null;
 
       if (editingTransaction) {
         let nextRecurringId = linkedRecurringId;
@@ -349,7 +355,9 @@ export function useFinanceTransactionsWorkspace({
               interval: resolvedInterval,
               nextDue,
               endDate: resolvedEndDate,
+              isSubscription: form.isSubscription,
               accountId: payload.accountId,
+              paymentMethodId: resolveRecurringPaymentMethodId(form, linkedRecurring),
               categoryId: payload.categoryId,
               tagIds: payload.tagIds,
             });
@@ -363,7 +371,9 @@ export function useFinanceTransactionsWorkspace({
               interval: resolvedInterval,
               nextDue,
               endDate: resolvedEndDate,
+              isSubscription: form.isSubscription,
               accountId: payload.accountId,
+              paymentMethodId: resolveRecurringPaymentMethodId(form, linkedRecurring),
               categoryId: payload.categoryId,
               tagIds: payload.tagIds,
             });
@@ -400,7 +410,9 @@ export function useFinanceTransactionsWorkspace({
             interval: resolvedInterval,
             nextDue,
             endDate: resolvedEndDate,
+            isSubscription: form.isSubscription,
             accountId: payload.accountId,
+            paymentMethodId: resolveRecurringPaymentMethodId(form, linkedRecurring),
             categoryId: payload.categoryId,
             tagIds: payload.tagIds,
           });
@@ -448,6 +460,7 @@ export function useFinanceTransactionsWorkspace({
     linkedRecurringId,
     refreshRecurring,
     reloadTransactions,
+    recurring,
     t.finance.amountRequired,
     t.finance.dateRequired,
     t.finance.accountRequired,

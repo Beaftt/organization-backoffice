@@ -113,7 +113,13 @@ export function FinanceTransactionOptionalStep({
             <input
               type="checkbox"
               checked={form.isRecurring}
-              onChange={(event) => onFieldChange('isRecurring', event.target.checked)}
+              onChange={(event) => {
+                onFieldChange('isRecurring', event.target.checked);
+                if (!event.target.checked) {
+                  onFieldChange('isSubscription', false);
+                  onFieldChange('addToCalendar', false);
+                }
+              }}
               className="h-4 w-4 rounded accent-[var(--sidebar)]"
             />
             {isPt ? 'Transformar em cobrança programada' : 'Turn into a scheduled charge'}
@@ -121,6 +127,24 @@ export function FinanceTransactionOptionalStep({
 
           {form.isRecurring ? (
             <>
+              <label className="flex items-start gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)]/72">
+                <input
+                  aria-label={t.finance.subscriptionToggleLabel ?? (isPt ? 'É uma assinatura?' : 'Is this a subscription?')}
+                  type="checkbox"
+                  checked={form.isSubscription}
+                  onChange={(event) => onFieldChange('isSubscription', event.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded accent-[var(--sidebar)]"
+                />
+                <span className="grid gap-1">
+                  <span className="font-medium text-[var(--foreground)]/90">
+                    {t.finance.subscriptionToggleLabel ?? (isPt ? 'É uma assinatura?' : 'Is this a subscription?')}
+                  </span>
+                  <span className="text-xs text-[var(--foreground)]/58">
+                    {t.finance.subscriptionToggleHint ?? (isPt ? 'Use isso para destacar serviços e plataformas recorrentes.' : 'Use this to highlight recurring services and platforms.')}
+                  </span>
+                </span>
+              </label>
+
               <p className="text-sm leading-6 text-[var(--foreground)]/62">
                 {isPt
                   ? 'Sem fim ela continua ativa. Com data ou quantidade definida, ela passa a ter término.'
